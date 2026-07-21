@@ -1,0 +1,29 @@
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-jakarta), -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #0D0D0D;
+}
+button { font-family: inherit; }
+
+/* Shared interaction polish (ported from the approved demo) */
+.fl-app * { -webkit-tap-highlight-color: transparent; scrollbar-width: none; }
+.fl-app ::-webkit-scrollbar { display: none; }
+.fl-app button,
+.fl-app [style*="cursor: pointer"],
+.fl-app [style*="cursor:pointer"] {
+  transition: transform .14s ease, opacity .14s ease, box-shadow .14s ease,
+              background-color .14s ease, border-color .14s ease, color .14s ease;
+}
+.fl-app button:active,
+.fl-app [style*="cursor: pointer"]:active,
+.fl-app [style*="cursor:pointer"]:active { transform: scale(.97); }
+.fl-app input:focus:not([style*="transparent"]),
+.fl-app textarea:focus,
+.fl-app select:focus {
+  border-color: #1F2EAD !important;
+  box-shadow: 0 0 0 3px rgba(31, 46, 173, .12);
+}
+@keyframes pulse { 0%, 100% { opacity: .3 } 50% { opacity: 1 } }
