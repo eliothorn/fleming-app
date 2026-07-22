@@ -21,6 +21,98 @@ export async function GET(request) {
     return NextResponse.json({ email: testEmail, match: await matchByEmail(testEmail) });
   }
 
+  // Will a real resident actually see their own orders? A task's residentName comes
+  // from RequestedByUserEntity; a matched resident's name comes from the tenant
+  // record. If those don't agree, every resident logs in to an empty app.
+  // /diag?residentmatch=1
+  if (params.get("residentmatch")) {
+    const { buildium } = await import("@/lib/buildium");
+    const orders = await buildium().listOrders();
+    const tenants = [];
+    for (let i = 0; i < 25; i++) {
+      const page = await buildiumRequest("/leases/tenants", { query: { limit: 100, offset: i * 100 } });
+      if (!Array.isArray(page) || !page.length) break;
+      tenants.push(...page);
+      if (page.length < 100) break;
+    }
+    const tenantNames = new Set(
+      tenants.map((t) => [t.FirstName, t.LastName].filter(Boolean).join(" ").trim().toLowerCase()).filter(Boolean)
+    );
+    const named = orders.filter((o) => o.residentName);
+    const matched = named.filter((o) => tenantNames.has(String(o.residentName).trim().toLowerCase()));
+    // Is there a stable requestor ID we could scope on instead of a name string?
+    const rawTasks = [];
+    for (let i = 0; i < 5; i++) {
+      const page = await buildiumRequest("/tasks", { query: { limit: 100, offset: i * 100 } });
+      if (!Array.isArray(page) || !page.length) break;
+      rawTasks.push(...page);
+      if (page.length < 100) break;
+    }
+    const residentReqs = rawTasks.filter((t) => String(t.TaskType) === "ResidentRequest");
+    const tenantIds = new Set(tenants.map((t) => t.Id));
+    const withReqId = residentReqs.filter((t) => t.RequestedByUserEntity?.Id != null);
+    return NextResponse.json({
+      residentRequestTasks: residentReqs.length,
+      withRequestorId: withReqId.length,
+      requestorIdIsAKnownTenantId: withReqId.filter((t) => tenantIds.has(t.RequestedByUserEntity.Id)).length,
+      requestorTypes: [...new Set(residentReqs.map((t) => t.RequestedByUserEntity?.Type))],
+      totalOrders: orders.length,
+      ordersWithResidentName: named.length,
+      ordersWhoseResidentIsAKnownTenant: matched.length,
+      tenantsIndexed: tenantNames.size,
+      unmatchedSample: named.filter((o) => !tenantNames.has(String(o.residentName).trim().toLowerCase())).slice(0, 8).map((o) => o.residentName),
+      matchedSample: matched.slice(0, 8).map((o) => o.residentName),
+    });
+  }
+
+  // Simulate a real resident's scoped order list without creating any account:
+  // match a real tenant email -> identity, then apply the same filter bootstrap uses.
+  // /diag?residentsim=1
+  if (params.get("residentsim")) {
+    const { buildium } = await import("@/lib/buildium");
+    const orders = await buildium().listOrders();
+    const tenants = [];
+    for (let i = 0; i < 25; i++) {
+      const page = await buildiumRequest("/leases/tenants", { query: { limit: 100, offset: i * 100 } });
+      if (!Array.isArray(page) || !page.length) break;
+      tenants.push(...page);
+      if (page.length < 100) break;
+    }
+    const tenantsById = new Map(tenants.map((t) => [t.Id, t]));
+    const byResident = new Map();
+    for (const o of orders) if (o.residentId != null) byResident.set(o.residentId, (byResident.get(o.residentId) || 0) + 1);
+    const known = [...byResident.entries()].filter(([id]) => tenantsById.has(id));
+    const withEmail = known.filter(([id]) => tenantsById.get(id).Email);
+
+    // End-to-end: take one such tenant, run the real matcher, apply bootstrap's filter.
+    let sim = null;
+    if (withEmail.length) {
+      const [tid, expected] = withEmail[0];
+      const email = tenantsById.get(tid).Email;
+      const m = await matchByEmail(email);
+      const myId = m?.entity?.tenantId;
+      const myName = m?.entity?.name;
+      const visible = orders.filter((o) =>
+        myId != null && o.residentId != null ? o.residentId === myId : Boolean(myName) && o.residentName === myName
+      );
+      sim = {
+        matchedRole: m?.role,
+        matchedUnit: m?.entity?.unit,
+        matchedAddress: m?.entity?.address,
+        tenantIdOnIdentity: myId ?? null,
+        ordersExpected: expected,
+        ordersVisibleToThem: visible.length,
+        works: visible.length === expected && expected > 0,
+      };
+    }
+    return NextResponse.json({
+      distinctResidentsOnOrders: byResident.size,
+      ofThoseKnownTenants: known.length,
+      ofThoseWithEmailSoCouldSignUp: withEmail.length,
+      simulation: sim,
+    });
+  }
+
   // Distribution of task types/categories/statuses, to decide what counts as a
   // real maintenance work order: /diag?breakdown=1
   if (params.get("breakdown")) {
