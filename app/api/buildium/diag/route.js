@@ -15,9 +15,34 @@ export async function GET(request) {
   }
 
   // Test the email→Buildium matcher without creating an account: /diag?email=...
-  const testEmail = new URL(request.url).searchParams.get("email");
+  const params = new URL(request.url).searchParams;
+  const testEmail = params.get("email");
   if (testEmail) {
     return NextResponse.json({ email: testEmail, match: await matchByEmail(testEmail) });
+  }
+
+  // Distribution of task types/categories/statuses, to decide what counts as a
+  // real maintenance work order: /diag?breakdown=1
+  if (params.get("breakdown")) {
+    const tally = (arr, key) => arr.reduce((m, x) => { const k = key(x) ?? "(none)"; m[k] = (m[k] || 0) + 1; return m; }, {});
+    const all = [];
+    for (let i = 0; i < 5; i++) {
+      const page = await buildiumRequest("/tasks", { query: { limit: 100, offset: i * 100 } });
+      if (!Array.isArray(page) || !page.length) break;
+      all.push(...page);
+      if (page.length < 100) break;
+    }
+    const wo = all.find((t) => String(t.TaskType) === "ResidentRequest");
+    return NextResponse.json({
+      total: all.length,
+      byTaskType: tally(all, (t) => t.TaskType),
+      byCategory: tally(all, (t) => t.Category?.Name),
+      byStatus: tally(all, (t) => t.TaskStatus),
+      byPriority: tally(all, (t) => t.Priority),
+      // How do real work orders reference their property/unit?
+      propertyShapes: tally(all.filter((t) => String(t.TaskType) === "ResidentRequest"), (t) => (t.Property == null ? "Property:null" : typeof t.Property)),
+      workOrderSample: wo && { Id: wo.Id, TaskType: wo.TaskType, Property: wo.Property, UnitId: wo.UnitId, UnitNumber: wo.UnitNumber, Title: wo.Title },
+    });
   }
   if (!isBuildiumConfigured()) {
     return NextResponse.json({
