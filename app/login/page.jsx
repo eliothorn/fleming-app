@@ -73,7 +73,9 @@ export default function LoginPage() {
             {busy ? "Please wait…" : mode === "login" ? "Log in" : "Create account"}
           </button>
 
-          {(
+          {/* Test-account shortcuts are for demo/dev only — never advertise seeded
+              credentials on a login page that is serving real resident accounts. */}
+          {!liveMode && (
             <div style={{ marginTop: 20, padding: "14px 14px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 12 }}>
               <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#B45309", marginBottom: 8 }}>Test accounts · tap to fill</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>

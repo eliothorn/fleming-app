@@ -1,5 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, createContext, useContext } from "react";
+
+// Live Buildium data that deep children need without threading props through
+// every screen: the real vendor roster (100+, vs the 5-company demo list) and
+// whether writes/notifications actually reach anything yet.
+const LiveCtx = createContext(null);
+const useLive = () => useContext(LiveCtx) || {};
 
 const C = {
   primary:"#1F2EAD", primaryLight:"#EDEFFC", bg:"#F0F2F5", card:"#fff",
@@ -84,7 +90,8 @@ const VendorAvatar = ({v, size=20}) => {
 };
 
 const VendorChip = ({vendorId,small}) => {
-  const v = VENDORS.find(v=>v.id===vendorId);
+  const {vendors=VENDORS} = useLive();
+  const v = vendors.find(v=>v.id===vendorId);
   return (
     <div style={{display:"flex",alignItems:"center",gap:5,background:"#F8FAFC",padding:small?"3px 8px 3px 4px":"4px 10px 4px 5px",borderRadius:20,border:"1px solid #E4E7EC"}}>
       <VendorAvatar v={v} size={small?16:20} />
@@ -619,7 +626,7 @@ function OrdersScreen({me,orders,onOrder,onNav,onNewOrder,onInspection,role,setR
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 12px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-          <span onClick={()=>onNav("home")} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Home</span>
+          <span className="fl-tap" onClick={()=>onNav("home")} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Home</span>
           <span style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>Work Orders</span>
           {role!=="owner"&&<button onClick={onNewOrder} style={{background:C.primary,color:"#fff",fontSize:12,fontWeight:700,padding:"6px 12px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit"}}>+ New</button>}
           {role==="owner"&&<span style={{fontSize:12,color:C.faint}}>View only</span>}
@@ -712,7 +719,10 @@ const INIT_VENDOR_MSGS = [
 ];
 
 function VendorThread({vendor, role}) {
-  const [msgs, setMsgs] = useState(INIT_VENDOR_MSGS);
+  const {notificationsEnabled=true} = useLive();
+  // The seeded thread is demo fiction. Against a real vendor record it would read
+  // as genuine history ("technician will arrive 2-3pm") that nobody ever sent.
+  const [msgs, setMsgs] = useState(notificationsEnabled ? INIT_VENDOR_MSGS : []);
   const [input, setInput] = useState("");
   const [expanded, setExpanded] = useState(false);
 
@@ -720,10 +730,13 @@ function VendorThread({vendor, role}) {
     if (!input.trim()) return;
     setMsgs(prev => [...prev, {id:Date.now(), from:"employee", text:input.trim(), time:"Just now"}]);
     setInput("");
-    // simulate vendor reply
-    setTimeout(() => {
-      setMsgs(prev => [...prev, {id:Date.now()+1, from:"vendor", text:"Thanks, we'll update you once the tech is on the way.", time:"Just now"}]);
-    }, 1800);
+    // Simulated vendor replies are demo-only — faking one would suggest a real
+    // contractor answered when no message was actually delivered.
+    if (notificationsEnabled) {
+      setTimeout(() => {
+        setMsgs(prev => [...prev, {id:Date.now()+1, from:"vendor", text:"Thanks, we'll update you once the tech is on the way.", time:"Just now"}]);
+      }, 1800);
+    }
   };
 
   const visible = expanded ? msgs : msgs.slice(-2);
@@ -734,6 +747,11 @@ function VendorThread({vendor, role}) {
         <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint}}>Thread with {vendor.name}</span>
         <span onClick={()=>setExpanded(e=>!e)} style={{fontSize:10,color:C.primary,fontWeight:600,cursor:"pointer"}}>{expanded?"Show less":"Show all"}</span>
       </div>
+      {msgs.length===0&&(
+        <div style={{fontSize:11.5,color:C.muted,lineHeight:1.5,padding:"2px 0 8px"}}>
+          No messages yet. Vendor messaging isn't connected — reach them at {vendor.phone||"the number on file"}.
+        </div>
+      )}
       <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:8}}>
         {!expanded && msgs.length > 2 && (
           <div style={{textAlign:"center",fontSize:11,color:C.faint,padding:"4px 0"}}>{msgs.length - 2} earlier messages</div>
@@ -767,12 +785,15 @@ function VendorThread({vendor, role}) {
 
 // ── DETAIL ────────────────────────────────────────────────────────────────────
 function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role,setRole}) {
+  const {vendors=VENDORS,syncs=true,notificationsEnabled=true}=useLive();
   const [notified,setNotified]=useState(false);
   const [ownerNotified,setOwnerNotified]=useState(false);
   const [completionNotified,setCompletionNotified]=useState(false);
   const [schedulingRequested,setSchedulingRequested]=useState(false);
-  const vendor=VENDORS.find(v=>v.id===order.vendorId);
-  const cur=orders.find(o=>o.id===order.id);
+  const vendor=vendors.find(v=>v.id===order.vendorId);
+  // Always read the live row, not the object captured when the card was tapped,
+  // so status changes made on this screen are reflected everywhere.
+  const cur=orders.find(o=>o.id===order.id)||order;
   const apply=(patch)=> onUpdateOrder ? onUpdateOrder(order.id,patch) : setOrders(prev=>prev.map(o=>o.id===order.id?{...o,...patch}:o));
   const markDone=()=>{apply({status:"done"});setOwnerNotified(true);setCompletionNotified(true);};
   const [showComplete,setShowComplete]=useState(false);
@@ -788,17 +809,29 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-          <span onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Orders</span>
+          <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Orders</span>
           <Badge status={cur?.status||order.status} />
         </div>
         <div style={{fontSize:10,fontWeight:600,color:C.faint,letterSpacing:".04em",marginBottom:4}}>{order.id} · {order.category}</div>
         <div style={{fontSize:19,fontWeight:800,letterSpacing:"-.02em",color:C.text,lineHeight:1.3,marginBottom:4}}>{order.title}</div>
-        <div style={{fontSize:12.5,color:C.muted}}>{order.address} · {order.unit}</div>
+        <div style={{fontSize:12.5,color:C.muted}}>{[order.address,order.unit].filter(Boolean).join(" · ")||"Property not linked"}</div>
       </div>
       <div style={{padding:"14px 16px",display:"flex",flexDirection:"column",gap:10}}>
+        {/* Buildium writes aren't implemented, so anything changed here lives on
+            this device only. Saying so beats letting an employee believe the
+            office record was updated. */}
+        {!syncs&&role!=="resident"&&(
+          <div style={{display:"flex",gap:10,alignItems:"flex-start",background:C.pending.bg,border:`1px solid ${C.pending.border}`,borderRadius:14,padding:"11px 13px"}}>
+            <span style={{fontSize:15,lineHeight:1.2}}>⚠️</span>
+            <div style={{fontSize:11.5,color:C.pending.text,lineHeight:1.5}}>
+              <b>Viewing live Buildium data.</b> Changes you make here (assigning, closing, notes) stay on this device — they don't write back to Buildium yet.
+            </div>
+          </div>
+        )}
         <div style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
           <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint,marginBottom:6}}>Issue notes</div>
-          <div style={{fontSize:13,color:C.text,lineHeight:1.5}}>{order.notes}</div>
+          {/* Real Buildium descriptions are long free text with newlines. */}
+          <div style={{fontSize:13,color:C.text,lineHeight:1.5,whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{cur?.notes||order.notes||"No description provided."}</div>
         </div>
         {order.residentName&&(
           <div style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
@@ -808,7 +841,10 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
                 <div style={{width:34,height:34,borderRadius:"50%",background:C.primaryLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:C.primary}}>{order.residentName[0]}</div>
                 <div><div style={{fontSize:13,fontWeight:600,color:C.text}}>{order.residentName}</div><div style={{fontSize:11,color:C.faint}}>{order.unit}</div></div>
               </div>
-              {role==="employee"&&<button onClick={()=>setNotified(true)} style={{background:notified?C.done.bg:C.primaryLight,color:notified?C.done.text:C.primary,fontSize:12,fontWeight:700,padding:"7px 14px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit"}}>{notified?"✓ Notified":"Notify"}</button>}
+              {role==="employee"&&(notificationsEnabled
+                ? <button onClick={()=>setNotified(true)} style={{background:notified?C.done.bg:C.primaryLight,color:notified?C.done.text:C.primary,fontSize:12,fontWeight:700,padding:"7px 14px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit"}}>{notified?"✓ Notified":"Notify"}</button>
+                : <span style={{fontSize:10.5,color:C.faint,textAlign:"right",maxWidth:110,lineHeight:1.35}}>Notifications not connected yet</span>
+              )}
             </div>
           </div>
         )}
@@ -948,34 +984,58 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
 
 // ── ASSIGN VENDOR ─────────────────────────────────────────────────────────────
 function AssignScreen({order,orders,setOrders,onUpdateOrder,onBack,role,setRole}) {
+  const {vendors=VENDORS,syncs=true}=useLive();
   const [selected,setSelected]=useState(order.vendorId);
   const [confirmed,setConfirmed]=useState(false);
+  const [vq,setVq]=useState("");
+  const vNeedle=vq.trim().toLowerCase();
+  const shownVendors=(vNeedle
+    ? vendors.filter(v=>[v.name,v.specialty,v.location].filter(Boolean).join(" ").toLowerCase().includes(vNeedle))
+    : vendors
+  ).slice(0,40);
   const confirm=()=>{ (onUpdateOrder?onUpdateOrder(order.id,{vendorId:selected}):setOrders(prev=>prev.map(o=>o.id===order.id?{...o,vendorId:selected}:o))); setConfirmed(true); setTimeout(()=>onBack(),1400); };
   return (
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
-        <span onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Back</span>
+        <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Back</span>
         <div style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>Assign vendor</div>
         <div style={{fontSize:12.5,color:C.muted,marginTop:2}}>{order.title} · {order.unit}</div>
       </div>
-      <div style={{padding:"14px 16px",display:"flex",flexDirection:"column",gap:8}}>
-        {VENDORS.map(v=>(
+      {/* Real rosters run to 100+ vendors, so this needs a filter to be usable. */}
+      <div style={{padding:"12px 16px 0"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,background:"#F7F8FA",border:`1px solid ${C.border}`,borderRadius:12,padding:"10px 13px"}}>
+          <span style={{fontSize:14,color:C.faint}}>🔍</span>
+          <input value={vq} onChange={e=>setVq(e.target.value)} placeholder={`Search ${vendors.length} vendors…`} style={{border:"none",background:"transparent",fontSize:13,color:C.text,width:"100%",outline:"none",fontFamily:"inherit"}} />
+          {vq&&<span onClick={()=>setVq("")} style={{fontSize:14,color:C.faint,cursor:"pointer",lineHeight:1}}>✕</span>}
+        </div>
+      </div>
+      <div style={{padding:"12px 16px",display:"flex",flexDirection:"column",gap:8}}>
+        {shownVendors.map(v=>(
           <div key={v.id} onClick={()=>setSelected(v.id)} style={{background:"#fff",borderRadius:16,border:selected===v.id?`2px solid ${C.primary}`:`1px solid ${C.border}`,padding:"14px 15px",cursor:"pointer",display:"flex",alignItems:"center",gap:12,transition:"border-color .15s ease, box-shadow .15s ease",boxShadow:selected===v.id?"0 0 0 4px rgba(31,46,173,0.10)":"0 1px 2px rgba(16,24,40,0.04)"}}>
             <VendorAvatar v={v} size={44} />
-            <div style={{flex:1}}>
+            <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:13.5,fontWeight:700,color:C.text,marginBottom:2}}>{v.name}</div>
-              <div style={{fontSize:11,color:C.muted,marginBottom:2}}>{v.specialty}</div>
-              <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                <span style={{fontSize:10,color:C.faint}}>📍 {v.location}</span>
-                <span style={{fontSize:10,color:C.faint}}>{v.phone}</span>
+              {v.specialty&&<div style={{fontSize:11,color:C.muted,marginBottom:2}}>{v.specialty}</div>}
+              <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                {v.location&&<span style={{fontSize:10,color:C.faint}}>📍 {v.location}</span>}
+                {v.phone&&<span style={{fontSize:10,color:C.faint}}>{v.phone}</span>}
               </div>
             </div>
             {selected===v.id&&<div style={{width:22,height:22,borderRadius:"50%",background:C.primary,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",fontWeight:700,flexShrink:0}}>✓</div>}
           </div>
         ))}
-        {selected&&!confirmed&&<button onClick={confirm} style={{width:"100%",background:C.primary,color:"#fff",fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 10px rgba(31,46,173,0.28)",marginTop:6}}>Assign {VENDORS.find(v=>v.id===selected)?.name} — notify resident</button>}
-        {confirmed&&<div style={{textAlign:"center",padding:"14px",background:C.done.bg,borderRadius:14,border:`1px solid ${C.done.border}`}}><div style={{fontSize:14,fontWeight:700,color:C.done.text}}>✓ Vendor assigned</div><div style={{fontSize:12,color:C.done.text,opacity:.8,marginTop:3}}>Resident notified automatically</div></div>}
+        {shownVendors.length===0&&<div style={{textAlign:"center",padding:"26px 16px",fontSize:12.5,color:C.muted}}>No vendors match “{vq.trim()}”.</div>}
+        {!vq&&vendors.length>shownVendors.length&&<div style={{textAlign:"center",fontSize:11,color:C.faint,padding:"2px 0 4px"}}>Showing {shownVendors.length} of {vendors.length} — search to narrow</div>}
+        {selected&&!confirmed&&<button onClick={confirm} style={{width:"100%",background:C.primary,color:"#fff",fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 10px rgba(31,46,173,0.28)",marginTop:6}}>Assign {vendors.find(v=>v.id===selected)?.name}</button>}
+        {confirmed&&(
+          <div style={{textAlign:"center",padding:"14px",background:C.done.bg,borderRadius:14,border:`1px solid ${C.done.border}`}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.done.text}}>✓ Vendor assigned</div>
+            <div style={{fontSize:12,color:C.done.text,opacity:.85,marginTop:3}}>
+              {syncs?"Resident notified automatically":"Saved on this device — not yet synced to Buildium"}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1071,7 +1131,7 @@ function MessagesScreen({messages,messagingEnabled=true,onNav,role,setRole}) {
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 12px",borderBottom:`1px solid ${C.border}`}}>
-        <span onClick={()=>onNav("home")} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Home</span>
+        <span className="fl-tap" onClick={()=>onNav("home")} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Home</span>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>Messages</div>
           {totalUnread>0&&<div style={{background:C.primary,color:"#fff",fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:20}}>{totalUnread} unread</div>}
@@ -1133,7 +1193,7 @@ function ProfileScreen({me,role,setRole,onNav,onSignOut,canViewAs}) {
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
-        <span onClick={()=>onNav("home")} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Home</span>
+        <span className="fl-tap" onClick={()=>onNav("home")} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Home</span>
       </div>
       <div style={{margin:"16px 16px 0",background:"#fff",borderRadius:20,border:`1px solid ${C.border}`,overflow:"hidden",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 4px 16px rgba(16,24,40,0.06)"}}>
         <div style={{background:`linear-gradient(135deg,${p.color}22 0%,${p.color}08 100%)`,padding:"24px 20px",display:"flex",flexDirection:"column",alignItems:"center",borderBottom:`1px solid ${C.border}`}}>
@@ -1296,7 +1356,7 @@ function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDon
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
-        <span onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Orders</span>
+        <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Orders</span>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
           <div>
             <div style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>Unit Inspection</div>
@@ -1426,7 +1486,7 @@ function TemplatesScreen({onBack,templates,setTemplates,api,role,setRole}) {
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
-        <span onClick={()=>setEditing(null)} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Cancel</span>
+        <span className="fl-tap" onClick={()=>setEditing(null)} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Cancel</span>
         <div style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>{editing.isNew?"New template":"Edit template"}</div>
       </div>
       <div style={{padding:"14px 16px",display:"flex",flexDirection:"column",gap:14}}>
@@ -1476,7 +1536,7 @@ function TemplatesScreen({onBack,templates,setTemplates,api,role,setRole}) {
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 12px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
-          <span onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Inspection</span>
+          <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Inspection</span>
           <span style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>Templates</span>
           <button onClick={startNew} style={{background:C.primary,color:"#fff",fontSize:12,fontWeight:700,padding:"6px 12px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit"}}>+ New</button>
         </div>
@@ -1511,7 +1571,7 @@ function TemplatesScreen({onBack,templates,setTemplates,api,role,setRole}) {
 }
 
 // ── NEW WORK ORDER SCREEN ────────────────────────────────────────────────────
-function NewWorkOrderScreen({me,onBack,onCreated,role,setRole}) {
+function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
   const isResident = role==="resident";
   const residentUnit = me?.entity?.unit && me.entity.unit !== "Pending assignment" ? me.entity.unit : "";
   const residentAddr = me?.entity?.address && me.entity.address !== "—" ? me.entity.address : "";
@@ -1525,7 +1585,11 @@ function NewWorkOrderScreen({me,onBack,onCreated,role,setRole}) {
 
   const categories = ["HVAC","Plumbing","Electrical","Security","General","Inspection","Move-out","Landscaping"];
   const urgencies  = [{key:"urgent",label:"Urgent — same day",color:C.urgent},{key:"pending",label:"Standard — within 3 days",color:C.pending},{key:"scheduled",label:"Scheduled — pick a date",color:C.scheduled}];
-  const addresses  = ["214 Walnut St","330 Pine Ave","812 Market St"];
+  // Real portfolios have hundreds of properties; a 3-item hardcoded list made it
+  // impossible to file a work order against any actual address.
+  const addresses = (properties?.length
+    ? [...new Set(properties.map(p=>p.name).filter(Boolean))].sort((a,b)=>a.localeCompare(b))
+    : ["214 Walnut St","330 Pine Ave","812 Market St"]);
 
   const canSubmit = title.trim() && unit.trim() && address && category && urgency;
 
@@ -1563,7 +1627,7 @@ function NewWorkOrderScreen({me,onBack,onCreated,role,setRole}) {
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
-        <span onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Cancel</span>
+        <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Cancel</span>
         <div style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>{isResident?"Submit a request":"New work order"}</div>
         {isResident&&<div style={{fontSize:11.5,color:C.faint,marginTop:2}}>Goes directly to your property manager</div>}
       </div>
@@ -1819,13 +1883,31 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
     ? <ApplicantHome me={me} role={role} setRole={handleSetRole} />
     : <OwnerHome inspections={inspections} balances={initial.balances} properties={initial.properties} role={role} setRole={handleSetRole} />;
 
-  const sharedProps = {role, setRole:handleSetRole, canViewAs, me};
+  const sharedProps = {role, setRole:handleSetRole, canViewAs, me, properties:initial.properties};
   const navActive = ["detail","assign","inspection","neworder","templates"].includes(screen) ? "orders" : screen;
 
+  // One place that knows what is real: the live vendor roster, and whether
+  // writes/notifications actually reach anywhere (they don't while Buildium is
+  // read-only, so the UI must not claim otherwise).
+  const live = {
+    vendors: initial.vendors?.length ? initial.vendors : VENDORS,
+    properties: initial.properties || [],
+    syncs: initial.submissionsReachOffice !== false,
+    notificationsEnabled: initial.messagingEnabled !== false,
+  };
+
   return (
+    <LiveCtx.Provider value={live}>
     <div style={{background:"#0D0D0D",display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",padding:"0"}}>
-      <div className="fl-app" style={{width:390,height:"min(844px,calc(100vh - 0px))",background:C.bg,borderRadius:44,overflow:"hidden",boxShadow:"0 0 0 10px #1C1C1E, 0 0 0 12px #3A3A3C, 0 40px 100px rgba(0,0,0,0.8)",display:"flex",flexDirection:"column",fontFamily:"'Plus Jakarta Sans',-apple-system,'SF Pro Text','Segoe UI',sans-serif",WebkitFontSmoothing:"antialiased",MozOsxFontSmoothing:"grayscale",position:"relative"}}>
+      {/* Fills the screen on a real phone; keeps the demo frame on desktop. */}
+      <div className="fl-app" style={{width:"min(390px,100vw)",height:"min(844px,100dvh)",background:C.bg,overflow:"hidden",display:"flex",flexDirection:"column",fontFamily:"'Plus Jakarta Sans',-apple-system,'SF Pro Text','Segoe UI',sans-serif",WebkitFontSmoothing:"antialiased",MozOsxFontSmoothing:"grayscale",position:"relative"}}>
         <style>{`
+          /* Desktop keeps the phone-frame presentation for demos; a real phone
+             gets the full screen instead of a 390px letterbox. */
+          .fl-app{border-radius:44px;box-shadow:0 0 0 10px #1C1C1E,0 0 0 12px #3A3A3C,0 40px 100px rgba(0,0,0,.8)}
+          @media (max-width:460px){.fl-app{border-radius:0;box-shadow:none}}
+          /* Comfortable tap targets for the small back/action links. */
+          .fl-tap{display:inline-flex;align-items:center;min-height:34px;padding:4px 8px 4px 0}
           .fl-app *{-webkit-tap-highlight-color:transparent;scrollbar-width:none}
           .fl-app ::-webkit-scrollbar{display:none}
           .fl-app button,.fl-app [style*="cursor: pointer"],.fl-app [style*="cursor:pointer"]{transition:transform .14s ease,opacity .14s ease,box-shadow .14s ease,background-color .14s ease,border-color .14s ease,color .14s ease}
@@ -1844,5 +1926,6 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
         <NavBar active={navActive} onNav={handleNav} role={role} />
       </div>
     </div>
+    </LiveCtx.Provider>
   );
 }
