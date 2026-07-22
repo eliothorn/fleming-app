@@ -423,21 +423,28 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,role,setRole}) {
 }
 
 // ── OWNER HOME ────────────────────────────────────────────────────────────────
-function OwnerHome({inspections=[],balances=RESIDENT_BALANCES,role,setRole}) {
-  const totalUnits=OWNER_PROPS.reduce((n,p)=>n+p.units,0);
-  const totalOcc=OWNER_PROPS.reduce((n,p)=>n+p.occupied,0);
-  const totalOrders=OWNER_PROPS.reduce((n,p)=>n+p.openOrders,0);
-  const totalUrgent=OWNER_PROPS.reduce((n,p)=>n+p.urgentOrders,0);
+function OwnerHome({inspections=[],balances=RESIDENT_BALANCES,properties=OWNER_PROPS,role,setRole}) {
+  const props=properties&&properties.length?properties:OWNER_PROPS;
+  const totalUnits=props.reduce((n,p)=>n+(p.units||0),0);
+  const totalOcc=props.reduce((n,p)=>n+(p.occupied||0),0);
+  const totalOrders=props.reduce((n,p)=>n+(p.openOrders||0),0);
+  const totalUrgent=props.reduce((n,p)=>n+(p.urgentOrders||0),0);
+  // monthlyRev arrives as a formatted string ("$13,699") from both mock and live.
+  const money=s=>Number(String(s||"").replace(/[^0-9.]/g,""))||0;
+  const totalRev=props.reduce((n,p)=>n+money(p.monthlyRev),0);
   const totalOwed=balances.reduce((n,r)=>n+r.balance,0);
   const owingCount=balances.filter(r=>r.balance>0).length;
   const fmt=n=>"$"+n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+  // Large real portfolios: show the busiest properties first, cap the list.
+  const LIST_CAP=25;
+  const listed=props.slice().sort((a,b)=>(b.openOrders||0)-(a.openOrders||0)).slice(0,LIST_CAP);
   return (
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"18px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{fontSize:12,color:C.faint,fontWeight:500,marginBottom:2}}>Welcome back 👋</div>
         <div style={{fontSize:22,fontWeight:800,color:C.text,letterSpacing:"-.02em"}}>Robert H.</div>
-        <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>Portfolio Owner · 3 Properties</div>
+        <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>Portfolio Owner · {props.length} {props.length===1?"Property":"Properties"}</div>
       </div>
       <div style={{margin:"16px 16px 0",background:"#fff",borderRadius:18,padding:"16px",border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
         <div style={{fontSize:10,fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",color:C.faint,marginBottom:10}}>Portfolio overview</div>
@@ -451,7 +458,7 @@ function OwnerHome({inspections=[],balances=RESIDENT_BALANCES,role,setRole}) {
         </div>
         <div style={{marginTop:10,padding:"10px 12px",borderRadius:10,background:"#F0FDF4",border:"1px solid #BBF7D0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <span style={{fontSize:11.5,fontWeight:600,color:"#065F46"}}>Monthly revenue</span>
-          <span style={{fontSize:15,fontWeight:700,color:"#065F46"}}>$45,600</span>
+          <span style={{fontSize:15,fontWeight:700,color:"#065F46"}}>${totalRev.toLocaleString("en-US")}</span>
         </div>
       </div>
       {/* Resident balances across all units */}
@@ -511,9 +518,10 @@ function OwnerHome({inspections=[],balances=RESIDENT_BALANCES,role,setRole}) {
 
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"20px 16px 10px"}}>
         <span style={{fontSize:15,fontWeight:700,color:C.text,letterSpacing:"-.01em"}}>My properties</span>
+        {props.length>listed.length&&<span style={{fontSize:11,color:C.faint}}>Top {listed.length} of {props.length}</span>}
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10,padding:"0 16px 20px"}}>
-        {OWNER_PROPS.map(p=>(
+        {listed.map(p=>(
           <div key={p.id} style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
             <div style={{padding:"13px 14px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
@@ -1697,7 +1705,7 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
     ? <VendorHome me={me} orders={orders} onOrder={handleOrder} role={role} setRole={handleSetRole} />
     : role==="applicant"
     ? <ApplicantHome me={me} role={role} setRole={handleSetRole} />
-    : <OwnerHome inspections={inspections} balances={initial.balances} role={role} setRole={handleSetRole} />;
+    : <OwnerHome inspections={inspections} balances={initial.balances} properties={initial.properties} role={role} setRole={handleSetRole} />;
 
   const sharedProps = {role, setRole:handleSetRole, canViewAs, me};
   const navActive = ["detail","assign","inspection","neworder","templates"].includes(screen) ? "orders" : screen;
