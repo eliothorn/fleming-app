@@ -140,14 +140,14 @@ const AppHeader = ({role,setRole}) => {
   const p = ROLES[role];
   return (
     <>
-      <div style={{background:"#fff",padding:"12px 20px 10px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${C.border}`,position:"relative",zIndex:10,flexShrink:0}}>
-        <span style={{fontSize:13,fontWeight:600,color:C.text}}>9:41</span>
+      <div className="fl-safe-top" style={{background:"#fff",padding:"12px 20px 10px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${C.border}`,position:"relative",zIndex:10,flexShrink:0}}>
+        <span className="fl-faux-status" style={{fontSize:13,fontWeight:600,color:C.text}}>9:41</span>
         <div onClick={()=>CAN_SWITCH_ROLES&&setOpen(true)} style={{display:"flex",alignItems:"center",gap:7,background:p.labelBg,border:`1px solid ${p.labelText}30`,padding:"5px 12px 5px 7px",borderRadius:20,cursor:CAN_SWITCH_ROLES?"pointer":"default",userSelect:"none",boxShadow:"0 1px 3px rgba(16,24,40,0.08)"}}>
           <div style={{width:20,height:20,borderRadius:"50%",background:p.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"#fff"}}>{p.init}</div>
           <span style={{fontSize:12,fontWeight:700,color:p.labelText,letterSpacing:".01em"}}>{p.label}</span>
           {CAN_SWITCH_ROLES && <span style={{fontSize:9,color:p.labelText,opacity:.65}}>▾</span>}
         </div>
-        <span style={{fontSize:11,color:C.text}}>●●●● ⬛</span>
+        <span className="fl-faux-status" style={{fontSize:11,color:C.text}}>●●●● ⬛</span>
       </div>
       {open && CAN_SWITCH_ROLES && <RoleSwitcherSheet role={role} setRole={setRole} onClose={()=>setOpen(false)} />}
     </>
@@ -159,7 +159,7 @@ const NavBar = ({active,onNav,role}) => {
   const p = ROLES[role];
   const items = [{id:"home",icon:p.homeIcon,label:"Home"},{id:"orders",icon:"🔧",label:"Orders"},{id:"messages",icon:"💬",label:"Messages"},{id:"profile",icon:"👤",label:"Profile"}];
   return (
-    <div style={{background:"#fff",borderTop:"1px solid #E4E7EC",boxShadow:"0 -4px 16px rgba(16,24,40,0.05)",display:"grid",gridTemplateColumns:"repeat(4,1fr)",padding:"10px 0 18px",flexShrink:0}}>
+    <div className="fl-safe-bottom" style={{background:"#fff",borderTop:"1px solid #E4E7EC",boxShadow:"0 -4px 16px rgba(16,24,40,0.05)",display:"grid",gridTemplateColumns:"repeat(4,1fr)",padding:"10px 0 18px",flexShrink:0}}>
       {items.map(it=>(
         <div key={it.id} onClick={()=>onNav(it.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,cursor:"pointer"}}>
           <span style={{fontSize:20,lineHeight:1,color:active===it.id?C.primary:C.faint,filter:active===it.id?"none":"grayscale(1)",opacity:active===it.id?1:.55}}>{it.icon}</span>

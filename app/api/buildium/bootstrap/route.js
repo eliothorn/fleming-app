@@ -4,7 +4,7 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth/session";
 import { buildium } from "@/lib/buildium";
-import { isBuildiumLive } from "@/lib/env";
+import { isBuildiumLive, submissionsReachOffice } from "@/lib/env";
 
 export async function GET(request) {
   const me = await getServerUser(request);
@@ -50,9 +50,8 @@ export async function GET(request) {
     // There is no message backend yet, so live mode gets an honest empty inbox.
     messages: isBuildiumLive() ? [] : b.messagesFor(me.role),
     messagingEnabled: !isBuildiumLive(),
-    // Buildium writes are not implemented, so in live mode a submitted request is
-    // recorded locally and does NOT reach the office. The UI must say so rather
-    // than tell a resident maintenance has been notified.
-    submissionsReachOffice: !isBuildiumLive(),
+    // Whether a submitted request genuinely lands in Buildium. Drives the copy so
+    // the app never claims maintenance was notified when it wasn't.
+    submissionsReachOffice: submissionsReachOffice(),
   });
 }

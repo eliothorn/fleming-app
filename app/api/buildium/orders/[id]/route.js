@@ -11,7 +11,11 @@ export async function PATCH(request, { params }) {
   }
 
   const patch = await request.json().catch(() => ({}));
-  const order = buildium().updateOrder(params.id, patch);
-  if (!order) return NextResponse.json({ error: "Work order not found." }, { status: 404 });
-  return NextResponse.json({ order });
+  try {
+    const order = await buildium().updateOrder(params.id, patch);
+    if (!order) return NextResponse.json({ error: "Work order not found." }, { status: 404 });
+    return NextResponse.json({ order });
+  } catch (e) {
+    return NextResponse.json({ error: e?.message || "Could not update the work order." }, { status: 502 });
+  }
 }

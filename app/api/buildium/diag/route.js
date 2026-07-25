@@ -113,6 +113,47 @@ export async function GET(request) {
     });
   }
 
+  // Verify the WRITE path without writing: confirm the resident-request endpoint
+  // family exists (via GET on the same path a POST/PUT would use), and show the
+  // exact payload a create would send. /diag?writecheck=1
+  if (params.get("writecheck")) {
+    const { realBuildium, writesEnabled } = await import("@/lib/buildium/real");
+    const out = { writesEnabled: writesEnabled(), pathProbe: {}, dryRunCreate: null, dryRunUpdate: null };
+
+    // Find a real ResidentRequest to probe the type-specific path with a GET.
+    const tasks = await buildiumRequest("/tasks", { query: { limit: 100 } });
+    const rr = (Array.isArray(tasks) ? tasks : []).find((t) => String(t.TaskType) === "ResidentRequest");
+    out.sampleResidentRequestId = rr?.Id ?? null;
+    if (rr?.Id != null) {
+      for (const p of ["/tasks/residentrequests", "/tasks/todorequests"]) {
+        try {
+          const got = await buildiumRequest(`${p}/${rr.Id}`);
+          out.pathProbe[p] = { ok: true, returnedId: got?.Id ?? null };
+        } catch (e) {
+          out.pathProbe[p] = { ok: false, error: String(e.message || e).slice(0, 160) };
+        }
+      }
+    }
+
+    // Build (not send) the payloads. With writes disabled these return previews.
+    try {
+      out.dryRunCreate = await realBuildium.createOrder({
+        title: "DIAGNOSTIC — not sent",
+        notes: "Payload preview only.",
+        status: "pending",
+        leaseId: 999999,
+        residentId: 888888,
+      });
+    } catch (e) { out.dryRunCreate = { error: String(e.message || e) }; }
+
+    if (rr?.Id != null) {
+      try {
+        out.dryRunUpdate = await realBuildium.updateOrder(`WO-${rr.Id}`, { status: "done" });
+      } catch (e) { out.dryRunUpdate = { error: String(e.message || e) }; }
+    }
+    return NextResponse.json(out);
+  }
+
   // Distribution of task types/categories/statuses, to decide what counts as a
   // real maintenance work order: /diag?breakdown=1
   if (params.get("breakdown")) {
