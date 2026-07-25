@@ -19,6 +19,7 @@ export default function AppClient() {
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
+    setError(""); // clear a previous failure so Retry can actually recover
     try { setData(await jsonFetch("/api/buildium/bootstrap")); }
     catch (e) { setError(e.message); }
   }, []);
@@ -59,11 +60,16 @@ export default function AppClient() {
   }
 
   if (!data) {
+    // A first load against live Buildium pages a lot of records and can take
+    // several seconds — an unlabelled black screen reads as a broken app.
     return (
-      <div style={{ minHeight: "100vh", background: "#0D0D0D", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "var(--font-jakarta), sans-serif" }}>
+      <div style={{ minHeight: "100vh", background: "#0D0D0D", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "var(--font-jakarta), sans-serif", padding: 24, textAlign: "center" }}>
+        <div style={{ width: 52, height: 52, borderRadius: 15, background: "linear-gradient(135deg,#1F2EAD,#3B4FD8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, marginBottom: 16, boxShadow: "0 8px 24px rgba(31,46,173,.4)" }}>🏢</div>
+        <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-.02em", marginBottom: 6 }}>Fleming Realty Group</div>
+        <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 18 }}>Loading your properties…</div>
         <div style={{ display: "flex", gap: 6 }}>
           {[0, 1, 2].map((i) => (
-            <div key={i} style={{ width: 9, height: 9, borderRadius: "50%", background: "#fff", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i * 0.2}s` }} />
+            <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i * 0.2}s` }} />
           ))}
         </div>
       </div>

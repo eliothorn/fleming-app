@@ -1,5 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, createContext, useContext } from "react";
+
+// Live Buildium data that deep children need without threading props through
+// every screen: the real vendor roster (100+, vs the 5-company demo list) and
+// whether writes/notifications actually reach anything yet.
+const LiveCtx = createContext(null);
+const useLive = () => useContext(LiveCtx) || {};
 
 const C = {
   primary:"#1F2EAD", primaryLight:"#EDEFFC", bg:"#F0F2F5", card:"#fff",
@@ -64,6 +70,15 @@ const SM = {
 };
 
 // ── SHARED ────────────────────────────────────────────────────────────────────
+// Buildium dates arrive as "YYYY-MM-DD". Render them human-readably, and render
+// nothing we don't actually have.
+const fmtDate = (d) => {
+  if (!d) return "—";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d));
+  if (!m) return String(d);
+  const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return `${MON[Number(m[2]) - 1]} ${Number(m[3])}, ${m[1]}`;
+};
 const Badge = ({status}) => { const m=SM[status]; return <span style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:10,fontWeight:700,letterSpacing:".02em",padding:"3px 10px",borderRadius:20,background:m.bg,color:m.text,border:`1px solid ${m.border}`,whiteSpace:"nowrap"}}><span style={{width:5,height:5,borderRadius:"50%",background:m.bar,flexShrink:0}} />{m.label}</span>; };
 
 const VendorAvatar = ({v, size=20}) => {
@@ -75,7 +90,8 @@ const VendorAvatar = ({v, size=20}) => {
 };
 
 const VendorChip = ({vendorId,small}) => {
-  const v = VENDORS.find(v=>v.id===vendorId);
+  const {vendors=VENDORS} = useLive();
+  const v = vendors.find(v=>v.id===vendorId);
   return (
     <div style={{display:"flex",alignItems:"center",gap:5,background:"#F8FAFC",padding:small?"3px 8px 3px 4px":"4px 10px 4px 5px",borderRadius:20,border:"1px solid #E4E7EC"}}>
       <VendorAvatar v={v} size={small?16:20} />
@@ -124,14 +140,14 @@ const AppHeader = ({role,setRole}) => {
   const p = ROLES[role];
   return (
     <>
-      <div style={{background:"#fff",padding:"12px 20px 10px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${C.border}`,position:"relative",zIndex:10,flexShrink:0}}>
-        <span style={{fontSize:13,fontWeight:600,color:C.text}}>9:41</span>
+      <div className="fl-safe-top" style={{background:"#fff",padding:"12px 20px 10px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${C.border}`,position:"relative",zIndex:10,flexShrink:0}}>
+        <span className="fl-faux-status" style={{fontSize:13,fontWeight:600,color:C.text}}>9:41</span>
         <div onClick={()=>CAN_SWITCH_ROLES&&setOpen(true)} style={{display:"flex",alignItems:"center",gap:7,background:p.labelBg,border:`1px solid ${p.labelText}30`,padding:"5px 12px 5px 7px",borderRadius:20,cursor:CAN_SWITCH_ROLES?"pointer":"default",userSelect:"none",boxShadow:"0 1px 3px rgba(16,24,40,0.08)"}}>
           <div style={{width:20,height:20,borderRadius:"50%",background:p.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"#fff"}}>{p.init}</div>
           <span style={{fontSize:12,fontWeight:700,color:p.labelText,letterSpacing:".01em"}}>{p.label}</span>
           {CAN_SWITCH_ROLES && <span style={{fontSize:9,color:p.labelText,opacity:.65}}>▾</span>}
         </div>
-        <span style={{fontSize:11,color:C.text}}>●●●● ⬛</span>
+        <span className="fl-faux-status" style={{fontSize:11,color:C.text}}>●●●● ⬛</span>
       </div>
       {open && CAN_SWITCH_ROLES && <RoleSwitcherSheet role={role} setRole={setRole} onClose={()=>setOpen(false)} />}
     </>
@@ -143,7 +159,7 @@ const NavBar = ({active,onNav,role}) => {
   const p = ROLES[role];
   const items = [{id:"home",icon:p.homeIcon,label:"Home"},{id:"orders",icon:"🔧",label:"Orders"},{id:"messages",icon:"💬",label:"Messages"},{id:"profile",icon:"👤",label:"Profile"}];
   return (
-    <div style={{background:"#fff",borderTop:"1px solid #E4E7EC",boxShadow:"0 -4px 16px rgba(16,24,40,0.05)",display:"grid",gridTemplateColumns:"repeat(4,1fr)",padding:"10px 0 18px",flexShrink:0}}>
+    <div className="fl-safe-bottom" style={{background:"#fff",borderTop:"1px solid #E4E7EC",boxShadow:"0 -4px 16px rgba(16,24,40,0.05)",display:"grid",gridTemplateColumns:"repeat(4,1fr)",padding:"10px 0 18px",flexShrink:0}}>
       {items.map(it=>(
         <div key={it.id} onClick={()=>onNav(it.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,cursor:"pointer"}}>
           <span style={{fontSize:20,lineHeight:1,color:active===it.id?C.primary:C.faint,filter:active===it.id?"none":"grayscale(1)",opacity:active===it.id?1:.55}}>{it.icon}</span>
@@ -156,17 +172,24 @@ const NavBar = ({active,onNav,role}) => {
 };
 
 // ── EMPLOYEE HOME ─────────────────────────────────────────────────────────────
-function EmployeeHome({orders,onNav,onOrder,role,setRole}) {
+function EmployeeHome({me,orders,onNav,onOrder,role,setRole}) {
   const urgent=orders.filter(o=>o.status==="urgent");
-  const open=orders.filter(o=>["urgent","pending"].includes(o.status));
+  const open=orders.filter(o=>["urgent","pending","scheduled"].includes(o.status));
   const done=orders.filter(o=>o.status==="done");
+  // Triage list: anything still open, urgent first — with live Buildium statuses
+  // "review" is never produced, so filtering on it alone left this empty.
+  const attention=[...orders]
+    .filter(o=>o.status!=="done")
+    .sort((a,b)=>(a.status==="urgent"?0:1)-(b.status==="urgent"?0:1))
+    .slice(0,3);
+  const today=new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
   return (
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"18px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{fontSize:12,color:C.faint,fontWeight:500,marginBottom:2}}>Good morning 👋</div>
-        <div style={{fontSize:22,fontWeight:800,color:C.text,letterSpacing:"-.02em"}}>Marcus J.</div>
-        <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>Tuesday, June 10 · Leasing & Inspections</div>
+        <div style={{fontSize:22,fontWeight:800,color:C.text,letterSpacing:"-.02em"}}>{me?.entity?.name||"Marcus J."}</div>
+        <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>{[today,me?.entity?.sub].filter(Boolean).join(" · ")}</div>
       </div>
       <div style={{margin:"16px 16px 0",background:"#fff",borderRadius:18,padding:"16px",border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
         <div style={{fontSize:10,fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",color:C.faint,marginBottom:10}}>Today's pulse</div>
@@ -184,14 +207,14 @@ function EmployeeHome({orders,onNav,onOrder,role,setRole}) {
         <span onClick={()=>onNav("orders")} style={{fontSize:12,color:C.primary,fontWeight:600,cursor:"pointer"}}>See all →</span>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10,padding:"0 16px"}}>
-        {orders.filter(o=>["urgent","review"].includes(o.status)).slice(0,3).map(o=>(
+        {attention.map(o=>(
           <div key={o.id} onClick={()=>onOrder(o)} style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
             <div style={{padding:"12px 14px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
                 <div style={{fontSize:13.5,fontWeight:700,color:C.text,flex:1,paddingRight:8,lineHeight:1.3}}>{o.title}</div>
                 <Badge status={o.status} />
               </div>
-              <div style={{fontSize:11.5,color:C.muted,marginBottom:8}}>{o.address} · {o.unit}</div>
+              <div style={{fontSize:11.5,color:C.muted,marginBottom:8}}>{[o.address,o.unit].filter(Boolean).join(" · ")||"Property not linked"}</div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <VendorChip vendorId={o.vendorId} small />
                 <span style={{fontSize:11,color:o.vendorId?C.faint:C.primary,fontWeight:o.vendorId?400:600}}>{o.vendorId?"View details":"Assign now"}</span>
@@ -223,10 +246,16 @@ function EmployeeHome({orders,onNav,onOrder,role,setRole}) {
 }
 
 // ── RESIDENT HOME ─────────────────────────────────────────────────────────────
-function ResidentHome({me,api,orders,onOrder,onCreated,onNav,role,setRole}) {
+function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOffice=true,role,setRole}) {
   const myName = me?.entity?.name || "Sarah M.";
   const firstName = myName.split(" ")[0];
-  const myOrders = orders.filter(o=>o.residentName===myName);
+  // Server already scopes to this resident (by Buildium tenant id when available);
+  // re-filtering by name here would drop their own orders when the requestor name
+  // on the ticket differs from the tenant record (e.g. a middle initial).
+  const myOrders = orders;
+  const openCount = myOrders.filter(o=>o.status!=="done").length;
+  // "Pending assignment" means their signup email isn't linked to a Buildium unit.
+  const isLinked = me?.matched !== false && me?.entity?.unit && me.entity.unit !== "Pending assignment";
   const [chatOpen,  setChatOpen]  = useState(false);
   const [messages,  setMessages]  = useState([
     {from:"ai", text:`Hi ${firstName}! I'm the Fleming Realty assistant. Just describe your maintenance issue in plain English and I'll take care of the rest.`}
@@ -234,7 +263,6 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,role,setRole}) {
   const [input,     setInput]     = useState("");
   const [loading,   setLoading]   = useState(false);
   const [preview,   setPreview]   = useState(null);  // parsed work order
-  const [confirmed, setConfirmed] = useState(false);
 
   const categoryColor = {
     HVAC:"#1F2EAD", Plumbing:"#0958D9", Electrical:"#B45309",
@@ -279,9 +307,11 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,role,setRole}) {
       notes: preview.notes || preview.title,
     };
     onCreated(newOrder);
-    setConfirmed(true);
     setPreview(null);
-    setMessages(prev => [...prev, {from:"ai", text:"✅ Work order created and sent to the maintenance team. You'll get a notification once a vendor is assigned."}]);
+    setMessages(prev => [...prev, {from:"ai", text: submissionsReachOffice
+      ? "✅ Work order created and sent to the maintenance team. You'll get a notification once a vendor is assigned."
+      : "✅ I've recorded your request. Heads up — sending requests straight into Fleming's maintenance system isn't switched on yet, so please call the office for anything urgent."
+    }]);
   };
 
   return (
@@ -290,26 +320,52 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,role,setRole}) {
       <div style={{background:"#fff",padding:"18px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{fontSize:12,color:C.faint,fontWeight:500,marginBottom:2}}>Hi {firstName} 👋</div>
         <div style={{fontSize:22,fontWeight:800,color:C.text,letterSpacing:"-.02em"}}>{myName}</div>
-        <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>{me?.entity?.unit || "Unit 4B"} · {me?.entity?.address || "214 Walnut St"}</div>
+        <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>{isLinked?[me.entity.unit,me.entity.address].filter(x=>x&&x!=="—"&&x!=="-").join(" · "):"Unit not linked yet"}</div>
       </div>
 
-      {/* Lease cards */}
+      {/* Pending-assignment guidance: their email isn't linked to a unit yet. */}
+      {!isLinked && (
+        <div style={{margin:"16px 16px 0",background:C.pending.bg,border:`1px solid ${C.pending.border}`,borderRadius:16,padding:"14px 16px",display:"flex",gap:12,alignItems:"flex-start"}}>
+          <span style={{fontSize:18,lineHeight:1.2}}>👋</span>
+          <div>
+            <div style={{fontSize:13,fontWeight:700,color:C.pending.text,marginBottom:3}}>We're still linking your account</div>
+            <div style={{fontSize:12,color:C.pending.text,opacity:.9,lineHeight:1.5}}>
+              We couldn't match <b>{me?.email||"your email"}</b> to a unit yet. Your property manager can link it — until then you can still send a request below and we'll route it.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lease — only real Buildium values. Anything we don't have shows "—"
+          rather than a comforting guess (a resident in arrears must never be
+          told their balance is $0.00). */}
       <div style={{margin:"16px 16px 0",background:"#fff",borderRadius:18,padding:"16px",border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
         <div style={{fontSize:10,fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",color:C.faint,marginBottom:10}}>My lease</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          {[{label:"Lease ends",val:"Dec 31, 2026",bg:"#F0FDF4",border:"#BBF7D0",text:"#15803D"},{label:"Rent due",val:"Jul 1, 2026",bg:"#EEF0FD",border:"#C7CCF7",text:"#3730A3"},{label:"Balance",val:"$0.00",bg:"#F0FDF4",border:"#BBF7D0",text:"#15803D"},{label:"Renewal",val:"On time",bg:"#F0FDF4",border:"#BBF7D0",text:"#15803D"}].map(s=>(
-            <div key={s.label} style={{padding:"10px 12px",borderRadius:10,background:s.bg,border:`1px solid ${s.border}`}}>
-              <div style={{fontSize:9.5,fontWeight:600,color:s.text,textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>{s.label}</div>
-              <div style={{fontSize:13,fontWeight:700,color:s.text}}>{s.val}</div>
-            </div>
-          ))}
+          {[
+            {label:"Lease ends", val:fmtDate(me?.entity?.leaseEnd)},
+            {label:"Monthly rent", val:me?.entity?.rent?`$${Number(me.entity.rent).toLocaleString("en-US")}`:"—"},
+            {label:"Status", val:me?.entity?.leaseStatus||"—"},
+            {label:"Unit", val:isLinked?(me?.entity?.unit||"—"):"—"},
+          ].map(s=>{
+            const known=s.val&&s.val!=="—";
+            return (
+              <div key={s.label} style={{padding:"10px 12px",borderRadius:10,background:known?"#F7F8FA":"#FBFBFC",border:`1px solid ${C.border}`}}>
+                <div style={{fontSize:9.5,fontWeight:600,color:C.faint,textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>{s.label}</div>
+                <div style={{fontSize:13,fontWeight:700,color:known?C.text:C.faint}}>{s.val}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{fontSize:11,color:C.faint,marginTop:10,lineHeight:1.45}}>
+          Account balance isn't shown here yet — contact the office for billing questions.
         </div>
       </div>
 
       {/* Open requests */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"20px 16px 10px"}}>
         <span style={{fontSize:15,fontWeight:700,color:C.text,letterSpacing:"-.01em"}}>My requests</span>
-        <span style={{fontSize:11,color:C.faint}}>{myOrders.length} open</span>
+        <span style={{fontSize:11,color:C.faint}}>{openCount} open{myOrders.length>openCount&&<> · {myOrders.length-openCount} closed</>}</span>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10,padding:"0 16px"}}>
         {myOrders.map(o=>(
@@ -383,7 +439,7 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,role,setRole}) {
               )}
 
               {/* Work order preview */}
-              {preview && !confirmed && (
+              {preview && (
                 <div style={{background:"#fff",border:`2px solid ${C.primary}`,borderRadius:12,padding:"13px 14px",marginTop:4}}>
                   <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:C.primary,marginBottom:8}}>Work order preview</div>
                   <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:6}}>{preview.title}</div>
@@ -553,7 +609,15 @@ function OwnerHome({inspections=[],balances=RESIDENT_BALANCES,properties=OWNER_P
 // ── ORDERS LIST ───────────────────────────────────────────────────────────────
 function OrdersScreen({me,orders,onOrder,onNav,onNewOrder,onInspection,role,setRole}) {
   const [filter,setFilter]=useState("all");
-  const visible=role==="resident"?orders.filter(o=>o.residentName===(me?.entity?.name||"Sarah M.")):orders;
+  const [q,setQ]=useState("");
+  // The server already scopes orders to this user's role/identity (by Buildium
+  // tenant id for residents). Re-filtering by name here would drop correctly
+  // scoped orders whose requestor name differs from the tenant record.
+  const scoped=orders;
+  const needle=q.trim().toLowerCase();
+  const visible=needle
+    ? scoped.filter(o=>[o.id,o.title,o.address,o.unit,o.category,o.residentName].filter(Boolean).join(" ").toLowerCase().includes(needle))
+    : scoped;
   const counts={all:visible.length,urgent:visible.filter(o=>o.status==="urgent").length,pending:visible.filter(o=>o.status==="pending").length,scheduled:visible.filter(o=>o.status==="scheduled").length,review:visible.filter(o=>o.status==="review").length,done:visible.filter(o=>o.status==="done").length};
   const filtered=filter==="all"?visible:visible.filter(o=>o.status===filter);
   const sections=[{key:"urgent",label:"Urgent"},{key:"pending",label:"Open"},{key:"scheduled",label:"Scheduled"},{key:"review",label:"Awaiting review"},{key:"done",label:"Completed"}];
@@ -562,15 +626,22 @@ function OrdersScreen({me,orders,onOrder,onNav,onNewOrder,onInspection,role,setR
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 12px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-          <span onClick={()=>onNav("home")} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Home</span>
+          <span className="fl-tap" onClick={()=>onNav("home")} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Home</span>
           <span style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>Work Orders</span>
           {role!=="owner"&&<button onClick={onNewOrder} style={{background:C.primary,color:"#fff",fontSize:12,fontWeight:700,padding:"6px 12px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit"}}>+ New</button>}
           {role==="owner"&&<span style={{fontSize:12,color:C.faint}}>View only</span>}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8,background:"#F7F8FA",border:`1px solid ${C.border}`,borderRadius:12,padding:"10px 13px"}}>
           <span style={{fontSize:14,color:C.faint}}>🔍</span>
-          <input placeholder="Search orders…" style={{border:"none",background:"transparent",fontSize:13,color:C.text,width:"100%",outline:"none",fontFamily:"inherit"}} />
+          <input
+            value={q}
+            onChange={e=>setQ(e.target.value)}
+            placeholder="Search address, unit, resident, WO#…"
+            style={{border:"none",background:"transparent",fontSize:13,color:C.text,width:"100%",outline:"none",fontFamily:"inherit"}}
+          />
+          {q&&<span onClick={()=>setQ("")} style={{fontSize:14,color:C.faint,cursor:"pointer",padding:"0 2px",lineHeight:1}}>✕</span>}
         </div>
+        {needle&&<div style={{fontSize:11.5,color:C.muted,marginTop:8}}>{visible.length} {visible.length===1?"match":"matches"} for “{q.trim()}”</div>}
       </div>
       <div style={{display:"flex",gap:6,padding:"10px 16px 6px",overflowX:"auto",flexShrink:0}}>
         {[["all","All"],["urgent","Urgent"],["pending","Open"],["scheduled","Sched."],["review","Review"],["done","Done"]].map(([k,l])=>(
@@ -594,7 +665,7 @@ function OrdersScreen({me,orders,onOrder,onNav,onNewOrder,onInspection,role,setR
                       <Badge status={o.status} />
                     </div>
                     <div style={{fontSize:13.5,fontWeight:700,color:C.text,marginBottom:3,lineHeight:1.3}}>{o.title}</div>
-                    <div style={{fontSize:11.5,color:C.muted,marginBottom:8}}>{o.address} · {o.unit} · {o.reported}</div>
+                    <div style={{fontSize:11.5,color:C.muted,marginBottom:8}}>{[o.address,o.unit,o.reported].filter(Boolean).join(" · ")}</div>
                     <div style={{display:"flex",justifyContent:"space-between"}}>
                       <VendorChip vendorId={o.vendorId} small />
                       <span style={{fontSize:11,color:C.faint}}>{o.category}</span>
@@ -606,6 +677,34 @@ function OrdersScreen({me,orders,onOrder,onNav,onNewOrder,onInspection,role,setR
             </div>
           );
         })}
+
+        {filtered.length===0&&(
+          <div style={{textAlign:"center",padding:"36px 20px"}}>
+            <div style={{fontSize:32,marginBottom:10}}>{needle?"🔍":"📭"}</div>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>
+              {needle?"No matching work orders":"Nothing here yet"}
+            </div>
+            <div style={{fontSize:12.5,color:C.muted,lineHeight:1.5,maxWidth:250,margin:"0 auto"}}>
+              {needle
+                ? <>Nothing matches “{q.trim()}”{filter!=="all"&&<> in <b>{SM[filter]?.label||filter}</b></>}. Try an address, unit, resident name, or WO number.</>
+                : filter!=="all"
+                ? <>No orders with status <b>{SM[filter]?.label||filter}</b> right now.</>
+                : role==="resident"
+                ? "You haven't submitted any maintenance requests yet."
+                : "No work orders to show."}
+            </div>
+            {(needle||filter!=="all")&&(
+              <button onClick={()=>{setQ("");setFilter("all");}} style={{marginTop:14,background:C.primaryLight,color:C.primary,fontSize:12.5,fontWeight:700,padding:"9px 16px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit"}}>Clear filters</button>
+            )}
+          </div>
+        )}
+
+        {filtered.length>0&&role!=="resident"&&(
+          <div style={{textAlign:"center",fontSize:11,color:C.faint,padding:"6px 0 2px",lineHeight:1.5}}>
+            Showing {filtered.length} of {scoped.length} work order{scoped.length===1?"":"s"}
+            {scoped.length>=75&&<><br/>Newest 75 from Buildium — search to find older ones</>}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -620,7 +719,10 @@ const INIT_VENDOR_MSGS = [
 ];
 
 function VendorThread({vendor, role}) {
-  const [msgs, setMsgs] = useState(INIT_VENDOR_MSGS);
+  const {notificationsEnabled=true} = useLive();
+  // The seeded thread is demo fiction. Against a real vendor record it would read
+  // as genuine history ("technician will arrive 2-3pm") that nobody ever sent.
+  const [msgs, setMsgs] = useState(notificationsEnabled ? INIT_VENDOR_MSGS : []);
   const [input, setInput] = useState("");
   const [expanded, setExpanded] = useState(false);
 
@@ -628,10 +730,13 @@ function VendorThread({vendor, role}) {
     if (!input.trim()) return;
     setMsgs(prev => [...prev, {id:Date.now(), from:"employee", text:input.trim(), time:"Just now"}]);
     setInput("");
-    // simulate vendor reply
-    setTimeout(() => {
-      setMsgs(prev => [...prev, {id:Date.now()+1, from:"vendor", text:"Thanks, we'll update you once the tech is on the way.", time:"Just now"}]);
-    }, 1800);
+    // Simulated vendor replies are demo-only — faking one would suggest a real
+    // contractor answered when no message was actually delivered.
+    if (notificationsEnabled) {
+      setTimeout(() => {
+        setMsgs(prev => [...prev, {id:Date.now()+1, from:"vendor", text:"Thanks, we'll update you once the tech is on the way.", time:"Just now"}]);
+      }, 1800);
+    }
   };
 
   const visible = expanded ? msgs : msgs.slice(-2);
@@ -642,6 +747,11 @@ function VendorThread({vendor, role}) {
         <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint}}>Thread with {vendor.name}</span>
         <span onClick={()=>setExpanded(e=>!e)} style={{fontSize:10,color:C.primary,fontWeight:600,cursor:"pointer"}}>{expanded?"Show less":"Show all"}</span>
       </div>
+      {msgs.length===0&&(
+        <div style={{fontSize:11.5,color:C.muted,lineHeight:1.5,padding:"2px 0 8px"}}>
+          No messages yet. Vendor messaging isn't connected — reach them at {vendor.phone||"the number on file"}.
+        </div>
+      )}
       <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:8}}>
         {!expanded && msgs.length > 2 && (
           <div style={{textAlign:"center",fontSize:11,color:C.faint,padding:"4px 0"}}>{msgs.length - 2} earlier messages</div>
@@ -675,12 +785,15 @@ function VendorThread({vendor, role}) {
 
 // ── DETAIL ────────────────────────────────────────────────────────────────────
 function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role,setRole}) {
+  const {vendors=VENDORS,syncs=true,notificationsEnabled=true}=useLive();
   const [notified,setNotified]=useState(false);
   const [ownerNotified,setOwnerNotified]=useState(false);
   const [completionNotified,setCompletionNotified]=useState(false);
   const [schedulingRequested,setSchedulingRequested]=useState(false);
-  const vendor=VENDORS.find(v=>v.id===order.vendorId);
-  const cur=orders.find(o=>o.id===order.id);
+  const vendor=vendors.find(v=>v.id===order.vendorId);
+  // Always read the live row, not the object captured when the card was tapped,
+  // so status changes made on this screen are reflected everywhere.
+  const cur=orders.find(o=>o.id===order.id)||order;
   const apply=(patch)=> onUpdateOrder ? onUpdateOrder(order.id,patch) : setOrders(prev=>prev.map(o=>o.id===order.id?{...o,...patch}:o));
   const markDone=()=>{apply({status:"done"});setOwnerNotified(true);setCompletionNotified(true);};
   const [showComplete,setShowComplete]=useState(false);
@@ -696,17 +809,29 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-          <span onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Orders</span>
+          <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Orders</span>
           <Badge status={cur?.status||order.status} />
         </div>
         <div style={{fontSize:10,fontWeight:600,color:C.faint,letterSpacing:".04em",marginBottom:4}}>{order.id} · {order.category}</div>
         <div style={{fontSize:19,fontWeight:800,letterSpacing:"-.02em",color:C.text,lineHeight:1.3,marginBottom:4}}>{order.title}</div>
-        <div style={{fontSize:12.5,color:C.muted}}>{order.address} · {order.unit}</div>
+        <div style={{fontSize:12.5,color:C.muted}}>{[order.address,order.unit].filter(Boolean).join(" · ")||"Property not linked"}</div>
       </div>
       <div style={{padding:"14px 16px",display:"flex",flexDirection:"column",gap:10}}>
+        {/* Buildium writes aren't implemented, so anything changed here lives on
+            this device only. Saying so beats letting an employee believe the
+            office record was updated. */}
+        {!syncs&&role!=="resident"&&(
+          <div style={{display:"flex",gap:10,alignItems:"flex-start",background:C.pending.bg,border:`1px solid ${C.pending.border}`,borderRadius:14,padding:"11px 13px"}}>
+            <span style={{fontSize:15,lineHeight:1.2}}>⚠️</span>
+            <div style={{fontSize:11.5,color:C.pending.text,lineHeight:1.5}}>
+              <b>Viewing live Buildium data.</b> Changes you make here (assigning, closing, notes) stay on this device — they don't write back to Buildium yet.
+            </div>
+          </div>
+        )}
         <div style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
           <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint,marginBottom:6}}>Issue notes</div>
-          <div style={{fontSize:13,color:C.text,lineHeight:1.5}}>{order.notes}</div>
+          {/* Real Buildium descriptions are long free text with newlines. */}
+          <div style={{fontSize:13,color:C.text,lineHeight:1.5,whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{cur?.notes||order.notes||"No description provided."}</div>
         </div>
         {order.residentName&&(
           <div style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
@@ -716,7 +841,10 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
                 <div style={{width:34,height:34,borderRadius:"50%",background:C.primaryLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:C.primary}}>{order.residentName[0]}</div>
                 <div><div style={{fontSize:13,fontWeight:600,color:C.text}}>{order.residentName}</div><div style={{fontSize:11,color:C.faint}}>{order.unit}</div></div>
               </div>
-              {role==="employee"&&<button onClick={()=>setNotified(true)} style={{background:notified?C.done.bg:C.primaryLight,color:notified?C.done.text:C.primary,fontSize:12,fontWeight:700,padding:"7px 14px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit"}}>{notified?"✓ Notified":"Notify"}</button>}
+              {role==="employee"&&(notificationsEnabled
+                ? <button onClick={()=>setNotified(true)} style={{background:notified?C.done.bg:C.primaryLight,color:notified?C.done.text:C.primary,fontSize:12,fontWeight:700,padding:"7px 14px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit"}}>{notified?"✓ Notified":"Notify"}</button>
+                : <span style={{fontSize:10.5,color:C.faint,textAlign:"right",maxWidth:110,lineHeight:1.35}}>Notifications not connected yet</span>
+              )}
             </div>
           </div>
         )}
@@ -856,41 +984,65 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
 
 // ── ASSIGN VENDOR ─────────────────────────────────────────────────────────────
 function AssignScreen({order,orders,setOrders,onUpdateOrder,onBack,role,setRole}) {
+  const {vendors=VENDORS,syncs=true}=useLive();
   const [selected,setSelected]=useState(order.vendorId);
   const [confirmed,setConfirmed]=useState(false);
+  const [vq,setVq]=useState("");
+  const vNeedle=vq.trim().toLowerCase();
+  const shownVendors=(vNeedle
+    ? vendors.filter(v=>[v.name,v.specialty,v.location].filter(Boolean).join(" ").toLowerCase().includes(vNeedle))
+    : vendors
+  ).slice(0,40);
   const confirm=()=>{ (onUpdateOrder?onUpdateOrder(order.id,{vendorId:selected}):setOrders(prev=>prev.map(o=>o.id===order.id?{...o,vendorId:selected}:o))); setConfirmed(true); setTimeout(()=>onBack(),1400); };
   return (
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
-        <span onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Back</span>
+        <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Back</span>
         <div style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>Assign vendor</div>
         <div style={{fontSize:12.5,color:C.muted,marginTop:2}}>{order.title} · {order.unit}</div>
       </div>
-      <div style={{padding:"14px 16px",display:"flex",flexDirection:"column",gap:8}}>
-        {VENDORS.map(v=>(
+      {/* Real rosters run to 100+ vendors, so this needs a filter to be usable. */}
+      <div style={{padding:"12px 16px 0"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,background:"#F7F8FA",border:`1px solid ${C.border}`,borderRadius:12,padding:"10px 13px"}}>
+          <span style={{fontSize:14,color:C.faint}}>🔍</span>
+          <input value={vq} onChange={e=>setVq(e.target.value)} placeholder={`Search ${vendors.length} vendors…`} style={{border:"none",background:"transparent",fontSize:13,color:C.text,width:"100%",outline:"none",fontFamily:"inherit"}} />
+          {vq&&<span onClick={()=>setVq("")} style={{fontSize:14,color:C.faint,cursor:"pointer",lineHeight:1}}>✕</span>}
+        </div>
+      </div>
+      <div style={{padding:"12px 16px",display:"flex",flexDirection:"column",gap:8}}>
+        {shownVendors.map(v=>(
           <div key={v.id} onClick={()=>setSelected(v.id)} style={{background:"#fff",borderRadius:16,border:selected===v.id?`2px solid ${C.primary}`:`1px solid ${C.border}`,padding:"14px 15px",cursor:"pointer",display:"flex",alignItems:"center",gap:12,transition:"border-color .15s ease, box-shadow .15s ease",boxShadow:selected===v.id?"0 0 0 4px rgba(31,46,173,0.10)":"0 1px 2px rgba(16,24,40,0.04)"}}>
             <VendorAvatar v={v} size={44} />
-            <div style={{flex:1}}>
+            <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:13.5,fontWeight:700,color:C.text,marginBottom:2}}>{v.name}</div>
-              <div style={{fontSize:11,color:C.muted,marginBottom:2}}>{v.specialty}</div>
-              <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                <span style={{fontSize:10,color:C.faint}}>📍 {v.location}</span>
-                <span style={{fontSize:10,color:C.faint}}>{v.phone}</span>
+              {v.specialty&&<div style={{fontSize:11,color:C.muted,marginBottom:2}}>{v.specialty}</div>}
+              <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                {v.location&&<span style={{fontSize:10,color:C.faint}}>📍 {v.location}</span>}
+                {v.phone&&<span style={{fontSize:10,color:C.faint}}>{v.phone}</span>}
               </div>
             </div>
             {selected===v.id&&<div style={{width:22,height:22,borderRadius:"50%",background:C.primary,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#fff",fontWeight:700,flexShrink:0}}>✓</div>}
           </div>
         ))}
-        {selected&&!confirmed&&<button onClick={confirm} style={{width:"100%",background:C.primary,color:"#fff",fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 10px rgba(31,46,173,0.28)",marginTop:6}}>Assign {VENDORS.find(v=>v.id===selected)?.name} — notify resident</button>}
-        {confirmed&&<div style={{textAlign:"center",padding:"14px",background:C.done.bg,borderRadius:14,border:`1px solid ${C.done.border}`}}><div style={{fontSize:14,fontWeight:700,color:C.done.text}}>✓ Vendor assigned</div><div style={{fontSize:12,color:C.done.text,opacity:.8,marginTop:3}}>Resident notified automatically</div></div>}
+        {shownVendors.length===0&&<div style={{textAlign:"center",padding:"26px 16px",fontSize:12.5,color:C.muted}}>No vendors match “{vq.trim()}”.</div>}
+        {!vq&&vendors.length>shownVendors.length&&<div style={{textAlign:"center",fontSize:11,color:C.faint,padding:"2px 0 4px"}}>Showing {shownVendors.length} of {vendors.length} — search to narrow</div>}
+        {selected&&!confirmed&&<button onClick={confirm} style={{width:"100%",background:C.primary,color:"#fff",fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 10px rgba(31,46,173,0.28)",marginTop:6}}>Assign {vendors.find(v=>v.id===selected)?.name}</button>}
+        {confirmed&&(
+          <div style={{textAlign:"center",padding:"14px",background:C.done.bg,borderRadius:14,border:`1px solid ${C.done.border}`}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.done.text}}>✓ Vendor assigned</div>
+            <div style={{fontSize:12,color:C.done.text,opacity:.85,marginTop:3}}>
+              {syncs?"Resident notified automatically":"Saved on this device — not yet synced to Buildium"}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 // ── MESSAGES ──────────────────────────────────────────────────────────────────
-function MessagesScreen({onNav,role,setRole}) {
+function MessagesScreen({messages,messagingEnabled=true,onNav,role,setRole}) {
   const [filter,setFilter]=useState("all");
   const [activeChat,setActiveChat]=useState(null);
   const [threads,setThreads]=useState({});
@@ -910,11 +1062,16 @@ function MessagesScreen({onNav,role,setRole}) {
     {name:"Jordan K.",        last:"When can I schedule a move-in walkthrough?",   time:"Jun 6",    unread:1,color:"#5B21B6",init:"J",type:"applicant",role:"Applicant"          },
     {name:"Alex P.",          last:"I submitted my application last Tuesday.",     time:"Jun 5",    unread:0,color:"#1D4ED8",init:"A",type:"applicant",role:"Applicant"          },
   ];
-  const convos=role==="resident"
+  // Threads come from the server. On live Buildium data the server sends an empty
+  // list, because there is no real message backend yet — inventing a thread would
+  // tell a resident a vendor is coming to their unit today. The demo threads below
+  // are only used in mock/demo mode.
+  const demoConvos=role==="resident"
     ?[{name:"Fleming Realty",last:"Your HVAC request assigned to Daflure HVAC.",time:"1h ago",unread:1,color:C.primary,init:"F",type:"manager",role:"Property Manager"},{name:"Daflure HVAC",last:"We'll be there between 2–4pm today.",time:"3h ago",unread:0,color:"#5B6AE8",init:"D",type:"vendor",role:"Vendor · HVAC"}]
     :role==="owner"
     ?[{name:"Marcus J.",last:"Carpet replacement at 812 Market complete.",time:"Jun 7",unread:1,color:C.primary,init:"M",type:"employee",role:"Employee · Leasing"},{name:"Fleming Realty",last:"Monthly report for May is ready to review.",time:"Jun 1",unread:0,color:"#065F46",init:"F",type:"manager",role:"Property Manager"},{name:"Denise K.",last:"330 Pine inspection is scheduled for next week.",time:"Jun 3",unread:0,color:"#1B3A6B",init:"D",type:"employee",role:"Employee · Inspections"}]
     :allConvos;
+  const convos=Array.isArray(messages)?messages:demoConvos;
   const tabs=role==="employee"?[{key:"all",label:"All"},{key:"vendor",label:"Vendors"},{key:"resident",label:"Residents"},{key:"owner",label:"Owners"},{key:"applicant",label:"Applicants"}]:[{key:"all",label:"All"}];
   const typeColors={vendor:{bg:"#EEF0FD",text:"#3730A3"},resident:{bg:"#FFF7ED",text:"#92400E"},owner:{bg:"#D1FAE5",text:"#065F46"},applicant:{bg:"#F3EEFE",text:"#5B21B6"},employee:{bg:"#EEF0FD",text:"#3730A3"},manager:{bg:"#D1FAE5",text:"#065F46"}};
   const REPLIES={vendor:"Got it — we'll confirm a time and update you shortly.",resident:"Thank you! I'll keep an eye out for the update.",owner:"Great — thanks for keeping me posted.",applicant:"Thank you! Please let me know if you need anything else.",employee:"Thanks — I'll follow up on that today.",manager:"Thanks — noted. We'll be in touch."};
@@ -924,10 +1081,15 @@ function MessagesScreen({onNav,role,setRole}) {
     const text=draft.trim();
     if(!text||!activeChat)return;
     const name=activeChat.name;
-    const reply=REPLIES[activeChat.type]||"Thanks — noted.";
     setThreads(prev=>({...prev,[name]:[...(prev[name]||[]),{id:Date.now(),from:"me",text,time:"Just now"}]}));
     setDraft("");
-    setTimeout(()=>{setThreads(prev=>({...prev,[name]:[...(prev[name]||[]),{id:Date.now()+1,from:"them",text:reply,time:"Just now"}]}));},1500);
+    // Simulated replies only exist in demo mode. Faking an answer from a real
+    // property manager would make someone believe a message was received when
+    // nothing left the browser.
+    if(messagingEnabled){
+      const reply=REPLIES[activeChat.type]||"Thanks — noted.";
+      setTimeout(()=>{setThreads(prev=>({...prev,[name]:[...(prev[name]||[]),{id:Date.now()+1,from:"them",text:reply,time:"Just now"}]}));},1500);
+    }
   };
   const filtered=filter==="all"?convos:convos.filter(c=>c.type===filter);
   const totalUnread=convos.reduce((n,c)=>n+unreadOf(c),0);
@@ -969,7 +1131,7 @@ function MessagesScreen({onNav,role,setRole}) {
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 12px",borderBottom:`1px solid ${C.border}`}}>
-        <span onClick={()=>onNav("home")} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Home</span>
+        <span className="fl-tap" onClick={()=>onNav("home")} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Home</span>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>Messages</div>
           {totalUnread>0&&<div style={{background:C.primary,color:"#fff",fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:20}}>{totalUnread} unread</div>}
@@ -986,6 +1148,16 @@ function MessagesScreen({onNav,role,setRole}) {
                 {count>0&&<span style={{fontSize:9,fontWeight:700,background:isActive?C.primary:C.border,color:isActive?"#fff":C.muted,padding:"1px 5px",borderRadius:10}}>{count}</span>}
               </div>;
             })}
+          </div>
+        </div>
+      )}
+      {filtered.length===0&&(
+        <div style={{textAlign:"center",padding:"44px 26px"}}>
+          <div style={{fontSize:34,marginBottom:12}}>💬</div>
+          <div style={{fontSize:14.5,fontWeight:700,color:C.text,marginBottom:6}}>No messages yet</div>
+          <div style={{fontSize:12.5,color:C.muted,lineHeight:1.55}}>
+            In-app messaging isn't switched on yet. For anything you need right now,
+            call the Fleming Realty office and we'll take care of it.
           </div>
         </div>
       )}
@@ -1021,7 +1193,7 @@ function ProfileScreen({me,role,setRole,onNav,onSignOut,canViewAs}) {
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
-        <span onClick={()=>onNav("home")} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Home</span>
+        <span className="fl-tap" onClick={()=>onNav("home")} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Home</span>
       </div>
       <div style={{margin:"16px 16px 0",background:"#fff",borderRadius:20,border:`1px solid ${C.border}`,overflow:"hidden",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 4px 16px rgba(16,24,40,0.06)"}}>
         <div style={{background:`linear-gradient(135deg,${p.color}22 0%,${p.color}08 100%)`,padding:"24px 20px",display:"flex",flexDirection:"column",alignItems:"center",borderBottom:`1px solid ${C.border}`}}>
@@ -1184,7 +1356,7 @@ function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDon
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
-        <span onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Orders</span>
+        <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Orders</span>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
           <div>
             <div style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>Unit Inspection</div>
@@ -1314,7 +1486,7 @@ function TemplatesScreen({onBack,templates,setTemplates,api,role,setRole}) {
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
-        <span onClick={()=>setEditing(null)} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Cancel</span>
+        <span className="fl-tap" onClick={()=>setEditing(null)} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Cancel</span>
         <div style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>{editing.isNew?"New template":"Edit template"}</div>
       </div>
       <div style={{padding:"14px 16px",display:"flex",flexDirection:"column",gap:14}}>
@@ -1364,7 +1536,7 @@ function TemplatesScreen({onBack,templates,setTemplates,api,role,setRole}) {
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 12px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
-          <span onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Inspection</span>
+          <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Inspection</span>
           <span style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>Templates</span>
           <button onClick={startNew} style={{background:C.primary,color:"#fff",fontSize:12,fontWeight:700,padding:"6px 12px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit"}}>+ New</button>
         </div>
@@ -1399,7 +1571,7 @@ function TemplatesScreen({onBack,templates,setTemplates,api,role,setRole}) {
 }
 
 // ── NEW WORK ORDER SCREEN ────────────────────────────────────────────────────
-function NewWorkOrderScreen({me,onBack,onCreated,role,setRole}) {
+function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
   const isResident = role==="resident";
   const residentUnit = me?.entity?.unit && me.entity.unit !== "Pending assignment" ? me.entity.unit : "";
   const residentAddr = me?.entity?.address && me.entity.address !== "—" ? me.entity.address : "";
@@ -1413,7 +1585,11 @@ function NewWorkOrderScreen({me,onBack,onCreated,role,setRole}) {
 
   const categories = ["HVAC","Plumbing","Electrical","Security","General","Inspection","Move-out","Landscaping"];
   const urgencies  = [{key:"urgent",label:"Urgent — same day",color:C.urgent},{key:"pending",label:"Standard — within 3 days",color:C.pending},{key:"scheduled",label:"Scheduled — pick a date",color:C.scheduled}];
-  const addresses  = ["214 Walnut St","330 Pine Ave","812 Market St"];
+  // Real portfolios have hundreds of properties; a 3-item hardcoded list made it
+  // impossible to file a work order against any actual address.
+  const addresses = (properties?.length
+    ? [...new Set(properties.map(p=>p.name).filter(Boolean))].sort((a,b)=>a.localeCompare(b))
+    : ["214 Walnut St","330 Pine Ave","812 Market St"]);
 
   const canSubmit = title.trim() && unit.trim() && address && category && urgency;
 
@@ -1451,7 +1627,7 @@ function NewWorkOrderScreen({me,onBack,onCreated,role,setRole}) {
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
-        <span onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Cancel</span>
+        <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Cancel</span>
         <div style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>{isResident?"Submit a request":"New work order"}</div>
         {isResident&&<div style={{fontSize:11.5,color:C.faint,marginTop:2}}>Goes directly to your property manager</div>}
       </div>
@@ -1565,7 +1741,7 @@ function VendorHome({me,orders,onOrder,role,setRole}) {
                 <div style={{fontSize:13.5,fontWeight:700,color:C.text,flex:1,paddingRight:8,lineHeight:1.3}}>{o.title}</div>
                 <Badge status={o.status} />
               </div>
-              <div style={{fontSize:11.5,color:C.muted,marginBottom:8}}>{o.address} · {o.unit} · {o.reported}</div>
+              <div style={{fontSize:11.5,color:C.muted,marginBottom:8}}>{[o.address,o.unit,o.reported].filter(Boolean).join(" · ")}</div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <span style={{fontSize:11,color:C.faint}}>{o.category}</span>
                 <span style={{fontSize:11,color:o.status==="done"?C.done.text:o.status==="review"?C.review.text:C.primary,fontWeight:600}}>
@@ -1700,20 +1876,38 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
   const homeScreen = role==="employee"
     ? <EmployeeHome me={me} orders={orders} onNav={handleNav} onOrder={handleOrder} role={role} setRole={handleSetRole} />
     : role==="resident"
-    ? <ResidentHome me={me} api={api} orders={orders} onOrder={handleOrder} onCreated={handleCreated} onNav={handleNav} role={role} setRole={handleSetRole} />
+    ? <ResidentHome me={me} api={api} orders={orders} onOrder={handleOrder} onCreated={handleCreated} onNav={handleNav} submissionsReachOffice={initial.submissionsReachOffice!==false} role={role} setRole={handleSetRole} />
     : role==="vendor"
     ? <VendorHome me={me} orders={orders} onOrder={handleOrder} role={role} setRole={handleSetRole} />
     : role==="applicant"
     ? <ApplicantHome me={me} role={role} setRole={handleSetRole} />
     : <OwnerHome inspections={inspections} balances={initial.balances} properties={initial.properties} role={role} setRole={handleSetRole} />;
 
-  const sharedProps = {role, setRole:handleSetRole, canViewAs, me};
+  const sharedProps = {role, setRole:handleSetRole, canViewAs, me, properties:initial.properties};
   const navActive = ["detail","assign","inspection","neworder","templates"].includes(screen) ? "orders" : screen;
 
+  // One place that knows what is real: the live vendor roster, and whether
+  // writes/notifications actually reach anywhere (they don't while Buildium is
+  // read-only, so the UI must not claim otherwise).
+  const live = {
+    vendors: initial.vendors?.length ? initial.vendors : VENDORS,
+    properties: initial.properties || [],
+    syncs: initial.submissionsReachOffice !== false,
+    notificationsEnabled: initial.messagingEnabled !== false,
+  };
+
   return (
+    <LiveCtx.Provider value={live}>
     <div style={{background:"#0D0D0D",display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",padding:"0"}}>
-      <div className="fl-app" style={{width:390,height:"min(844px,calc(100vh - 0px))",background:C.bg,borderRadius:44,overflow:"hidden",boxShadow:"0 0 0 10px #1C1C1E, 0 0 0 12px #3A3A3C, 0 40px 100px rgba(0,0,0,0.8)",display:"flex",flexDirection:"column",fontFamily:"'Plus Jakarta Sans',-apple-system,'SF Pro Text','Segoe UI',sans-serif",WebkitFontSmoothing:"antialiased",MozOsxFontSmoothing:"grayscale",position:"relative"}}>
+      {/* Fills the screen on a real phone; keeps the demo frame on desktop. */}
+      <div className="fl-app" style={{width:"min(390px,100vw)",height:"min(844px,100dvh)",background:C.bg,overflow:"hidden",display:"flex",flexDirection:"column",fontFamily:"'Plus Jakarta Sans',-apple-system,'SF Pro Text','Segoe UI',sans-serif",WebkitFontSmoothing:"antialiased",MozOsxFontSmoothing:"grayscale",position:"relative"}}>
         <style>{`
+          /* Desktop keeps the phone-frame presentation for demos; a real phone
+             gets the full screen instead of a 390px letterbox. */
+          .fl-app{border-radius:44px;box-shadow:0 0 0 10px #1C1C1E,0 0 0 12px #3A3A3C,0 40px 100px rgba(0,0,0,.8)}
+          @media (max-width:460px){.fl-app{border-radius:0;box-shadow:none}}
+          /* Comfortable tap targets for the small back/action links. */
+          .fl-tap{display:inline-flex;align-items:center;min-height:34px;padding:4px 8px 4px 0}
           .fl-app *{-webkit-tap-highlight-color:transparent;scrollbar-width:none}
           .fl-app ::-webkit-scrollbar{display:none}
           .fl-app button,.fl-app [style*="cursor: pointer"],.fl-app [style*="cursor:pointer"]{transition:transform .14s ease,opacity .14s ease,box-shadow .14s ease,background-color .14s ease,border-color .14s ease,color .14s ease}
@@ -1724,7 +1918,7 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
         {screen==="orders"     && <OrdersScreen      orders={orders} onOrder={handleOrder} onNav={handleNav} onNewOrder={()=>setScreen("neworder")} onInspection={()=>setScreen("inspection")} {...sharedProps} />}
         {screen==="detail"     && selectedOrder   && <DetailScreen   order={selectedOrder}  orders={orders} setOrders={setOrders} onUpdateOrder={updateOrderLocal} onBack={()=>setScreen("orders")} onAssign={handleAssign} {...sharedProps} />}
         {screen==="assign"     && assigningOrder  && <AssignScreen   order={assigningOrder} orders={orders} setOrders={setOrders} onUpdateOrder={updateOrderLocal} onBack={()=>setScreen("detail")} {...sharedProps} />}
-        {screen==="messages"   && <MessagesScreen    messages={initial.messages} onNav={handleNav} {...sharedProps} />}
+        {screen==="messages"   && <MessagesScreen    messages={initial.messages} messagingEnabled={initial.messagingEnabled!==false} onNav={handleNav} {...sharedProps} />}
         {screen==="profile"    && <ProfileScreen     me={me} role={role} setRole={handleSetRole} onNav={handleNav} onSignOut={onSignOut} canViewAs={canViewAs} />}
         {screen==="inspection" && <InspectionScreen  onBack={()=>setScreen("orders")} templates={templates} onManageTemplates={()=>setScreen("templates")} onInspectionDone={handleInspectionDone} {...sharedProps} />}
         {screen==="templates"  && <TemplatesScreen   onBack={()=>setScreen("inspection")} templates={templates} setTemplates={setTemplates} api={api} {...sharedProps} />}
@@ -1732,5 +1926,6 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
         <NavBar active={navActive} onNav={handleNav} role={role} />
       </div>
     </div>
+    </LiveCtx.Provider>
   );
 }
