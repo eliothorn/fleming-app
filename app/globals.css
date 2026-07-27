@@ -1,53 +1,174 @@
+/* ───────────────────────────────────────────────────────────────────────────
+   Fleming design system
+   Style direction: "Soft UI Evolution" — depth via layered, low-opacity shadows
+   rather than flat borders or heavy neumorphism. Targets WCAG AA+.
+   Typography: Plus Jakarta Sans on a fixed weight scale (800 titles / 700
+   section headers / 600 card titles + buttons / 400 body).
+   Motion: transform+opacity only, 150–300ms, so it stays on the compositor.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Brand — Fleming navy is the established identity and stays the primary. */
+  --fl-primary: #1F2EAD;
+  --fl-primary-hover: #1A279A;
+  --fl-primary-soft: #EDEFFC;
+  --fl-primary-ring: rgba(31, 46, 173, 0.14);
+  --fl-on-primary: #FFFFFF;
+
+  /* Neutrals */
+  --fl-bg: #F4F6F9;
+  --fl-surface: #FFFFFF;
+  --fl-surface-sunken: #F7F8FA;
+  --fl-text: #0A0F1E;
+  --fl-muted: #5A6376;
+  --fl-faint: #68707F;
+  --fl-border: #E6E9EF;
+  --fl-border-strong: #D6DBE4;
+
+  /* Status — one hue family per state, used for bg/text/border/bar together. */
+  --fl-urgent: #DC2626;      --fl-urgent-bg: #FEF2F2;   --fl-urgent-border: #FECACA;
+  --fl-pending: #C2410C;     --fl-pending-bg: #FFF7ED;  --fl-pending-border: #FED7AA;
+  --fl-scheduled: #1D4ED8;   --fl-scheduled-bg: #EFF6FF;--fl-scheduled-border: #BFDBFE;
+  --fl-review: #6D28D9;      --fl-review-bg: #F5F3FF;   --fl-review-border: #DDD6FE;
+  --fl-done: #15803D;        --fl-done-bg: #F0FDF4;     --fl-done-border: #BBF7D0;
+
+  /* Soft UI depth ramp — two layers each: contact shadow + diffuse ambient. */
+  --fl-shadow-sm: 0 1px 2px rgba(16, 24, 40, .04), 0 1px 3px rgba(16, 24, 40, .03);
+  --fl-shadow-md: 0 1px 2px rgba(16, 24, 40, .04), 0 4px 12px rgba(16, 24, 40, .06);
+  --fl-shadow-lg: 0 2px 4px rgba(16, 24, 40, .04), 0 12px 28px rgba(16, 24, 40, .10);
+  --fl-shadow-brand: 0 2px 6px rgba(31, 46, 173, .18), 0 10px 24px rgba(31, 46, 173, .22);
+
+  --fl-radius-sm: 10px;
+  --fl-radius: 14px;
+  --fl-radius-lg: 18px;
+  --fl-radius-xl: 22px;
+
+  --fl-ease: cubic-bezier(.22, .61, .36, 1);   /* power2.out equivalent */
+  --fl-dur: 200ms;
+}
+
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
 body {
   font-family: var(--font-jakarta), -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: #0D0D0D;
+  /* Tabular figures keep money and counts from jittering as they update. */
+  font-variant-numeric: tabular-nums;
 }
 button { font-family: inherit; }
 
-/* Installed-app behaviour: no rubber-band scroll or text-size surprises. */
-html { -webkit-text-size-adjust: 100%; }
 @media (display-mode: standalone) {
   html, body { overscroll-behavior-y: none; }
 }
 
-/* On a phone the app runs edge-to-edge under the notch and home indicator, so
-   the chrome has to be inset or the OS covers it. Desktop keeps zero inset. */
-/* !important is required: these elements carry inline padding shorthands from the
-   ported demo, which would otherwise win and let the OS cover the chrome. */
+/* ── Layout / safe areas ─────────────────────────────────────────────────── */
+/* !important: the ported demo carries inline padding shorthands that would
+   otherwise win, letting the notch and home indicator cover the chrome. */
 @media (max-width: 460px) {
   .fl-safe-top { padding-top: calc(env(safe-area-inset-top, 0px) + 12px) !important; }
   .fl-safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 14px) !important; }
 }
-
-/* The decorative "9:41" and battery glyphs are a demo affectation. On a real
-   phone the OS draws the actual status bar right above them, so hide ours. */
 @media (max-width: 460px), (display-mode: standalone) {
   .fl-faux-status { display: none !important; }
-  /* With the faux glyphs gone the role chip is the only child left, so centre it
-     instead of letting space-between shove it to the edge. */
   .fl-safe-top { justify-content: center !important; }
 }
 
-/* Shared interaction polish (ported from the approved demo) */
+/* ── Typography scale ────────────────────────────────────────────────────── */
+.fl-title    { font-size: 22px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; }
+.fl-screen   { font-size: 18px; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; }
+.fl-section  { font-size: 15px; font-weight: 700; letter-spacing: -.01em; line-height: 1.3; }
+.fl-cardtitle{ font-size: 13.5px; font-weight: 600; line-height: 1.35; }
+.fl-body     { font-size: 13px; font-weight: 400; line-height: 1.5; }
+.fl-meta     { font-size: 11.5px; font-weight: 400; line-height: 1.45; color: var(--fl-muted); }
+.fl-eyebrow  {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .09em; color: var(--fl-faint);
+}
+
+/* ── Interaction ─────────────────────────────────────────────────────────── */
 .fl-app * { -webkit-tap-highlight-color: transparent; scrollbar-width: none; }
 .fl-app ::-webkit-scrollbar { display: none; }
+
+/* Desktop keeps the phone-frame presentation; a real phone gets the full screen. */
+.fl-app { border-radius: 44px; box-shadow: 0 0 0 10px #1C1C1E, 0 0 0 12px #3A3A3C, 0 40px 100px rgba(0,0,0,.8); }
+@media (max-width: 460px) { .fl-app { border-radius: 0; box-shadow: none; } }
+
+/* Tap targets: guideline minimum is 44x44 with >=8px separation. */
+.fl-tap {
+  display: inline-flex; align-items: center;
+  min-height: 44px; min-width: 44px;
+  padding: 4px 8px 4px 0;
+}
+
 .fl-app button,
 .fl-app [style*="cursor: pointer"],
 .fl-app [style*="cursor:pointer"] {
-  transition: transform .14s ease, opacity .14s ease, box-shadow .14s ease,
-              background-color .14s ease, border-color .14s ease, color .14s ease;
+  transition: transform var(--fl-dur) var(--fl-ease),
+              box-shadow var(--fl-dur) var(--fl-ease),
+              background-color var(--fl-dur) var(--fl-ease),
+              border-color var(--fl-dur) var(--fl-ease),
+              opacity var(--fl-dur) var(--fl-ease),
+              color var(--fl-dur) var(--fl-ease);
 }
+/* Press feedback: transform/opacity only so it never triggers layout. */
 .fl-app button:active,
 .fl-app [style*="cursor: pointer"]:active,
-.fl-app [style*="cursor:pointer"]:active { transform: scale(.97); }
+.fl-app [style*="cursor:pointer"]:active { transform: scale(.968); }
+
+/* Pointer devices get a lift; touch devices skip it (no real hover). */
+@media (hover: hover) and (pointer: fine) {
+  .fl-press:hover { transform: translateY(-1px); }
+  .fl-card:hover { transform: translateY(-2px); box-shadow: var(--fl-shadow-lg); }
+}
+
 .fl-app input:focus:not([style*="transparent"]),
 .fl-app textarea:focus,
 .fl-app select:focus {
-  border-color: #1F2EAD !important;
-  box-shadow: 0 0 0 3px rgba(31, 46, 173, .12);
+  border-color: var(--fl-primary) !important;
+  box-shadow: 0 0 0 3px var(--fl-primary-ring);
 }
+/* Keyboard focus must stay visible even though we suppress tap highlight. */
+.fl-app :focus-visible { outline: 2px solid var(--fl-primary); outline-offset: 2px; }
+
+/* ── Motion ──────────────────────────────────────────────────────────────── */
 @keyframes pulse { 0%, 100% { opacity: .3 } 50% { opacity: 1 } }
+
+/* Staggered list entrance — the "wave" reveal, done with CSS so no animation
+   library ships to the phone. Depth is capped so long lists don't crawl in. */
+@keyframes fl-rise {
+  from { opacity: 0; transform: translateY(10px) scale(.985); }
+  to   { opacity: 1; transform: none; }
+}
+.fl-rise { animation: fl-rise 340ms var(--fl-ease) both; }
+.fl-rise:nth-child(1) { animation-delay: 0ms }
+.fl-rise:nth-child(2) { animation-delay: 45ms }
+.fl-rise:nth-child(3) { animation-delay: 90ms }
+.fl-rise:nth-child(4) { animation-delay: 135ms }
+.fl-rise:nth-child(5) { animation-delay: 180ms }
+.fl-rise:nth-child(6) { animation-delay: 215ms }
+.fl-rise:nth-child(n+7) { animation-delay: 240ms }
+
+@keyframes fl-fade { from { opacity: 0 } to { opacity: 1 } }
+.fl-fade { animation: fl-fade 240ms var(--fl-ease) both; }
+
+@keyframes fl-sheet-up {
+  from { transform: translateY(14px); opacity: .6 }
+  to   { transform: none; opacity: 1 }
+}
+.fl-sheet { animation: fl-sheet-up 260ms var(--fl-ease) both; }
+
+/* Accessibility: honour the OS "reduce motion" setting. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .fl-app button:active,
+  .fl-app [style*="cursor: pointer"]:active,
+  .fl-app [style*="cursor:pointer"]:active { transform: none; }
+}

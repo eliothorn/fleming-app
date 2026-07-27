@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Icon from "@/components/ui/Icon";
 import { signIn, signUp, liveMode } from "@/lib/auth/client";
 
 const C = {
@@ -38,7 +39,7 @@ export default function LoginPage() {
       <div className="fl-app" style={{ width: "100%", maxWidth: 400, background: "#fff", borderRadius: 24, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,0.5)", fontFamily: "var(--font-jakarta), sans-serif" }}>
         {/* Brand header */}
         <div style={{ background: "linear-gradient(135deg,#1F2EAD,#3B4FD8)", padding: "34px 28px 30px", color: "#fff" }}>
-          <div style={{ width: 46, height: 46, borderRadius: 13, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, marginBottom: 14 }}>🏢</div>
+          <div style={{ width: 46, height: 46, borderRadius: 13, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}><Icon name="building" size={24} /></div>
           <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.02em" }}>Fleming Realty Group</div>
           <div style={{ fontSize: 13, opacity: 0.8, marginTop: 3 }}>Sign in to manage your work orders, lease, and requests</div>
         </div>

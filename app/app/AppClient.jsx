@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut, viewAs, liveMode } from "@/lib/auth/client";
+import Icon from "@/components/ui/Icon";
 import PhoneApp from "@/components/PhoneApp";
 
 async function jsonFetch(url, options) {
@@ -50,7 +51,7 @@ export default function AppClient() {
     return (
       <div style={{ minHeight: "100vh", background: "#0D0D0D", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "var(--font-jakarta), sans-serif", padding: 24, textAlign: "center" }}>
         <div>
-          <div style={{ fontSize: 30, marginBottom: 10 }}>⚠️</div>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 12, color: "#FCA5A5" }}><Icon name="warning" size={30} /></div>
           <div style={{ fontSize: 15, fontWeight: 700 }}>Couldn't load your data</div>
           <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>{error}</div>
           <button onClick={load} style={{ marginTop: 16, background: "#1F2EAD", color: "#fff", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer" }}>Retry</button>
@@ -64,7 +65,7 @@ export default function AppClient() {
     // several seconds — an unlabelled black screen reads as a broken app.
     return (
       <div style={{ minHeight: "100vh", background: "#0D0D0D", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "var(--font-jakarta), sans-serif", padding: 24, textAlign: "center" }}>
-        <div style={{ width: 52, height: 52, borderRadius: 15, background: "linear-gradient(135deg,#1F2EAD,#3B4FD8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, marginBottom: 16, boxShadow: "0 8px 24px rgba(31,46,173,.4)" }}>🏢</div>
+        <div style={{ width: 52, height: 52, borderRadius: 15, background: "linear-gradient(135deg,#1F2EAD,#3B4FD8)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16, boxShadow: "0 8px 24px rgba(31,46,173,.4)" }}><Icon name="building" size={26} style={{ color: "#fff" }} /></div>
         <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-.02em", marginBottom: 6 }}>Fleming Realty Group</div>
         <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 18 }}>Loading your properties…</div>
         <div style={{ display: "flex", gap: 6 }}>
