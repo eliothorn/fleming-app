@@ -154,6 +154,41 @@ export async function GET(request) {
     return NextResponse.json(out);
   }
 
+  // Which email providers do real tenants/owners/vendors use? This decides
+  // whether "Sign in with Google/Apple" can actually match someone to their
+  // Buildium record, or would just strand them as unmatched. /diag?emaildomains=1
+  if (params.get("emaildomains")) {
+    const grab = async (path, field) => {
+      const out = [];
+      for (let i = 0; i < 25; i++) {
+        const page = await buildiumRequest(path, { query: { limit: 100, offset: i * 100 } });
+        if (!Array.isArray(page) || !page.length) break;
+        out.push(...page.map((r) => r[field]).filter(Boolean));
+        if (page.length < 100) break;
+      }
+      return out;
+    };
+    const [tenants, owners, vendors] = await Promise.all([
+      grab("/leases/tenants", "Email"),
+      grab("/rentals/owners", "Email"),
+      grab("/vendors", "PrimaryEmail"),
+    ]);
+    const tally = (emails) => {
+      const d = {};
+      for (const e of emails) {
+        const dom = String(e).toLowerCase().split("@")[1];
+        if (dom) d[dom] = (d[dom] || 0) + 1;
+      }
+      const sorted = Object.entries(d).sort((a, b) => b[1] - a[1]);
+      const consumer = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com", "aol.com", "me.com", "live.com", "comcast.net", "msn.com", "verizon.net"];
+      const googleBacked = sorted.filter(([x]) => x === "gmail.com").reduce((n, [, c]) => n + c, 0);
+      const appleBacked = sorted.filter(([x]) => ["icloud.com", "me.com", "mac.com"].includes(x)).reduce((n, [, c]) => n + c, 0);
+      const consumerTotal = sorted.filter(([x]) => consumer.includes(x)).reduce((n, [, c]) => n + c, 0);
+      return { total: emails.length, distinctDomains: sorted.length, top: sorted.slice(0, 8), googleBacked, appleBacked, consumerTotal };
+    };
+    return NextResponse.json({ tenants: tally(tenants), owners: tally(owners), vendors: tally(vendors) });
+  }
+
   // Distribution of task types/categories/statuses, to decide what counts as a
   // real maintenance work order: /diag?breakdown=1
   if (params.get("breakdown")) {

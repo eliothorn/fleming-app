@@ -1,5 +1,6 @@
 "use client";
 import { useState, createContext, useContext } from "react";
+import Icon from "@/components/ui/Icon";
 
 // Live Buildium data that deep children need without threading props through
 // every screen: the real vendor roster (100+, vs the 5-company demo list) and
@@ -7,22 +8,33 @@ import { useState, createContext, useContext } from "react";
 const LiveCtx = createContext(null);
 const useLive = () => useContext(LiveCtx) || {};
 
+// Design tokens. Kept in sync with the CSS custom properties in globals.css —
+// these are the JS-side mirror for the inline-style components ported from the
+// demo. Fleming navy stays the primary: it's the established brand.
 const C = {
-  primary:"#1F2EAD", primaryLight:"#EDEFFC", bg:"#F0F2F5", card:"#fff",
-  border:"#E4E7EC", text:"#0A0F1E", muted:"#667085", faint:"#98A2B3",
-  urgent:   {bg:"#FEF2F2",text:"#B91C1C",border:"#FECACA",bar:"#EF4444"},
-  pending:  {bg:"#FFF7ED",text:"#C2410C",border:"#FED7AA",bar:"#F97316"},
-  scheduled:{bg:"#EFF6FF",text:"#1D4ED8",border:"#BFDBFE",bar:"#3B82F6"},
+  primary:"#1F2EAD", primaryHover:"#1A279A", primaryLight:"#EDEFFC", bg:"#F4F6F9", card:"#fff",
+  sunken:"#F7F8FA",
+  border:"#E6E9EF", borderStrong:"#D6DBE4",
+  text:"#0A0F1E", muted:"#5A6376", faint:"#68707F",
+  urgent:   {bg:"#FEF2F2",text:"#B91C1C",border:"#FECACA",bar:"#DC2626"},
+  pending:  {bg:"#FFF7ED",text:"#C2410C",border:"#FED7AA",bar:"#EA580C"},
+  scheduled:{bg:"#EFF6FF",text:"#1D4ED8",border:"#BFDBFE",bar:"#2563EB"},
   review:   {bg:"#F5F3FF",text:"#6D28D9",border:"#DDD6FE",bar:"#7C3AED"},
-  done:     {bg:"#F0FDF4",text:"#15803D",border:"#BBF7D0",bar:"#22C55E"},
+  done:     {bg:"#F0FDF4",text:"#15803D",border:"#BBF7D0",bar:"#16A34A"},
+  // Soft UI depth ramp: contact shadow + diffuse ambient, never a single hard drop.
+  shadowSm:"0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.03)",
+  shadow:"0 1px 2px rgba(16,24,40,.04), 0 4px 12px rgba(16,24,40,.06)",
+  shadowLg:"0 2px 4px rgba(16,24,40,.04), 0 12px 28px rgba(16,24,40,.10)",
+  shadowBrand:"0 2px 6px rgba(31,46,173,.18), 0 10px 24px rgba(31,46,173,.22)",
+  r:{sm:10, md:14, lg:18, xl:22},
 };
 
 const ROLES = {
-  employee:{key:"employee",name:"Marcus J.",sub:"Leasing & Inspections",init:"M",color:"#1F2EAD",label:"Employee", labelBg:"#EDEFFC",labelText:"#1F2EAD",homeIcon:"⊞"},
-  vendor:  {key:"vendor",  name:"Daflure HVAC",sub:"HVAC · Plumbing Vendor",init:"Z",color:"#1B3A6B",label:"Vendor",  labelBg:"#E6EDF7",labelText:"#1B3A6B",homeIcon:"🔧"},
-  resident:{key:"resident",name:"Sarah M.", sub:"Unit 4B · 214 Walnut St",init:"S",color:"#C2410C",label:"Resident",labelBg:"#FFF7ED",labelText:"#C2410C",homeIcon:"🏠"},
-  owner:   {key:"owner",   name:"Robert H.",sub:"Portfolio · 3 Properties",init:"R",color:"#15803D",label:"Owner",   labelBg:"#F0FDF4",labelText:"#15803D",homeIcon:"🏢"},
-  applicant:{key:"applicant",name:"Jordan K.",sub:"Prospective Resident",init:"J",color:"#0958D9",label:"Applicant",labelBg:"#EFF6FF",labelText:"#0958D9",homeIcon:"📋"},
+  employee:{key:"employee",name:"Marcus J.",sub:"Leasing & Inspections",init:"M",color:"#1F2EAD",label:"Employee", labelBg:"#EDEFFC",labelText:"#1F2EAD",homeIcon:"grid"},
+  vendor:  {key:"vendor",  name:"Daflure HVAC",sub:"HVAC · Plumbing Vendor",init:"Z",color:"#1B3A6B",label:"Vendor",  labelBg:"#E6EDF7",labelText:"#1B3A6B",homeIcon:"wrench"},
+  resident:{key:"resident",name:"Sarah M.", sub:"Unit 4B · 214 Walnut St",init:"S",color:"#C2410C",label:"Resident",labelBg:"#FFF7ED",labelText:"#C2410C",homeIcon:"house"},
+  owner:   {key:"owner",   name:"Robert H.",sub:"Portfolio · 3 Properties",init:"R",color:"#15803D",label:"Owner",   labelBg:"#F0FDF4",labelText:"#15803D",homeIcon:"building"},
+  applicant:{key:"applicant",name:"Jordan K.",sub:"Prospective Resident",init:"J",color:"#0958D9",label:"Applicant",labelBg:"#EFF6FF",labelText:"#0958D9",homeIcon:"clipboard"},
 };
 
 const VENDORS = [
@@ -104,7 +116,7 @@ const VendorChip = ({vendorId,small}) => {
 const RoleSwitcherSheet = ({role,setRole,onClose}) => (
   <>
     <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(10,15,30,0.5)",backdropFilter:"blur(3px)",WebkitBackdropFilter:"blur(3px)",zIndex:50,borderRadius:36}} />
-    <div style={{position:"absolute",bottom:0,left:0,right:0,background:"#fff",borderRadius:"24px 24px 0 0",zIndex:51,paddingBottom:28,boxShadow:"0 -12px 48px rgba(10,15,30,0.25)"}}>
+    <div className="fl-sheet" style={{position:"absolute",bottom:0,left:0,right:0,background:"#fff",borderRadius:"24px 24px 0 0",zIndex:51,paddingBottom:28,boxShadow:"0 -12px 48px rgba(10,15,30,0.25)"}}>
       <div style={{display:"flex",justifyContent:"center",padding:"12px 0 4px"}}>
         <div style={{width:40,height:5,borderRadius:3,background:"#D6DAE1"}} />
       </div>
@@ -157,16 +169,21 @@ const AppHeader = ({role,setRole}) => {
 // ── NAV BAR ───────────────────────────────────────────────────────────────────
 const NavBar = ({active,onNav,role}) => {
   const p = ROLES[role];
-  const items = [{id:"home",icon:p.homeIcon,label:"Home"},{id:"orders",icon:"🔧",label:"Orders"},{id:"messages",icon:"💬",label:"Messages"},{id:"profile",icon:"👤",label:"Profile"}];
+  const items = [{id:"home",icon:p.homeIcon,label:"Home"},{id:"orders",icon:"wrench",label:"Orders"},{id:"messages",icon:"chat",label:"Messages"},{id:"profile",icon:"user",label:"Profile"}];
   return (
-    <div className="fl-safe-bottom" style={{background:"#fff",borderTop:"1px solid #E4E7EC",boxShadow:"0 -4px 16px rgba(16,24,40,0.05)",display:"grid",gridTemplateColumns:"repeat(4,1fr)",padding:"10px 0 18px",flexShrink:0}}>
-      {items.map(it=>(
-        <div key={it.id} onClick={()=>onNav(it.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,cursor:"pointer"}}>
-          <span style={{fontSize:20,lineHeight:1,color:active===it.id?C.primary:C.faint,filter:active===it.id?"none":"grayscale(1)",opacity:active===it.id?1:.55}}>{it.icon}</span>
-          <span style={{fontSize:10,fontWeight:active===it.id?700:600,letterSpacing:".01em",color:active===it.id?C.primary:C.faint}}>{it.label}</span>
-          {active===it.id && <div style={{width:4,height:4,borderRadius:"50%",background:C.primary}} />}
+    <div className="fl-safe-bottom" style={{background:"#fff",borderTop:`1px solid ${C.border}`,boxShadow:"0 -4px 16px rgba(16,24,40,0.05)",display:"grid",gridTemplateColumns:"repeat(4,1fr)",padding:"8px 0 18px",flexShrink:0}}>
+      {items.map(it=>{
+        const on = active===it.id;
+        return (
+        // 44px minimum target height per the mobile touch guideline.
+        <div key={it.id} onClick={()=>onNav(it.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,cursor:"pointer",minHeight:44,justifyContent:"center",paddingTop:2}}>
+          {/* Active tab reads through weight + colour, not a second colour system. */}
+          <Icon name={it.icon} size={21} strokeWidth={on?2.1:1.75} style={{color:on?C.primary:C.faint}} />
+          <span style={{fontSize:10,fontWeight:on?700:600,letterSpacing:".01em",color:on?C.primary:C.faint}}>{it.label}</span>
+          {on && <div style={{width:4,height:4,borderRadius:"50%",background:C.primary}} />}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
@@ -208,7 +225,7 @@ function EmployeeHome({me,orders,onNav,onOrder,role,setRole}) {
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10,padding:"0 16px"}}>
         {attention.map(o=>(
-          <div key={o.id} onClick={()=>onOrder(o)} style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
+          <div key={o.id} className="fl-rise fl-card" onClick={()=>onOrder(o)} style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
             <div style={{padding:"12px 14px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
                 <div style={{fontSize:13.5,fontWeight:700,color:C.text,flex:1,paddingRight:8,lineHeight:1.3}}>{o.title}</div>
@@ -229,13 +246,13 @@ function EmployeeHome({me,orders,onNav,onOrder,role,setRole}) {
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,padding:"0 16px 20px"}}>
         {[
-          {icon:"🔧",label:"New work order",sub:"Log maintenance",cb:()=>onNav("orders")},
-          {icon:"📋",label:"Start inspection",sub:"Open form",cb:()=>onNav("inspection")},
-          {icon:"💬",label:"Message vendor",sub:"Daflure + others",cb:()=>onNav("messages")},
-          {icon:"📊",label:"Owner report",sub:"Send update",cb:()=>onNav("profile")},
+          {icon:"wrench",label:"New work order",sub:"Log maintenance",cb:()=>onNav("orders")},
+          {icon:"clipboard",label:"Start inspection",sub:"Open form",cb:()=>onNav("inspection")},
+          {icon:"chat",label:"Message vendor",sub:"Daflure + others",cb:()=>onNav("messages")},
+          {icon:"chart",label:"Owner report",sub:"Send update",cb:()=>onNav("profile")},
         ].map(q=>(
-          <div key={q.label} onClick={q.cb} style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:16,padding:"14px 15px",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
-            <div style={{width:36,height:36,borderRadius:12,background:"#EDEFFC",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,marginBottom:10}}>{q.icon}</div>
+          <div key={q.label} className="fl-rise fl-card" onClick={q.cb} style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:16,padding:"14px 15px",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
+            <div style={{width:38,height:38,borderRadius:12,background:C.primaryLight,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:11}}><Icon name={q.icon} size={19} style={{color:C.primary}} /></div>
             <div style={{fontSize:12.5,fontWeight:700,color:C.text,marginBottom:2}}>{q.label}</div>
             <div style={{fontSize:11,color:C.faint}}>{q.sub}</div>
           </div>
@@ -326,7 +343,7 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
       {/* Pending-assignment guidance: their email isn't linked to a unit yet. */}
       {!isLinked && (
         <div style={{margin:"16px 16px 0",background:C.pending.bg,border:`1px solid ${C.pending.border}`,borderRadius:16,padding:"14px 16px",display:"flex",gap:12,alignItems:"flex-start"}}>
-          <span style={{fontSize:18,lineHeight:1.2}}>👋</span>
+          <Icon name="info" size={18} style={{color:C.pending.text,marginTop:1}} />
           <div>
             <div style={{fontSize:13,fontWeight:700,color:C.pending.text,marginBottom:3}}>We're still linking your account</div>
             <div style={{fontSize:12,color:C.pending.text,opacity:.9,lineHeight:1.5}}>
@@ -369,7 +386,7 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10,padding:"0 16px"}}>
         {myOrders.map(o=>(
-          <div key={o.id} onClick={()=>onOrder(o)} style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
+          <div key={o.id} className="fl-rise fl-card" onClick={()=>onOrder(o)} style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
             <div style={{padding:"12px 14px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
                 <div style={{fontSize:13,fontWeight:700,color:C.text,flex:1,paddingRight:8,lineHeight:1.3}}>{o.title}</div>
@@ -386,7 +403,7 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
       <div style={{padding:"16px 16px 20px"}}>
         {!chatOpen ? (
           <div onClick={()=>setChatOpen(true)} style={{background:"linear-gradient(135deg,#1F2EAD,#3B4FD8)",borderRadius:18,padding:"18px",cursor:"pointer",display:"flex",alignItems:"center",gap:14,boxShadow:"0 6px 20px rgba(31,46,173,0.30)"}}>
-            <div style={{width:44,height:44,borderRadius:12,background:"rgba(255,255,255,0.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>🤖</div>
+            <div style={{width:44,height:44,borderRadius:12,background:"rgba(255,255,255,0.15)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="sparkle" size={22} style={{color:"#fff"}} /></div>
             <div style={{flex:1}}>
               <div style={{fontSize:14,fontWeight:700,color:"#fff",marginBottom:2}}>Report an issue</div>
               <div style={{fontSize:12,color:"rgba(255,255,255,0.7)"}}>Describe it in plain English — AI creates the work order</div>
@@ -396,7 +413,7 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
         ) : null}
         {!chatOpen && (
           <div onClick={()=>onNav && onNav("neworder")} style={{marginTop:10,display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"13px",borderRadius:14,border:`1px solid ${C.border}`,background:"#fff",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04)"}}>
-            <span style={{fontSize:15}}>📝</span>
+            <Icon name="note" size={15} />
             <span style={{fontSize:13,fontWeight:700,color:C.text}}>Submit a request to my property manager</span>
           </div>
         )}
@@ -404,7 +421,7 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
           <div style={{background:"#fff",borderRadius:18,border:`1px solid ${C.border}`,overflow:"hidden",boxShadow:"0 8px 28px rgba(16,24,40,0.10)"}}>
             {/* Chat header */}
             <div style={{background:"linear-gradient(135deg,#1F2EAD,#3B4FD8)",padding:"12px 16px",display:"flex",alignItems:"center",gap:10}}>
-              <div style={{width:32,height:32,borderRadius:8,background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🤖</div>
+              <div style={{width:32,height:32,borderRadius:8,background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center"}}><Icon name="sparkle" size={17} style={{color:"#fff"}} /></div>
               <div style={{flex:1}}>
                 <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>Fleming AI Receptionist</div>
                 <div style={{fontSize:10.5,color:"rgba(255,255,255,0.65)"}}>Powered by Claude · Fleming Realty</div>
@@ -418,7 +435,7 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
                 <div key={i} style={{display:"flex",flexDirection:"column",alignItems:m.from==="user"?"flex-end":"flex-start"}}>
                   {m.from==="ai" && (
                     <div style={{display:"flex",alignItems:"flex-end",gap:6,maxWidth:"88%"}}>
-                      <div style={{width:24,height:24,borderRadius:6,background:"linear-gradient(135deg,#1F2EAD,#3B4FD8)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,flexShrink:0,marginBottom:2}}>🤖</div>
+                      <div style={{width:24,height:24,borderRadius:6,background:"linear-gradient(135deg,#1F2EAD,#3B4FD8)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginBottom:2}}><Icon name="sparkle" size={13} style={{color:"#fff"}} /></div>
                       <div style={{background:"#F0F2F5",borderRadius:"12px 12px 12px 2px",padding:"10px 13px",fontSize:13,color:C.text,lineHeight:1.5}}>{m.text}</div>
                     </div>
                   )}
@@ -429,7 +446,7 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
               ))}
               {loading && (
                 <div style={{display:"flex",alignItems:"flex-end",gap:6}}>
-                  <div style={{width:24,height:24,borderRadius:6,background:"linear-gradient(135deg,#1F2EAD,#3B4FD8)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,flexShrink:0}}>🤖</div>
+                  <div style={{width:24,height:24,borderRadius:6,background:"linear-gradient(135deg,#1F2EAD,#3B4FD8)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="sparkle" size={13} style={{color:"#fff"}} /></div>
                   <div style={{background:"#F0F2F5",borderRadius:"12px 12px 12px 2px",padding:"10px 14px"}}>
                     <div style={{display:"flex",gap:4,alignItems:"center"}}>
                       {[0,1,2].map(i=><div key={i} style={{width:6,height:6,borderRadius:"50%",background:C.faint,animation:"pulse 1.2s ease-in-out infinite",animationDelay:`${i*0.2}s`}} />)}
@@ -578,7 +595,7 @@ function OwnerHome({inspections=[],balances=RESIDENT_BALANCES,properties=OWNER_P
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10,padding:"0 16px 20px"}}>
         {listed.map(p=>(
-          <div key={p.id} style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
+          <div key={p.id} className="fl-rise" style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
             <div style={{padding:"13px 14px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                 <div>
@@ -632,7 +649,7 @@ function OrdersScreen({me,orders,onOrder,onNav,onNewOrder,onInspection,role,setR
           {role==="owner"&&<span style={{fontSize:12,color:C.faint}}>View only</span>}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8,background:"#F7F8FA",border:`1px solid ${C.border}`,borderRadius:12,padding:"10px 13px"}}>
-          <span style={{fontSize:14,color:C.faint}}>🔍</span>
+          <Icon name="search" size={16} style={{color:C.faint}} />
           <input
             value={q}
             onChange={e=>setQ(e.target.value)}
@@ -658,7 +675,7 @@ function OrdersScreen({me,orders,onOrder,onNav,onNewOrder,onInspection,role,setR
             <div key={sec.key}>
               <div style={{padding:"8px 0 4px"}}><span style={{fontSize:10,fontWeight:700,letterSpacing:".1em",textTransform:"uppercase",color:C.faint}}>{sec.label}</span></div>
               {items.map(o=>(
-                <div key={o.id} onClick={()=>onOrder(o)} style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)",marginBottom:10}}>
+                <div key={o.id} className="fl-rise fl-card" onClick={()=>onOrder(o)} style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)",marginBottom:10}}>
                   <div style={{padding:"12px 14px"}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:3}}>
                       <span style={{fontSize:10,fontWeight:600,color:C.faint,letterSpacing:".04em"}}>{o.id}</span>
@@ -680,7 +697,7 @@ function OrdersScreen({me,orders,onOrder,onNav,onNewOrder,onInspection,role,setR
 
         {filtered.length===0&&(
           <div style={{textAlign:"center",padding:"36px 20px"}}>
-            <div style={{fontSize:32,marginBottom:10}}>{needle?"🔍":"📭"}</div>
+            <div style={{display:"flex",justifyContent:"center",marginBottom:12,color:C.faint}}><Icon name={needle?"search":"tray"} size={30} strokeWidth={1.6} /></div>
             <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>
               {needle?"No matching work orders":"Nothing here yet"}
             </div>
@@ -822,7 +839,7 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
             office record was updated. */}
         {!syncs&&role!=="resident"&&(
           <div style={{display:"flex",gap:10,alignItems:"flex-start",background:C.pending.bg,border:`1px solid ${C.pending.border}`,borderRadius:14,padding:"11px 13px"}}>
-            <span style={{fontSize:15,lineHeight:1.2}}>⚠️</span>
+            <Icon name="warning" size={17} style={{color:C.pending.text,marginTop:1}} />
             <div style={{fontSize:11.5,color:C.pending.text,lineHeight:1.5}}>
               <b>Viewing live Buildium data.</b> Changes you make here (assigning, closing, notes) stay on this device — they don't write back to Buildium yet.
             </div>
@@ -900,7 +917,7 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
             {cur.photoAdded&&(
               <div style={{height:120,borderRadius:10,background:"linear-gradient(135deg,#E6EDF7,#D4E0F0)",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:10,border:`1px solid ${C.border}`}}>
                 <div style={{textAlign:"center"}}>
-                  <div style={{fontSize:30,marginBottom:4}}>📷</div>
+                  <div style={{display:"flex",justifyContent:"center",marginBottom:6,color:"#1B3A6B"}}><Icon name="camera" size={28} /></div>
                   <div style={{fontSize:11,color:"#1B3A6B",fontWeight:600}}>Completion photo attached</div>
                   <div style={{fontSize:10,color:C.faint,marginTop:2}}>IMG_4471.jpg · uploaded by vendor</div>
                 </div>
@@ -914,14 +931,14 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
         {role==="vendor"&&cur?.status!=="done"&&(
           schedulingRequested?(
             <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",background:C.scheduled.bg,borderRadius:14,border:`1px solid ${C.scheduled.border}`}}>
-              <span style={{fontSize:18}}>📅</span>
+              <Icon name="calendar" size={18} style={{color:C.scheduled.text}} />
               <div style={{flex:1}}>
                 <div style={{fontSize:13,fontWeight:700,color:C.scheduled.text}}>Scheduling request sent</div>
                 <div style={{fontSize:11.5,color:C.scheduled.text,opacity:.85,marginTop:2}}>Fleming Realty will reach out to coordinate a time.</div>
               </div>
             </div>
           ):(
-            <button onClick={()=>setSchedulingRequested(true)} style={{width:"100%",background:"#fff",color:C.primary,fontSize:13.5,fontWeight:700,padding:"13px",borderRadius:14,border:`1.5px solid ${C.primary}`,cursor:"pointer",fontFamily:"inherit"}}>📅 Contact Fleming about scheduling</button>
+            <button onClick={()=>setSchedulingRequested(true)} style={{width:"100%",background:"#fff",color:C.primary,fontSize:13.5,fontWeight:700,padding:"13px",borderRadius:14,border:`1.5px solid ${C.primary}`,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><Icon name="calendar" size={17} />Contact Fleming about scheduling</button>
           )
         )}
 
@@ -935,7 +952,7 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
               <div style={{fontSize:11,fontWeight:600,color:C.faint,marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Photo of completed work <span style={{color:C.urgent.text}}>*</span></div>
               {!photoAdded?(
                 <div onClick={()=>setPhotoAdded(true)} style={{height:90,borderRadius:10,border:`2px dashed ${C.border}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",marginBottom:12,background:"#F8FAFC"}}>
-                  <div style={{fontSize:24,marginBottom:4}}>📷</div>
+                  <div style={{display:"flex",justifyContent:"center",marginBottom:6,color:C.muted}}><Icon name="camera" size={24} /></div>
                   <div style={{fontSize:12,color:C.muted,fontWeight:500}}>Tap to add photo</div>
                 </div>
               ):(
@@ -1005,20 +1022,20 @@ function AssignScreen({order,orders,setOrders,onUpdateOrder,onBack,role,setRole}
       {/* Real rosters run to 100+ vendors, so this needs a filter to be usable. */}
       <div style={{padding:"12px 16px 0"}}>
         <div style={{display:"flex",alignItems:"center",gap:8,background:"#F7F8FA",border:`1px solid ${C.border}`,borderRadius:12,padding:"10px 13px"}}>
-          <span style={{fontSize:14,color:C.faint}}>🔍</span>
+          <Icon name="search" size={16} style={{color:C.faint}} />
           <input value={vq} onChange={e=>setVq(e.target.value)} placeholder={`Search ${vendors.length} vendors…`} style={{border:"none",background:"transparent",fontSize:13,color:C.text,width:"100%",outline:"none",fontFamily:"inherit"}} />
           {vq&&<span onClick={()=>setVq("")} style={{fontSize:14,color:C.faint,cursor:"pointer",lineHeight:1}}>✕</span>}
         </div>
       </div>
       <div style={{padding:"12px 16px",display:"flex",flexDirection:"column",gap:8}}>
         {shownVendors.map(v=>(
-          <div key={v.id} onClick={()=>setSelected(v.id)} style={{background:"#fff",borderRadius:16,border:selected===v.id?`2px solid ${C.primary}`:`1px solid ${C.border}`,padding:"14px 15px",cursor:"pointer",display:"flex",alignItems:"center",gap:12,transition:"border-color .15s ease, box-shadow .15s ease",boxShadow:selected===v.id?"0 0 0 4px rgba(31,46,173,0.10)":"0 1px 2px rgba(16,24,40,0.04)"}}>
+          <div key={v.id} className="fl-rise" onClick={()=>setSelected(v.id)} style={{background:"#fff",borderRadius:16,border:selected===v.id?`2px solid ${C.primary}`:`1px solid ${C.border}`,padding:"14px 15px",cursor:"pointer",display:"flex",alignItems:"center",gap:12,transition:"border-color .15s ease, box-shadow .15s ease",boxShadow:selected===v.id?"0 0 0 4px rgba(31,46,173,0.10)":"0 1px 2px rgba(16,24,40,0.04)"}}>
             <VendorAvatar v={v} size={44} />
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:13.5,fontWeight:700,color:C.text,marginBottom:2}}>{v.name}</div>
               {v.specialty&&<div style={{fontSize:11,color:C.muted,marginBottom:2}}>{v.specialty}</div>}
               <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                {v.location&&<span style={{fontSize:10,color:C.faint}}>📍 {v.location}</span>}
+                {v.location&&<span style={{fontSize:10,color:C.faint,display:"inline-flex",alignItems:"center",gap:3}}><Icon name="pin" size={11} />{v.location}</span>}
                 {v.phone&&<span style={{fontSize:10,color:C.faint}}>{v.phone}</span>}
               </div>
             </div>
@@ -1153,7 +1170,7 @@ function MessagesScreen({messages,messagingEnabled=true,onNav,role,setRole}) {
       )}
       {filtered.length===0&&(
         <div style={{textAlign:"center",padding:"44px 26px"}}>
-          <div style={{fontSize:34,marginBottom:12}}>💬</div>
+          <div style={{display:"flex",justifyContent:"center",marginBottom:12,color:C.faint}}><Icon name="chat" size={32} strokeWidth={1.6} /></div>
           <div style={{fontSize:14.5,fontWeight:700,color:C.text,marginBottom:6}}>No messages yet</div>
           <div style={{fontSize:12.5,color:C.muted,lineHeight:1.55}}>
             In-app messaging isn't switched on yet. For anything you need right now,
@@ -1237,7 +1254,7 @@ function ProfileScreen({me,role,setRole,onNav,onSignOut,canViewAs}) {
         </div>
       )}
       <div style={{margin:"12px 16px 0",padding:"14px 16px",background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:12,boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
-        <div style={{width:36,height:36,borderRadius:10,background:C.primaryLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>🏢</div>
+        <div style={{width:36,height:36,borderRadius:10,background:C.primaryLight,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="building" size={18} style={{color:C.primary}} /></div>
         <div><div style={{fontSize:13,fontWeight:700,color:C.text}}>Fleming Realty Group</div><div style={{fontSize:11.5,color:C.faint}}>325 units · Camp Hill, PA</div></div>
       </div>
       <div style={{margin:"12px 16px 20px"}}>
@@ -1332,7 +1349,7 @@ function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDon
     <div style={{flex:1,display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,gap:16}}>
-        <div style={{fontSize:52}}>✅</div>
+        <div style={{color:C.done.text}}><Icon name="checkCircle" size={52} strokeWidth={1.5} /></div>
         <div style={{fontSize:18,fontWeight:700,color:C.text,textAlign:"center"}}>Inspection submitted</div>
         <div style={{fontSize:13.5,color:C.muted,textAlign:"center",lineHeight:1.6,maxWidth:260}}>
           Report saved. {fails > 0 ? `${fails} issue${fails>1?"s":""} flagged — work orders will be created automatically.` : "No issues found."}
@@ -1417,13 +1434,13 @@ function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDon
                         />
                         {photos[item.id] ? (
                           <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",borderRadius:8,background:C.done.bg,border:`1px solid ${C.done.border}`}}>
-                            <span style={{fontSize:13}}>📷</span>
+                            <Icon name="camera" size={14} />
                             <span style={{flex:1,fontSize:11.5,fontWeight:600,color:C.done.text}}>Photo attached · IMG_{item.id.toUpperCase()}.jpg</span>
                             <span onClick={()=>setPhotos(prev=>{const n={...prev};delete n[item.id];return n;})} style={{fontSize:11,fontWeight:700,color:C.muted,cursor:"pointer"}}>Remove</span>
                           </div>
                         ) : (
                           <div onClick={()=>setPhotos(prev=>({...prev,[item.id]:true}))} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"8px 10px",borderRadius:8,border:`1.5px dashed ${C.urgent.border}`,background:"#fff",cursor:"pointer"}}>
-                            <span style={{fontSize:13}}>📷</span>
+                            <Icon name="camera" size={14} />
                             <span style={{fontSize:11.5,fontWeight:600,color:C.urgent.text}}>Attach photo of issue</span>
                           </div>
                         )}
@@ -1616,7 +1633,7 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
     <div style={{flex:1,display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,gap:12}}>
-        <div style={{fontSize:48}}>🔧</div>
+        <div style={{color:C.primary}}><Icon name="wrench" size={46} strokeWidth={1.5} /></div>
         <div style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>{isResident?"Request submitted!":"Work order created!"}</div>
         <div style={{fontSize:13,color:C.muted,textAlign:"center",lineHeight:1.6}}>{isResident?`"${title}" was sent directly to your property manager (Marcus J.). You'll be notified when a vendor is assigned.`:`${title} has been logged and is now visible in the orders list.`}</div>
       </div>
@@ -1636,7 +1653,7 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
 
         {isResident&&(
           <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 13px",borderRadius:12,background:C.primaryLight,border:`1px solid ${C.primary}22`}}>
-            <span style={{fontSize:16}}>🏢</span>
+            <Icon name="building" size={17} style={{color:C.primary}} />
             <span style={{fontSize:11.5,color:C.primary,fontWeight:600,lineHeight:1.4}}>Fleming Realty (Marcus J.) will receive this request and assign a vendor.</span>
           </div>
         )}
@@ -1735,7 +1752,7 @@ function VendorHome({me,orders,onOrder,role,setRole}) {
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10,padding:"0 16px 20px"}}>
         {myJobs.map(o=>(
-          <div key={o.id} onClick={()=>onOrder(o)} style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
+          <div key={o.id} className="fl-rise fl-card" onClick={()=>onOrder(o)} style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
             <div style={{padding:"12px 14px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
                 <div style={{fontSize:13.5,fontWeight:700,color:C.text,flex:1,paddingRight:8,lineHeight:1.3}}>{o.title}</div>
@@ -1788,7 +1805,7 @@ function ApplicantHome({role,setRole}) {
 
       {/* Verification email confirmation */}
       <div style={{margin:"12px 16px 0",background:"#fff",borderRadius:16,border:`1px solid ${C.done.border}`,padding:"13px 14px",display:"flex",alignItems:"center",gap:12,boxShadow:"0 1px 2px rgba(16,24,40,0.04)"}}>
-        <div style={{width:36,height:36,borderRadius:10,background:C.done.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>✉️</div>
+        <div style={{width:36,height:36,borderRadius:10,background:C.done.bg,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="envelope" size={18} style={{color:C.done.text}} /></div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:13,fontWeight:700,color:C.text}}>Email verified ✓</div>
           <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>Verification sent to jordan.k@email.com on submission</div>
@@ -1798,7 +1815,7 @@ function ApplicantHome({role,setRole}) {
       {/* Invite an additional applicant */}
       <div style={{margin:"12px 16px 0",background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:invited?0:10}}>
-          <div style={{width:36,height:36,borderRadius:10,background:C.primaryLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>👥</div>
+          <div style={{width:36,height:36,borderRadius:10,background:C.primaryLight,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="users" size={18} style={{color:C.primary}} /></div>
           <div style={{flex:1}}>
             <div style={{fontSize:13,fontWeight:700,color:C.text}}>Add a co-applicant</div>
             <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>Applying with a roommate or partner? Invite them.</div>
@@ -1839,7 +1856,7 @@ function ApplicantHome({role,setRole}) {
 
       {/* Notifications toggle */}
       <div style={{margin:"16px 16px 20px",background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",display:"flex",alignItems:"center",gap:12,boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
-        <div style={{width:36,height:36,borderRadius:10,background:"#EFF6FF",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🔔</div>
+        <div style={{width:36,height:36,borderRadius:10,background:"#EFF6FF",display:"flex",alignItems:"center",justifyContent:"center"}}><Icon name="bell" size={18} style={{color:"#0958D9"}} /></div>
         <div style={{flex:1}}>
           <div style={{fontSize:13,fontWeight:700,color:C.text}}>Notifications on</div>
           <div style={{fontSize:11.5,color:C.faint}}>We'll text you the moment there's a decision</div>

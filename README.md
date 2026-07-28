@@ -78,6 +78,41 @@ Key files:
 4. Restart `npm run dev`. The app now uses real Supabase Auth; the dev accounts and
    role switcher turn off.
 
+### 1b. Sign-in methods (magic link + Google)
+
+The email address is not just a login here — it's the key that matches a person
+to their Buildium tenant/owner/vendor record. That drove the choice of methods.
+Measured on the live account: of 1,101 tenant emails, 67% are gmail, 2% icloud,
+across 74 distinct domains.
+
+**Magic link — works as soon as Supabase is configured, nothing else needed.**
+Passwordless; receiving the mail both verifies the address and guarantees the
+Buildium match. This is the default for residents, who sign in rarely and would
+otherwise generate password-reset calls to the office.
+
+For production, set a real SMTP sender in Supabase (Authentication → Emails →
+SMTP). The built-in sender is rate-limited (a few messages an hour) and mail
+from it is more likely to land in spam.
+
+**Google — needs one thing from you:**
+1. Google Cloud Console → APIs & Services → Credentials → *Create OAuth client ID*
+   → Web application.
+2. Authorised redirect URI: `https://<your-project>.supabase.co/auth/v1/callback`
+3. Copy the client ID and secret into Supabase → Authentication → Providers →
+   Google → enable and paste.
+4. Supabase → Authentication → URL Configuration → add your app's
+   `/auth/callback` to **Redirect URLs** (e.g. `http://localhost:3000/auth/callback`
+   and your deployed URL).
+
+The login page shows the Google button whenever Supabase is configured; if the
+provider isn't enabled yet, Supabase returns a clear error rather than failing
+silently.
+
+**Apple was deliberately not implemented.** Only ~2% of tenants use iCloud
+addresses, it needs a $99/yr Apple Developer account, and its "Hide My Email"
+feature issues a `@privaterelay.appleid.com` alias that would never match a
+Buildium record — actively defeating the matcher.
+
 ### 2. Buildium (real property data) — requires the broker
 1. The broker's Buildium account must be on the **Premium plan** (Open API).
 2. An admin creates an API key in **Settings → Developer Tools → API Keys**, scoped
