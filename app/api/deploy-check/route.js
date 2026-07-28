@@ -3,7 +3,7 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth/session";
 import { isSupabaseConfigured, isBuildiumConfigured, isBuildiumLive, isBuildiumWriteEnabled, isAnthropicConfigured } from "@/lib/env";
-import { sessionStorageMode } from "@/lib/auth/supabaseBackend";
+import { sessionStorageMode, demoAccountsAllowed } from "@/lib/auth/supabaseBackend";
 
 export async function GET(request) {
   const me = await getServerUser(request);
@@ -41,6 +41,19 @@ export async function GET(request) {
 
   const seedOpen = process.env.ALLOW_DEMO_SEED === "true";
   add("Demo seeding endpoint", !seedOpen, seedOpen ? "OPEN — /api/auth/seed-demo can create accounts. Unset ALLOW_DEMO_SEED." : "Disabled.", seedOpen);
+
+  // The seeded @fleming.test accounts share one published password and hold
+  // employee/owner roles, so on a public URL they are an open door to real
+  // tenant data.
+  const demoOpen = demoAccountsAllowed();
+  add(
+    "Demo accounts (@fleming.test)",
+    !demoOpen,
+    demoOpen
+      ? "ENABLED — marcus@fleming.test (employee) and robert@fleming.test (owner) can sign in with the published password 'demo1234'. Do not ship with ALLOW_DEMO_ACCOUNTS set."
+      : "Locked out. They remain in the database but cannot sign in.",
+    demoOpen
+  );
 
   add(
     "Session secret quality",
