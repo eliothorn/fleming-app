@@ -7,7 +7,12 @@ import { supaLogout } from "@/lib/auth/supabaseBackend";
 
 export async function POST() {
   const token = cookies().get(SESSION_COOKIE)?.value;
-  if (token) (isSupabaseConfigured() ? supaLogout : devLogout)(token);
+  if (token) {
+    // Awaited: the session row must actually be deleted before we respond, or a
+    // serverless instance can be frozen mid-flight leaving the session valid.
+    if (isSupabaseConfigured()) await supaLogout(token);
+    else devLogout(token);
+  }
   cookies().delete(SESSION_COOKIE);
   return NextResponse.json({ ok: true });
 }

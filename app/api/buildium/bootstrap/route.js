@@ -6,6 +6,11 @@ import { getServerUser } from "@/lib/auth/session";
 import { buildium } from "@/lib/buildium";
 import { isBuildiumLive, submissionsReachOffice } from "@/lib/env";
 
+// A cold load pages ~30 throttled Buildium requests and takes ~9s. The default
+// serverless timeout is 10s, which this would intermittently exceed.
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
+
 export async function GET(request) {
   const me = await getServerUser(request);
   if (!me) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });

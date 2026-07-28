@@ -8,6 +8,10 @@ import { isBuildiumConfigured, isBuildiumLive } from "@/lib/env";
 import { buildiumRequest } from "@/lib/buildium/real";
 import { matchByEmail } from "@/lib/buildium/matcher";
 
+// Diagnostics page through many Buildium records; allow more than the 10s default.
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
+
 export async function GET(request) {
   const me = await getServerUser(request);
   if (!me || me.role !== "employee") {
