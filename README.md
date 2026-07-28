@@ -71,7 +71,14 @@ Key files:
 ### 1. Supabase (real auth + roles)
 1. Create a free project at https://supabase.com.
 2. In the SQL editor, run `supabase/schema.sql` (creates the `profiles` table +
-   the trigger that assigns a role by matching the new user's email).
+   the trigger that assigns a role by matching the new user's email), then
+   `supabase/sessions.sql` (the `app_sessions` table).
+
+   **`sessions.sql` is required before deploying.** Sessions were previously held
+   in server memory, which works on one long-lived process but breaks on
+   serverless hosting — each request can hit a different cold instance that has
+   never seen the session, logging people out at random. Without the table the
+   app falls back to memory and `/api/deploy-check` reports it as a blocker.
 3. Project Settings → API: copy the URL, the anon key, and the service role key
    into `.env.local` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
    `SUPABASE_SERVICE_ROLE_KEY`).
