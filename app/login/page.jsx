@@ -1,8 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
-import { signIn, signUp, sendMagicLink, signInWithGoogle, liveMode } from "@/lib/auth/client";
+import { signIn, signUp, sendMagicLink, signInWithGoogle, getEnabledProviders, liveMode } from "@/lib/auth/client";
 
 const C = {
   primary: "#1F2EAD", primaryLight: "#EDEFFC", border: "#E6E9EF",
@@ -29,6 +29,15 @@ export default function LoginPage() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // Only offer Google once Supabase actually has the provider enabled —
+  // otherwise the button navigates straight to a raw JSON error page.
+  const [googleReady, setGoogleReady] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    getEnabledProviders().then((p) => { if (alive) setGoogleReady(Boolean(p?.google)); });
+    return () => { alive = false; };
+  }, []);
 
   const magic = async () => {
     if (busy) return;
@@ -93,7 +102,7 @@ export default function LoginPage() {
           ) : (
             <>
               {/* ── Google ────────────────────────────────────────────────── */}
-              {liveMode && (
+              {liveMode && googleReady && (
                 <>
                   <button onClick={google} disabled={busy} style={googleBtn}>
                     <GoogleMark />
