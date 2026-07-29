@@ -8,33 +8,42 @@ import Icon from "@/components/ui/Icon";
 const LiveCtx = createContext(null);
 const useLive = () => useContext(LiveCtx) || {};
 
-// Design tokens. Kept in sync with the CSS custom properties in globals.css —
-// these are the JS-side mirror for the inline-style components ported from the
-// demo. Fleming navy stays the primary: it's the established brand.
+// Design tokens — Fleming Realty brand guide. Mirrors globals.css for the
+// inline-styled components ported from the demo.
+//
+// Gold (#C8A15A) is measured at 2.12:1 on sand and 2.41:1 on white, so it never
+// carries small text on a light surface. It appears on navy (7.12:1), as rules
+// and borders, and as icon accents.
 const C = {
-  primary:"#1F2EAD", primaryHover:"#1A279A", primaryLight:"#EDEFFC", bg:"#F4F6F9", card:"#fff",
-  sunken:"#F7F8FA",
-  border:"#E6E9EF", borderStrong:"#D6DBE4",
-  text:"#0A0F1E", muted:"#5A6376", faint:"#68707F",
-  urgent:   {bg:"#FEF2F2",text:"#B91C1C",border:"#FECACA",bar:"#DC2626"},
-  pending:  {bg:"#FFF7ED",text:"#C2410C",border:"#FED7AA",bar:"#EA580C"},
-  scheduled:{bg:"#EFF6FF",text:"#1D4ED8",border:"#BFDBFE",bar:"#2563EB"},
-  review:   {bg:"#F5F3FF",text:"#6D28D9",border:"#DDD6FE",bar:"#7C3AED"},
-  done:     {bg:"#F0FDF4",text:"#15803D",border:"#BBF7D0",bar:"#16A34A"},
-  // Soft UI depth ramp: contact shadow + diffuse ambient, never a single hard drop.
-  shadowSm:"0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.03)",
-  shadow:"0 1px 2px rgba(16,24,40,.04), 0 4px 12px rgba(16,24,40,.06)",
-  shadowLg:"0 2px 4px rgba(16,24,40,.04), 0 12px 28px rgba(16,24,40,.10)",
-  shadowBrand:"0 2px 6px rgba(31,46,173,.18), 0 10px 24px rgba(31,46,173,.22)",
-  r:{sm:10, md:14, lg:18, xl:22},
+  primary:"#0D1B33", primaryHover:"#071223", primaryLight:"#E7E9ED",
+  gold:"#C8A15A", goldSoft:"#F5EEE1", goldDeep:"#8A6828",
+  slate:"#4A6A80",
+  bg:"#F2F0EB", card:"#fff", sunken:"#FAF8F4",
+  border:"#E5E1D8", borderStrong:"#D3CEC2",
+  text:"#0D1B33", body:"#333333", muted:"#4A6A80", faint:"#4A6A80",
+  urgent:   {bg:"#FDF2F0",text:"#B91C1C",border:"#F3D3CD",bar:"#B91C1C"},
+  pending:  {bg:"#FBF3E8",text:"#B45309",border:"#EDDBBF",bar:"#B45309"},
+  scheduled:{bg:"#EEF2FB",text:"#1D4ED8",border:"#CBD8F0",bar:"#1D4ED8"},
+  review:   {bg:"#F3F0FA",text:"#6D28D9",border:"#DCD3F0",bar:"#6D28D9"},
+  done:     {bg:"#EFF6F0",text:"#15803D",border:"#C8E0CD",bar:"#15803D"},
+  // Warm-tinted depth so cards sit on sand instead of floating on cool grey.
+  shadowSm:"0 1px 2px rgba(13,27,51,.05), 0 1px 3px rgba(13,27,51,.03)",
+  shadow:"0 1px 2px rgba(13,27,51,.05), 0 4px 12px rgba(13,27,51,.07)",
+  shadowLg:"0 2px 4px rgba(13,27,51,.05), 0 12px 28px rgba(13,27,51,.11)",
+  shadowBrand:"0 2px 6px rgba(13,27,51,.22), 0 10px 24px rgba(13,27,51,.26)",
+  r:{sm:8, md:12, lg:16, xl:20},
+  display:"var(--font-display), Georgia, serif",
 };
 
+// Role colours drawn from the brand palette rather than arbitrary hues. Every
+// pairing below was contrast-checked: white initials on the avatar colour and
+// the label text on its own soft background both clear 4.5:1.
 const ROLES = {
-  employee:{key:"employee",name:"Marcus J.",sub:"Leasing & Inspections",init:"M",color:"#1F2EAD",label:"Employee", labelBg:"#EDEFFC",labelText:"#1F2EAD",homeIcon:"grid"},
-  vendor:  {key:"vendor",  name:"Daflure HVAC",sub:"HVAC · Plumbing Vendor",init:"Z",color:"#1B3A6B",label:"Vendor",  labelBg:"#E6EDF7",labelText:"#1B3A6B",homeIcon:"wrench"},
-  resident:{key:"resident",name:"Sarah M.", sub:"Unit 4B · 214 Walnut St",init:"S",color:"#C2410C",label:"Resident",labelBg:"#FFF7ED",labelText:"#C2410C",homeIcon:"house"},
-  owner:   {key:"owner",   name:"Robert H.",sub:"Portfolio · 3 Properties",init:"R",color:"#15803D",label:"Owner",   labelBg:"#F0FDF4",labelText:"#15803D",homeIcon:"building"},
-  applicant:{key:"applicant",name:"Jordan K.",sub:"Prospective Resident",init:"J",color:"#0958D9",label:"Applicant",labelBg:"#EFF6FF",labelText:"#0958D9",homeIcon:"clipboard"},
+  employee:{key:"employee",name:"Marcus J.",sub:"Leasing & Inspections",init:"M",color:"#0D1B33",label:"Employee", labelBg:"#E7E9ED",labelText:"#0D1B33",homeIcon:"grid"},
+  vendor:  {key:"vendor",  name:"Daflure HVAC",sub:"HVAC · Plumbing Vendor",init:"Z",color:"#333333",label:"Vendor",  labelBg:"#EDEBE7",labelText:"#333333",homeIcon:"wrench"},
+  resident:{key:"resident",name:"Sarah M.", sub:"Unit 4B · 214 Walnut St",init:"S",color:"#7C5D24",label:"Resident",labelBg:"#F5EEE1",labelText:"#7C5D24",homeIcon:"house"},
+  owner:   {key:"owner",   name:"Robert H.",sub:"Portfolio · 3 Properties",init:"R",color:"#4A6A80",label:"Owner",   labelBg:"#EAF0F3",labelText:"#4A6A80",homeIcon:"building"},
+  applicant:{key:"applicant",name:"Jordan K.",sub:"Prospective Resident",init:"J",color:"#2C4A5E",label:"Applicant",labelBg:"#E8EFF3",labelText:"#2C4A5E",homeIcon:"clipboard"},
 };
 
 const VENDORS = [
@@ -96,7 +105,7 @@ const Badge = ({status}) => { const m=SM[status]; return <span style={{display:"
 const VendorAvatar = ({v, size=20}) => {
   const [imgErr, setImgErr] = useState(false);
   if (v?.logo && !imgErr) {
-    return <img src={v.logo} alt={v.name} onError={()=>setImgErr(true)} style={{width:size,height:size,borderRadius:"50%",objectFit:"contain",background:"#fff",border:"1px solid #E4E7EC",flexShrink:0,padding:2}} />;
+    return <img src={v.logo} alt={v.name} onError={()=>setImgErr(true)} style={{width:size,height:size,borderRadius:"50%",objectFit:"contain",background:"#fff",border:"1px solid #E5E1D8",flexShrink:0,padding:2}} />;
   }
   return <div style={{width:size,height:size,borderRadius:"50%",background:v?v.color:"#B0B5C3",display:"flex",alignItems:"center",justifyContent:"center",fontSize:size<=18?7:size<=24?9:11,fontWeight:700,color:"#fff",flexShrink:0,letterSpacing:"-.5px"}}>{v?v.initials:"?"}</div>;
 };
@@ -105,7 +114,7 @@ const VendorChip = ({vendorId,small}) => {
   const {vendors=VENDORS} = useLive();
   const v = vendors.find(v=>v.id===vendorId);
   return (
-    <div style={{display:"flex",alignItems:"center",gap:5,background:"#F8FAFC",padding:small?"3px 8px 3px 4px":"4px 10px 4px 5px",borderRadius:20,border:"1px solid #E4E7EC"}}>
+    <div style={{display:"flex",alignItems:"center",gap:5,background:"#FAF8F4",padding:small?"3px 8px 3px 4px":"4px 10px 4px 5px",borderRadius:20,border:"1px solid #E5E1D8"}}>
       <VendorAvatar v={v} size={small?16:20} />
       <span style={{fontSize:small?10:11,color:"#5A5F72",fontWeight:500}}>{v?v.name:"Unassigned"}</span>
     </div>
@@ -121,7 +130,7 @@ const RoleSwitcherSheet = ({role,setRole,onClose}) => (
         <div style={{width:40,height:5,borderRadius:3,background:"#D6DAE1"}} />
       </div>
       <div style={{padding:"6px 20px 14px",borderBottom:`1px solid ${C.border}`,marginBottom:4}}>
-        <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:C.faint}}>Switch view</div>
+        <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint}}>Switch view</div>
       </div>
       {Object.values(ROLES).map(r => {
         const active = r.key===role;
@@ -180,7 +189,7 @@ const NavBar = ({active,onNav,role}) => {
           {/* Active tab reads through weight + colour, not a second colour system. */}
           <Icon name={it.icon} size={21} strokeWidth={on?2.1:1.75} style={{color:on?C.primary:C.faint}} />
           <span style={{fontSize:10,fontWeight:on?700:600,letterSpacing:".01em",color:on?C.primary:C.faint}}>{it.label}</span>
-          {on && <div style={{width:4,height:4,borderRadius:"50%",background:C.primary}} />}
+          {on && <div style={{width:4,height:4,borderRadius:"50%",background:C.gold}} />}
         </div>
         );
       })}
@@ -205,15 +214,15 @@ function EmployeeHome({me,orders,onNav,onOrder,role,setRole}) {
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"18px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{fontSize:12,color:C.faint,fontWeight:500,marginBottom:2}}>Good morning 👋</div>
-        <div style={{fontSize:22,fontWeight:800,color:C.text,letterSpacing:"-.02em"}}>{me?.entity?.name||"Marcus J."}</div>
+        <div style={{fontSize:25,fontWeight:600,color:C.text,letterSpacing:"-.005em",fontFamily:C.display,lineHeight:1.15}}>{me?.entity?.name||"Marcus J."}</div>
         <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>{[today,me?.entity?.sub].filter(Boolean).join(" · ")}</div>
       </div>
       <div style={{margin:"16px 16px 0",background:"#fff",borderRadius:18,padding:"16px",border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
-        <div style={{fontSize:10,fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",color:C.faint,marginBottom:10}}>Today's pulse</div>
+        <div style={{fontSize:10,fontWeight:700,letterSpacing:".14em",textTransform:"uppercase",color:C.faint,marginBottom:10}}>Today's pulse</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
           {[{n:urgent.length,label:"Urgent",...C.urgent},{n:open.length,label:"Open",...C.pending},{n:done.length,label:"Done",...C.done}].map(s=>(
             <div key={s.label} style={{textAlign:"center",padding:"8px 6px",borderRadius:10,background:s.bg,border:`1px solid ${s.border}`}}>
-              <div style={{fontSize:24,fontWeight:700,color:s.text,lineHeight:1}}>{s.n}</div>
+              <div style={{fontSize:26,fontWeight:600,color:s.text,lineHeight:1,fontFamily:C.display}}>{s.n}</div>
               <div style={{fontSize:10,fontWeight:600,color:s.text,marginTop:2}}>{s.label}</div>
             </div>
           ))}
@@ -252,7 +261,7 @@ function EmployeeHome({me,orders,onNav,onOrder,role,setRole}) {
           {icon:"chart",label:"Owner report",sub:"Send update",cb:()=>onNav("profile")},
         ].map(q=>(
           <div key={q.label} className="fl-rise fl-card" onClick={q.cb} style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:16,padding:"14px 15px",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
-            <div style={{width:38,height:38,borderRadius:12,background:C.primaryLight,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:11}}><Icon name={q.icon} size={19} style={{color:C.primary}} /></div>
+            <div style={{width:38,height:38,borderRadius:12,background:C.goldSoft,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:11}}><Icon name={q.icon} size={19} style={{color:C.primary}} /></div>
             <div style={{fontSize:12.5,fontWeight:700,color:C.text,marginBottom:2}}>{q.label}</div>
             <div style={{fontSize:11,color:C.faint}}>{q.sub}</div>
           </div>
@@ -282,8 +291,8 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
   const [preview,   setPreview]   = useState(null);  // parsed work order
 
   const categoryColor = {
-    HVAC:"#1F2EAD", Plumbing:"#0958D9", Electrical:"#B45309",
-    Security:"#B91C1C", General:"#15803D", Appliance:"#6D28D9", Other:"#667085"
+    HVAC:"#0D1B33", Plumbing:"#0958D9", Electrical:"#B45309",
+    Security:"#B91C1C", General:"#15803D", Appliance:"#6D28D9", Other:"#4A6A80"
   };
   const urgencyMeta = {
     urgent:   {label:"Urgent",    ...C.urgent},
@@ -336,7 +345,7 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"18px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{fontSize:12,color:C.faint,fontWeight:500,marginBottom:2}}>Hi {firstName} 👋</div>
-        <div style={{fontSize:22,fontWeight:800,color:C.text,letterSpacing:"-.02em"}}>{myName}</div>
+        <div style={{fontSize:25,fontWeight:600,color:C.text,letterSpacing:"-.005em",fontFamily:C.display,lineHeight:1.15}}>{myName}</div>
         <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>{isLinked?[me.entity.unit,me.entity.address].filter(x=>x&&x!=="—"&&x!=="-").join(" · "):"Unit not linked yet"}</div>
       </div>
 
@@ -357,7 +366,7 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
           rather than a comforting guess (a resident in arrears must never be
           told their balance is $0.00). */}
       <div style={{margin:"16px 16px 0",background:"#fff",borderRadius:18,padding:"16px",border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
-        <div style={{fontSize:10,fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",color:C.faint,marginBottom:10}}>My lease</div>
+        <div style={{fontSize:10,fontWeight:700,letterSpacing:".14em",textTransform:"uppercase",color:C.faint,marginBottom:10}}>My lease</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           {[
             {label:"Lease ends", val:fmtDate(me?.entity?.leaseEnd)},
@@ -367,7 +376,7 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
           ].map(s=>{
             const known=s.val&&s.val!=="—";
             return (
-              <div key={s.label} style={{padding:"10px 12px",borderRadius:10,background:known?"#F7F8FA":"#FBFBFC",border:`1px solid ${C.border}`}}>
+              <div key={s.label} style={{padding:"10px 12px",borderRadius:10,background:known?"#FAF8F4":"#FBFBFC",border:`1px solid ${C.border}`}}>
                 <div style={{fontSize:9.5,fontWeight:600,color:C.faint,textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>{s.label}</div>
                 <div style={{fontSize:13,fontWeight:700,color:known?C.text:C.faint}}>{s.val}</div>
               </div>
@@ -402,7 +411,7 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
       {/* AI Receptionist button / chat */}
       <div style={{padding:"16px 16px 20px"}}>
         {!chatOpen ? (
-          <div onClick={()=>setChatOpen(true)} style={{background:"linear-gradient(135deg,#1F2EAD,#3B4FD8)",borderRadius:18,padding:"18px",cursor:"pointer",display:"flex",alignItems:"center",gap:14,boxShadow:"0 6px 20px rgba(31,46,173,0.30)"}}>
+          <div onClick={()=>setChatOpen(true)} style={{background:"linear-gradient(135deg,#0D1B33,#2C4A5E)",borderRadius:18,padding:"18px",cursor:"pointer",display:"flex",alignItems:"center",gap:14,boxShadow:"0 6px 20px rgba(13,27,51,0.30)"}}>
             <div style={{width:44,height:44,borderRadius:12,background:"rgba(255,255,255,0.15)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="sparkle" size={22} style={{color:"#fff"}} /></div>
             <div style={{flex:1}}>
               <div style={{fontSize:14,fontWeight:700,color:"#fff",marginBottom:2}}>Report an issue</div>
@@ -420,7 +429,7 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
         {chatOpen && (
           <div style={{background:"#fff",borderRadius:18,border:`1px solid ${C.border}`,overflow:"hidden",boxShadow:"0 8px 28px rgba(16,24,40,0.10)"}}>
             {/* Chat header */}
-            <div style={{background:"linear-gradient(135deg,#1F2EAD,#3B4FD8)",padding:"12px 16px",display:"flex",alignItems:"center",gap:10}}>
+            <div style={{background:"linear-gradient(135deg,#0D1B33,#2C4A5E)",padding:"12px 16px",display:"flex",alignItems:"center",gap:10}}>
               <div style={{width:32,height:32,borderRadius:8,background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center"}}><Icon name="sparkle" size={17} style={{color:"#fff"}} /></div>
               <div style={{flex:1}}>
                 <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>Fleming AI Receptionist</div>
@@ -435,8 +444,8 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
                 <div key={i} style={{display:"flex",flexDirection:"column",alignItems:m.from==="user"?"flex-end":"flex-start"}}>
                   {m.from==="ai" && (
                     <div style={{display:"flex",alignItems:"flex-end",gap:6,maxWidth:"88%"}}>
-                      <div style={{width:24,height:24,borderRadius:6,background:"linear-gradient(135deg,#1F2EAD,#3B4FD8)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginBottom:2}}><Icon name="sparkle" size={13} style={{color:"#fff"}} /></div>
-                      <div style={{background:"#F0F2F5",borderRadius:"12px 12px 12px 2px",padding:"10px 13px",fontSize:13,color:C.text,lineHeight:1.5}}>{m.text}</div>
+                      <div style={{width:24,height:24,borderRadius:6,background:"linear-gradient(135deg,#0D1B33,#2C4A5E)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginBottom:2}}><Icon name="sparkle" size={13} style={{color:"#fff"}} /></div>
+                      <div style={{background:"#F2F0EB",borderRadius:"12px 12px 12px 2px",padding:"10px 13px",fontSize:13,color:C.text,lineHeight:1.5}}>{m.text}</div>
                     </div>
                   )}
                   {m.from==="user" && (
@@ -446,8 +455,8 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
               ))}
               {loading && (
                 <div style={{display:"flex",alignItems:"flex-end",gap:6}}>
-                  <div style={{width:24,height:24,borderRadius:6,background:"linear-gradient(135deg,#1F2EAD,#3B4FD8)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="sparkle" size={13} style={{color:"#fff"}} /></div>
-                  <div style={{background:"#F0F2F5",borderRadius:"12px 12px 12px 2px",padding:"10px 14px"}}>
+                  <div style={{width:24,height:24,borderRadius:6,background:"linear-gradient(135deg,#0D1B33,#2C4A5E)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="sparkle" size={13} style={{color:"#fff"}} /></div>
+                  <div style={{background:"#F2F0EB",borderRadius:"12px 12px 12px 2px",padding:"10px 14px"}}>
                     <div style={{display:"flex",gap:4,alignItems:"center"}}>
                       {[0,1,2].map(i=><div key={i} style={{width:6,height:6,borderRadius:"50%",background:C.faint,animation:"pulse 1.2s ease-in-out infinite",animationDelay:`${i*0.2}s`}} />)}
                     </div>
@@ -458,7 +467,7 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
               {/* Work order preview */}
               {preview && (
                 <div style={{background:"#fff",border:`2px solid ${C.primary}`,borderRadius:12,padding:"13px 14px",marginTop:4}}>
-                  <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:C.primary,marginBottom:8}}>Work order preview</div>
+                  <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.primary,marginBottom:8}}>Work order preview</div>
                   <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:6}}>{preview.title}</div>
                   <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
                     <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:10,background:C.primaryLight,color:C.primary}}>{preview.category}</span>
@@ -466,7 +475,7 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
                   </div>
                   <div style={{fontSize:12,color:C.muted,lineHeight:1.5,marginBottom:12}}>{preview.notes}</div>
                   <div style={{display:"flex",gap:8}}>
-                    <button onClick={()=>setPreview(null)} style={{flex:1,background:"#F8FAFC",color:C.muted,fontSize:12,fontWeight:600,padding:"10px",borderRadius:10,border:`1px solid ${C.border}`,cursor:"pointer",fontFamily:"inherit"}}>Edit</button>
+                    <button onClick={()=>setPreview(null)} style={{flex:1,background:"#FAF8F4",color:C.muted,fontSize:12,fontWeight:600,padding:"10px",borderRadius:10,border:`1px solid ${C.border}`,cursor:"pointer",fontFamily:"inherit"}}>Edit</button>
                     <button onClick={confirm} style={{flex:2,background:C.primary,color:"#fff",fontSize:12,fontWeight:700,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",fontFamily:"inherit"}}>✓ Confirm & submit</button>
                   </div>
                 </div>
@@ -481,7 +490,7 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
                 onKeyDown={e=>e.key==="Enter"&&send()}
                 placeholder="Describe your issue..."
                 disabled={loading}
-                style={{flex:1,border:`1px solid ${C.border}`,borderRadius:20,padding:"9px 14px",fontSize:13,fontFamily:"inherit",color:C.text,outline:"none",background:"#F8FAFC"}}
+                style={{flex:1,border:`1px solid ${C.border}`,borderRadius:20,padding:"9px 14px",fontSize:13,fontFamily:"inherit",color:C.text,outline:"none",background:"#FAF8F4"}}
               />
               <div onClick={send} style={{width:36,height:36,borderRadius:"50%",background:input.trim()&&!loading?C.primary:C.border,display:"flex",alignItems:"center",justifyContent:"center",cursor:input.trim()&&!loading?"pointer":"default",flexShrink:0,transition:"background .15s"}}>
                 <span style={{fontSize:14,color:"#fff",marginLeft:2}}>➤</span>
@@ -516,11 +525,11 @@ function OwnerHome({inspections=[],balances=RESIDENT_BALANCES,properties=OWNER_P
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"18px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{fontSize:12,color:C.faint,fontWeight:500,marginBottom:2}}>Welcome back 👋</div>
-        <div style={{fontSize:22,fontWeight:800,color:C.text,letterSpacing:"-.02em"}}>Robert H.</div>
+        <div style={{fontSize:25,fontWeight:600,color:C.text,letterSpacing:"-.005em",fontFamily:C.display,lineHeight:1.15}}>Robert H.</div>
         <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>Portfolio Owner · {props.length} {props.length===1?"Property":"Properties"}</div>
       </div>
       <div style={{margin:"16px 16px 0",background:"#fff",borderRadius:18,padding:"16px",border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
-        <div style={{fontSize:10,fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",color:C.faint,marginBottom:10}}>Portfolio overview</div>
+        <div style={{fontSize:10,fontWeight:700,letterSpacing:".14em",textTransform:"uppercase",color:C.faint,marginBottom:10}}>Portfolio overview</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6}}>
           {[{n:totalUnits,label:"Units",bg:"#EEF0FD",border:"#C7CCF7",text:"#3730A3"},{n:`${totalOcc}/${totalUnits}`,label:"Occupied",bg:"#F0FDF4",border:"#BBF7D0",text:"#15803D"},{n:totalOrders,label:"Open WOs",bg:"#FFF7ED",border:"#FED7AA",text:"#C2410C"},{n:totalUrgent,label:"Urgent",bg:"#FEF2F2",border:"#FECACA",text:"#B91C1C"}].map(s=>(
             <div key={s.label} style={{textAlign:"center",padding:"8px 4px",borderRadius:10,background:s.bg,border:`1px solid ${s.border}`}}>
@@ -574,12 +583,12 @@ function OwnerHome({inspections=[],balances=RESIDENT_BALANCES,properties=OWNER_P
               <span style={{fontSize:9,fontWeight:700,letterSpacing:".04em",textTransform:"uppercase",padding:"3px 8px",borderRadius:10,background:C.done.bg,color:C.done.text,border:`1px solid ${C.done.border}`}}>Completed</span>
             </div>
             <div style={{display:"flex",gap:6}}>
-              <div style={{flex:1,padding:"7px 10px",borderRadius:8,background:"#F7F8FA",border:`1px solid ${C.border}`}}>
+              <div style={{flex:1,padding:"7px 10px",borderRadius:8,background:"#FAF8F4",border:`1px solid ${C.border}`}}>
                 <div style={{fontSize:9,color:C.faint,fontWeight:600,textTransform:"uppercase",letterSpacing:".05em",marginBottom:2}}>Completed</div>
                 <div style={{fontSize:12,fontWeight:700,color:C.text}}>{ins.date}</div>
                 <div style={{fontSize:10,color:C.done.text,fontWeight:600,marginTop:1}}>{ins.passed} passed · {ins.failed} flagged</div>
               </div>
-              <div style={{flex:1,padding:"7px 10px",borderRadius:8,background:"#F7F8FA",border:`1px solid ${C.border}`}}>
+              <div style={{flex:1,padding:"7px 10px",borderRadius:8,background:"#FAF8F4",border:`1px solid ${C.border}`}}>
                 <div style={{fontSize:9,color:C.faint,fontWeight:600,textTransform:"uppercase",letterSpacing:".05em",marginBottom:2}}>Next scheduled</div>
                 <div style={{fontSize:12,fontWeight:700,color:C.text}}>{ins.nextDate}</div>
                 <div style={{fontSize:10,color:C.faint,marginTop:1}}>Managed by Fleming</div>
@@ -605,11 +614,11 @@ function OwnerHome({inspections=[],balances=RESIDENT_BALANCES,properties=OWNER_P
                 {p.urgentOrders>0&&<span style={{fontSize:10,fontWeight:700,padding:"3px 8px",borderRadius:20,background:C.urgent.bg,color:C.urgent.text,border:`1px solid ${C.urgent.border}`}}>{p.urgentOrders} urgent</span>}
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-                <div style={{padding:"7px 10px",borderRadius:8,background:"#F7F8FA",border:`1px solid ${C.border}`}}>
+                <div style={{padding:"7px 10px",borderRadius:8,background:"#FAF8F4",border:`1px solid ${C.border}`}}>
                   <div style={{fontSize:9.5,color:C.faint,fontWeight:600,textTransform:"uppercase",letterSpacing:".06em",marginBottom:2}}>Open orders</div>
                   <div style={{fontSize:13,fontWeight:700,color:p.openOrders>0?C.pending.text:C.done.text}}>{p.openOrders}</div>
                 </div>
-                <div style={{padding:"7px 10px",borderRadius:8,background:"#F7F8FA",border:`1px solid ${C.border}`}}>
+                <div style={{padding:"7px 10px",borderRadius:8,background:"#FAF8F4",border:`1px solid ${C.border}`}}>
                   <div style={{fontSize:9.5,color:C.faint,fontWeight:600,textTransform:"uppercase",letterSpacing:".06em",marginBottom:2}}>Next inspection</div>
                   <div style={{fontSize:12,fontWeight:700,color:C.text}}>{p.nextInspection}</div>
                 </div>
@@ -644,11 +653,11 @@ function OrdersScreen({me,orders,onOrder,onNav,onNewOrder,onInspection,role,setR
       <div style={{background:"#fff",padding:"14px 20px 12px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
           <span className="fl-tap" onClick={()=>onNav("home")} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Home</span>
-          <span style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>Work Orders</span>
+          <span style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>Work Orders</span>
           {role!=="owner"&&<button onClick={onNewOrder} style={{background:C.primary,color:"#fff",fontSize:12,fontWeight:700,padding:"6px 12px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit"}}>+ New</button>}
           {role==="owner"&&<span style={{fontSize:12,color:C.faint}}>View only</span>}
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:8,background:"#F7F8FA",border:`1px solid ${C.border}`,borderRadius:12,padding:"10px 13px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,background:"#FAF8F4",border:`1px solid ${C.border}`,borderRadius:12,padding:"10px 13px"}}>
           <Icon name="search" size={16} style={{color:C.faint}} />
           <input
             value={q}
@@ -662,8 +671,8 @@ function OrdersScreen({me,orders,onOrder,onNav,onNewOrder,onInspection,role,setR
       </div>
       <div style={{display:"flex",gap:6,padding:"10px 16px 6px",overflowX:"auto",flexShrink:0}}>
         {[["all","All"],["urgent","Urgent"],["pending","Open"],["scheduled","Sched."],["review","Review"],["done","Done"]].map(([k,l])=>(
-          <div key={k} onClick={()=>setFilter(k)} style={{fontSize:11.5,fontWeight:700,padding:"6px 12px",borderRadius:20,cursor:"pointer",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:4,border:filter===k?`1px solid ${C.primary}`:`1px solid ${C.border}`,background:filter===k?C.primary:"#fff",color:filter===k?"#fff":C.muted,boxShadow:filter===k?"0 2px 8px rgba(31,46,173,0.25)":"none"}}>
-            {l} <span style={{fontSize:10,padding:"1px 5px",borderRadius:8,background:filter===k?"rgba(255,255,255,0.25)":"#F2F3F7",color:filter===k?"#fff":C.primary}}>{counts[k]}</span>
+          <div key={k} onClick={()=>setFilter(k)} style={{fontSize:11.5,fontWeight:700,padding:"6px 12px",borderRadius:20,cursor:"pointer",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:4,border:filter===k?`1px solid ${C.primary}`:`1px solid ${C.border}`,background:filter===k?C.primary:"#fff",color:filter===k?"#fff":C.muted,boxShadow:filter===k?"0 2px 8px rgba(13,27,51,0.25)":"none"}}>
+            {l} <span style={{fontSize:10,padding:"1px 5px",borderRadius:8,background:filter===k?"rgba(255,255,255,0.25)":"#EDEBE7",color:filter===k?"#fff":C.primary}}>{counts[k]}</span>
           </div>
         ))}
       </div>
@@ -673,7 +682,7 @@ function OrdersScreen({me,orders,onOrder,onNav,onNewOrder,onInspection,role,setR
           if(!items.length) return null;
           return (
             <div key={sec.key}>
-              <div style={{padding:"8px 0 4px"}}><span style={{fontSize:10,fontWeight:700,letterSpacing:".1em",textTransform:"uppercase",color:C.faint}}>{sec.label}</span></div>
+              <div style={{padding:"8px 0 4px"}}><span style={{fontSize:10,fontWeight:700,letterSpacing:".14em",textTransform:"uppercase",color:C.faint}}>{sec.label}</span></div>
               {items.map(o=>(
                 <div key={o.id} className="fl-rise fl-card" onClick={()=>onOrder(o)} style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)",marginBottom:10}}>
                   <div style={{padding:"12px 14px"}}>
@@ -761,7 +770,7 @@ function VendorThread({vendor, role}) {
   return (
     <div style={{borderTop:`1px solid ${C.border}`,paddingTop:10}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-        <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint}}>Thread with {vendor.name}</span>
+        <span style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint}}>Thread with {vendor.name}</span>
         <span onClick={()=>setExpanded(e=>!e)} style={{fontSize:10,color:C.primary,fontWeight:600,cursor:"pointer"}}>{expanded?"Show less":"Show all"}</span>
       </div>
       {msgs.length===0&&(
@@ -775,7 +784,7 @@ function VendorThread({vendor, role}) {
         )}
         {visible.map(m=>(
           <div key={m.id} style={{display:"flex",flexDirection:"column",alignItems:m.from==="employee"?"flex-end":"flex-start"}}>
-            <div style={{maxWidth:"82%",padding:"8px 11px",borderRadius:m.from==="employee"?"12px 12px 2px 12px":"12px 12px 12px 2px",background:m.from==="employee"?C.primary:"#F0F2F5",color:m.from==="employee"?"#fff":C.text,fontSize:12.5,lineHeight:1.45}}>
+            <div style={{maxWidth:"82%",padding:"8px 11px",borderRadius:m.from==="employee"?"12px 12px 2px 12px":"12px 12px 12px 2px",background:m.from==="employee"?C.primary:"#F2F0EB",color:m.from==="employee"?"#fff":C.text,fontSize:12.5,lineHeight:1.45}}>
               {m.text}
             </div>
             <span style={{fontSize:10,color:C.faint,marginTop:3,marginLeft:4,marginRight:4}}>{m.from==="vendor"?vendor.name:"You"} · {m.time}</span>
@@ -789,7 +798,7 @@ function VendorThread({vendor, role}) {
             onChange={e=>setInput(e.target.value)}
             onKeyDown={e=>e.key==="Enter"&&send()}
             placeholder={`Message ${vendor.name}...`}
-            style={{flex:1,border:`1px solid ${C.border}`,borderRadius:20,padding:"8px 14px",fontSize:12.5,fontFamily:"inherit",color:C.text,outline:"none",background:"#F8FAFC"}}
+            style={{flex:1,border:`1px solid ${C.border}`,borderRadius:20,padding:"8px 14px",fontSize:12.5,fontFamily:"inherit",color:C.text,outline:"none",background:"#FAF8F4"}}
           />
           <div onClick={send} style={{width:34,height:34,borderRadius:"50%",background:input.trim()?C.primary:C.border,display:"flex",alignItems:"center",justifyContent:"center",cursor:input.trim()?"pointer":"default",transition:"background .15s",flexShrink:0}}>
             <span style={{fontSize:14,color:"#fff",marginLeft:2}}>➤</span>
@@ -830,7 +839,7 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
           <Badge status={cur?.status||order.status} />
         </div>
         <div style={{fontSize:10,fontWeight:600,color:C.faint,letterSpacing:".04em",marginBottom:4}}>{order.id} · {order.category}</div>
-        <div style={{fontSize:19,fontWeight:800,letterSpacing:"-.02em",color:C.text,lineHeight:1.3,marginBottom:4}}>{order.title}</div>
+        <div style={{fontSize:21,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display,lineHeight:1.3,marginBottom:4}}>{order.title}</div>
         <div style={{fontSize:12.5,color:C.muted}}>{[order.address,order.unit].filter(Boolean).join(" · ")||"Property not linked"}</div>
       </div>
       <div style={{padding:"14px 16px",display:"flex",flexDirection:"column",gap:10}}>
@@ -846,13 +855,13 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
           </div>
         )}
         <div style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
-          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint,marginBottom:6}}>Issue notes</div>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:6}}>Issue notes</div>
           {/* Real Buildium descriptions are long free text with newlines. */}
           <div style={{fontSize:13,color:C.text,lineHeight:1.5,whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{cur?.notes||order.notes||"No description provided."}</div>
         </div>
         {order.residentName&&(
           <div style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
-            <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint,marginBottom:8}}>Resident</div>
+            <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:8}}>Resident</div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
                 <div style={{width:34,height:34,borderRadius:"50%",background:C.primaryLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:C.primary}}>{order.residentName[0]}</div>
@@ -866,7 +875,7 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
           </div>
         )}
         <div style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
-          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint,marginBottom:8}}>Vendor</div>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:8}}>Vendor</div>
           {vendor?(
             <div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
@@ -880,12 +889,12 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
             </div>
           ):(
             role==="employee"
-              ?<button onClick={()=>onAssign(order)} style={{width:"100%",background:C.primary,color:"#fff",fontSize:13,fontWeight:700,padding:"12px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 10px rgba(31,46,173,0.28)"}}>+ Assign a vendor</button>
+              ?<button onClick={()=>onAssign(order)} style={{width:"100%",background:C.primary,color:"#fff",fontSize:13,fontWeight:700,padding:"12px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 10px rgba(13,27,51,0.28)"}}>+ Assign a vendor</button>
               :<div style={{fontSize:13,color:C.muted}}>Not yet assigned</div>
           )}
         </div>
         <div style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
-          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint,marginBottom:10}}>Timeline</div>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:10}}>Timeline</div>
           {[
             {label:"Reported",done:true,time:order.reported},
             {label:"Work order created",done:true,time:order.reported},
@@ -913,7 +922,7 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
         {/* Completion proof — shown once vendor has completed */}
         {cur?.vendorCompleted&&(
           <div style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
-            <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint,marginBottom:10}}>Completion proof from vendor</div>
+            <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:10}}>Completion proof from vendor</div>
             {cur.photoAdded&&(
               <div style={{height:120,borderRadius:10,background:"linear-gradient(135deg,#E6EDF7,#D4E0F0)",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:10,border:`1px solid ${C.border}`}}>
                 <div style={{textAlign:"center"}}>
@@ -923,7 +932,7 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
                 </div>
               </div>
             )}
-            {cur.completionNote&&<div style={{fontSize:12.5,color:C.text,lineHeight:1.5,background:"#F8FAFC",padding:"10px 12px",borderRadius:8,border:`1px solid ${C.border}`}}>{cur.completionNote}</div>}
+            {cur.completionNote&&<div style={{fontSize:12.5,color:C.text,lineHeight:1.5,background:"#FAF8F4",padding:"10px 12px",borderRadius:8,border:`1px solid ${C.border}`}}>{cur.completionNote}</div>}
           </div>
         )}
 
@@ -945,13 +954,13 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
         {/* VENDOR view: complete the job */}
         {role==="vendor"&&cur?.status!=="done"&&cur?.status!=="review"&&(
           !showComplete?(
-            <button onClick={()=>setShowComplete(true)} style={{width:"100%",background:C.primary,color:"#fff",fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 10px rgba(31,46,173,0.28)"}}>✓ Mark work complete</button>
+            <button onClick={()=>setShowComplete(true)} style={{width:"100%",background:C.primary,color:"#fff",fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 10px rgba(13,27,51,0.28)"}}>✓ Mark work complete</button>
           ):(
             <div style={{background:"#fff",borderRadius:14,border:`2px solid ${C.primary}`,padding:"14px"}}>
               <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>Complete this work order</div>
               <div style={{fontSize:11,fontWeight:600,color:C.faint,marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Photo of completed work <span style={{color:C.urgent.text}}>*</span></div>
               {!photoAdded?(
-                <div onClick={()=>setPhotoAdded(true)} style={{height:90,borderRadius:10,border:`2px dashed ${C.border}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",marginBottom:12,background:"#F8FAFC"}}>
+                <div onClick={()=>setPhotoAdded(true)} style={{height:90,borderRadius:10,border:`2px dashed ${C.border}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",marginBottom:12,background:"#FAF8F4"}}>
                   <div style={{display:"flex",justifyContent:"center",marginBottom:6,color:C.muted}}><Icon name="camera" size={24} /></div>
                   <div style={{fontSize:12,color:C.muted,fontWeight:500}}>Tap to add photo</div>
                 </div>
@@ -963,8 +972,8 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
               <div style={{fontSize:11,fontWeight:600,color:C.faint,marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Work details <span style={{color:C.urgent.text}}>*</span></div>
               <textarea value={completionNote} onChange={e=>setCompletionNote(e.target.value)} placeholder="Describe what was done..." rows={2} style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 12px",fontSize:13,fontFamily:"inherit",color:C.text,outline:"none",resize:"none",boxSizing:"border-box",marginBottom:12}} />
               <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>setShowComplete(false)} style={{flex:1,background:"#F8FAFC",color:C.muted,fontSize:13,fontWeight:600,padding:"11px",borderRadius:10,border:`1px solid ${C.border}`,cursor:"pointer",fontFamily:"inherit"}}>Cancel</button>
-                <button onClick={vendorComplete} disabled={!photoAdded||!completionNote.trim()} style={{flex:2,background:(photoAdded&&completionNote.trim())?C.primary:"#E4E7EC",color:(photoAdded&&completionNote.trim())?"#fff":C.faint,fontSize:13,fontWeight:700,padding:"11px",borderRadius:10,border:"none",cursor:(photoAdded&&completionNote.trim())?"pointer":"default",fontFamily:"inherit"}}>Submit completion</button>
+                <button onClick={()=>setShowComplete(false)} style={{flex:1,background:"#FAF8F4",color:C.muted,fontSize:13,fontWeight:600,padding:"11px",borderRadius:10,border:`1px solid ${C.border}`,cursor:"pointer",fontFamily:"inherit"}}>Cancel</button>
+                <button onClick={vendorComplete} disabled={!photoAdded||!completionNote.trim()} style={{flex:2,background:(photoAdded&&completionNote.trim())?C.primary:"#E5E1D8",color:(photoAdded&&completionNote.trim())?"#fff":C.faint,fontSize:13,fontWeight:700,padding:"11px",borderRadius:10,border:"none",cursor:(photoAdded&&completionNote.trim())?"pointer":"default",fontFamily:"inherit"}}>Submit completion</button>
               </div>
             </div>
           )
@@ -977,7 +986,7 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
 
         {/* EMPLOYEE view: manual close if no vendor flow */}
         {role==="employee"&&cur?.status!=="done"&&cur?.status!=="review"&&(
-          <button onClick={markDone} style={{width:"100%",background:"#F8FAFC",color:C.muted,fontSize:13,fontWeight:600,padding:"12px",borderRadius:14,border:`1px solid ${C.border}`,cursor:"pointer",fontFamily:"inherit"}}>Close without vendor completion</button>
+          <button onClick={markDone} style={{width:"100%",background:"#FAF8F4",color:C.muted,fontSize:13,fontWeight:600,padding:"12px",borderRadius:14,border:`1px solid ${C.border}`,cursor:"pointer",fontFamily:"inherit"}}>Close without vendor completion</button>
         )}
 
         {/* Vendor waiting on employee */}
@@ -1016,12 +1025,12 @@ function AssignScreen({order,orders,setOrders,onUpdateOrder,onBack,role,setRole}
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
         <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Back</span>
-        <div style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>Assign vendor</div>
+        <div style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>Assign vendor</div>
         <div style={{fontSize:12.5,color:C.muted,marginTop:2}}>{order.title} · {order.unit}</div>
       </div>
       {/* Real rosters run to 100+ vendors, so this needs a filter to be usable. */}
       <div style={{padding:"12px 16px 0"}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,background:"#F7F8FA",border:`1px solid ${C.border}`,borderRadius:12,padding:"10px 13px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,background:"#FAF8F4",border:`1px solid ${C.border}`,borderRadius:12,padding:"10px 13px"}}>
           <Icon name="search" size={16} style={{color:C.faint}} />
           <input value={vq} onChange={e=>setVq(e.target.value)} placeholder={`Search ${vendors.length} vendors…`} style={{border:"none",background:"transparent",fontSize:13,color:C.text,width:"100%",outline:"none",fontFamily:"inherit"}} />
           {vq&&<span onClick={()=>setVq("")} style={{fontSize:14,color:C.faint,cursor:"pointer",lineHeight:1}}>✕</span>}
@@ -1029,7 +1038,7 @@ function AssignScreen({order,orders,setOrders,onUpdateOrder,onBack,role,setRole}
       </div>
       <div style={{padding:"12px 16px",display:"flex",flexDirection:"column",gap:8}}>
         {shownVendors.map(v=>(
-          <div key={v.id} className="fl-rise" onClick={()=>setSelected(v.id)} style={{background:"#fff",borderRadius:16,border:selected===v.id?`2px solid ${C.primary}`:`1px solid ${C.border}`,padding:"14px 15px",cursor:"pointer",display:"flex",alignItems:"center",gap:12,transition:"border-color .15s ease, box-shadow .15s ease",boxShadow:selected===v.id?"0 0 0 4px rgba(31,46,173,0.10)":"0 1px 2px rgba(16,24,40,0.04)"}}>
+          <div key={v.id} className="fl-rise" onClick={()=>setSelected(v.id)} style={{background:"#fff",borderRadius:16,border:selected===v.id?`2px solid ${C.primary}`:`1px solid ${C.border}`,padding:"14px 15px",cursor:"pointer",display:"flex",alignItems:"center",gap:12,transition:"border-color .15s ease, box-shadow .15s ease",boxShadow:selected===v.id?"0 0 0 4px rgba(13,27,51,0.10)":"0 1px 2px rgba(16,24,40,0.04)"}}>
             <VendorAvatar v={v} size={44} />
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:13.5,fontWeight:700,color:C.text,marginBottom:2}}>{v.name}</div>
@@ -1044,7 +1053,7 @@ function AssignScreen({order,orders,setOrders,onUpdateOrder,onBack,role,setRole}
         ))}
         {shownVendors.length===0&&<div style={{textAlign:"center",padding:"26px 16px",fontSize:12.5,color:C.muted}}>No vendors match “{vq.trim()}”.</div>}
         {!vq&&vendors.length>shownVendors.length&&<div style={{textAlign:"center",fontSize:11,color:C.faint,padding:"2px 0 4px"}}>Showing {shownVendors.length} of {vendors.length} — search to narrow</div>}
-        {selected&&!confirmed&&<button onClick={confirm} style={{width:"100%",background:C.primary,color:"#fff",fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 10px rgba(31,46,173,0.28)",marginTop:6}}>Assign {vendors.find(v=>v.id===selected)?.name}</button>}
+        {selected&&!confirmed&&<button onClick={confirm} style={{width:"100%",background:C.primary,color:"#fff",fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 10px rgba(13,27,51,0.28)",marginTop:6}}>Assign {vendors.find(v=>v.id===selected)?.name}</button>}
         {confirmed&&(
           <div style={{textAlign:"center",padding:"14px",background:C.done.bg,borderRadius:14,border:`1px solid ${C.done.border}`}}>
             <div style={{fontSize:14,fontWeight:700,color:C.done.text}}>✓ Vendor assigned</div>
@@ -1114,7 +1123,7 @@ function MessagesScreen({messages,messagingEnabled=true,onNav,role,setRole}) {
   if(activeChat){
     const c=activeChat;
     const msgs=threads[c.name]||[];
-    const tc=typeColors[c.type]||{bg:"#F2F3F7",text:C.muted};
+    const tc=typeColors[c.type]||{bg:"#EDEBE7",text:C.muted};
     return (
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         <AppHeader role={role} setRole={setRole} />
@@ -1135,7 +1144,7 @@ function MessagesScreen({messages,messagingEnabled=true,onNav,role,setRole}) {
           ))}
         </div>
         <div style={{background:"#fff",borderTop:`1px solid ${C.border}`,padding:"10px 12px",display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
-          <input value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat()} placeholder={`Message ${c.name}...`} style={{flex:1,border:`1px solid ${C.border}`,borderRadius:20,padding:"9px 14px",fontSize:13,fontFamily:"inherit",color:C.text,outline:"none",background:"#F8FAFC"}} />
+          <input value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat()} placeholder={`Message ${c.name}...`} style={{flex:1,border:`1px solid ${C.border}`,borderRadius:20,padding:"9px 14px",fontSize:13,fontFamily:"inherit",color:C.text,outline:"none",background:"#FAF8F4"}} />
           <div onClick={sendChat} style={{width:36,height:36,borderRadius:"50%",background:draft.trim()?C.primary:C.border,display:"flex",alignItems:"center",justifyContent:"center",cursor:draft.trim()?"pointer":"default",flexShrink:0,transition:"background .15s"}}>
             <span style={{fontSize:14,color:"#fff",marginLeft:2}}>➤</span>
           </div>
@@ -1150,7 +1159,7 @@ function MessagesScreen({messages,messagingEnabled=true,onNav,role,setRole}) {
       <div style={{background:"#fff",padding:"14px 20px 12px",borderBottom:`1px solid ${C.border}`}}>
         <span className="fl-tap" onClick={()=>onNav("home")} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Home</span>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>Messages</div>
+          <div style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>Messages</div>
           {totalUnread>0&&<div style={{background:C.primary,color:"#fff",fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:20}}>{totalUnread} unread</div>}
         </div>
       </div>
@@ -1190,7 +1199,7 @@ function MessagesScreen({messages,messagingEnabled=true,onNav,role,setRole}) {
                 <span style={{fontSize:13.5,fontWeight:unreadOf(c)>0?700:600,color:C.text}}>{c.name}</span>
                 <span style={{fontSize:10.5,color:C.faint,flexShrink:0,marginLeft:8}}>{c.time}</span>
               </div>
-              <div style={{marginBottom:3}}><span style={{fontSize:10,fontWeight:600,padding:"1px 6px",borderRadius:8,background:typeColors[c.type]?.bg||"#F2F3F7",color:typeColors[c.type]?.text||C.muted}}>{c.role}</span></div>
+              <div style={{marginBottom:3}}><span style={{fontSize:10,fontWeight:600,padding:"1px 6px",borderRadius:8,background:typeColors[c.type]?.bg||"#EDEBE7",color:typeColors[c.type]?.text||C.muted}}>{c.role}</span></div>
               <div style={{fontSize:12,color:unreadOf(c)>0?C.text:C.muted,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",fontWeight:unreadOf(c)>0?500:400}}>{c.last}</div>
             </div>
           </div>
@@ -1232,12 +1241,12 @@ function ProfileScreen({me,role,setRole,onNav,onSignOut,canViewAs}) {
       </div>
       {canViewAs && (
         <div style={{margin:"12px 16px 0"}}>
-          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint,marginBottom:8,paddingLeft:2}}>Demo · view as another role</div>
+          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:8,paddingLeft:2}}>Demo · view as another role</div>
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
             {Object.values(ROLES).map(r=>{
               const active=r.key===role;
               return (
-                <div key={r.key} onClick={()=>{setRole(r.key);onNav("home");}} style={{background:"#fff",borderRadius:16,border:active?`2px solid ${C.primary}`:`1px solid ${C.border}`,padding:"14px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:14,boxShadow:active?"0 0 0 4px rgba(31,46,173,0.10)":"0 1px 2px rgba(16,24,40,0.04)"}}>
+                <div key={r.key} onClick={()=>{setRole(r.key);onNav("home");}} style={{background:"#fff",borderRadius:16,border:active?`2px solid ${C.primary}`:`1px solid ${C.border}`,padding:"14px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:14,boxShadow:active?"0 0 0 4px rgba(13,27,51,0.10)":"0 1px 2px rgba(16,24,40,0.04)"}}>
                   <div style={{width:44,height:44,borderRadius:"50%",background:active?C.primary:r.color+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,fontWeight:700,color:active?"#fff":r.color,flexShrink:0}}>{r.init}</div>
                   <div style={{flex:1}}>
                     <div style={{fontSize:14,fontWeight:700,color:C.text}}>{r.name}</div>
@@ -1364,7 +1373,7 @@ function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDon
           <div style={{fontSize:13,fontWeight:700,color:C.done.text}}>✓ Owner notified</div>
           <div style={{fontSize:11.5,color:C.done.text,opacity:.85,marginTop:3}}>Next inspection scheduled for {nextDate}</div>
         </div>
-        <button onClick={onBack} style={{width:"100%",background:C.primary,color:"#fff",fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 10px rgba(31,46,173,0.28)",marginTop:8}}>Back to orders</button>
+        <button onClick={onBack} style={{width:"100%",background:C.primary,color:"#fff",fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 10px rgba(13,27,51,0.28)",marginTop:8}}>Back to orders</button>
       </div>
     </div>
   );
@@ -1376,7 +1385,7 @@ function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDon
         <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Orders</span>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
           <div>
-            <div style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>Unit Inspection</div>
+            <div style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>Unit Inspection</div>
             <div style={{fontSize:12,color:C.muted,marginTop:2}}>{PROPERTY} · {template?.name}</div>
           </div>
           <div style={{textAlign:"right"}}>
@@ -1392,12 +1401,12 @@ function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDon
       {/* Template picker */}
       <div style={{padding:"12px 16px 0"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-          <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint}}>Checklist template</span>
+          <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint}}>Checklist template</span>
           <span onClick={onManageTemplates} style={{fontSize:11.5,fontWeight:700,color:C.primary,cursor:"pointer"}}>Manage templates →</span>
         </div>
         <div style={{display:"flex",gap:8}}>
           {templates.map(t=>(
-            <div key={t.id} onClick={()=>{setTemplateId(t.id);setChecks({});setNotes({});setPhotos({});}} style={{flex:1,padding:"10px 12px",borderRadius:12,cursor:"pointer",border:templateId===t.id?`2px solid ${C.primary}`:`1px solid ${C.border}`,background:templateId===t.id?C.primaryLight:"#fff",boxShadow:templateId===t.id?"0 0 0 3px rgba(31,46,173,0.08)":"none"}}>
+            <div key={t.id} onClick={()=>{setTemplateId(t.id);setChecks({});setNotes({});setPhotos({});}} style={{flex:1,padding:"10px 12px",borderRadius:12,cursor:"pointer",border:templateId===t.id?`2px solid ${C.primary}`:`1px solid ${C.border}`,background:templateId===t.id?C.primaryLight:"#fff",boxShadow:templateId===t.id?"0 0 0 3px rgba(13,27,51,0.08)":"none"}}>
               <div style={{fontSize:12.5,fontWeight:700,color:templateId===t.id?C.primary:C.text}}>{t.name}</div>
               <div style={{fontSize:10.5,color:C.faint,marginTop:2}}>{t.items.length} items</div>
             </div>
@@ -1408,7 +1417,7 @@ function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDon
       <div style={{padding:"14px 16px 20px",display:"flex",flexDirection:"column",gap:14}}>
         {categories.map(cat => (
           <div key={cat}>
-            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".1em",color:C.faint,marginBottom:8,paddingLeft:2}}>{cat}</div>
+            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:8,paddingLeft:2}}>{cat}</div>
             <div style={{display:"flex",flexDirection:"column",gap:6}}>
               {items.filter(i=>i.category===cat).map(item => {
                 const val = checks[item.id];
@@ -1420,8 +1429,8 @@ function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDon
                         {item.critical && <span style={{fontSize:9,fontWeight:700,color:C.urgent.text,letterSpacing:".06em",textTransform:"uppercase"}}>Critical</span>}
                       </div>
                       <div style={{display:"flex",gap:6,flexShrink:0}}>
-                        <div onClick={()=>toggle(item.id,"pass")} style={{width:32,height:32,borderRadius:8,background:val==="pass"?C.done.bg:"#F8FAFC",border:`1.5px solid ${val==="pass"?C.done.bar:C.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:14}}>✓</div>
-                        <div onClick={()=>toggle(item.id,"fail")} style={{width:32,height:32,borderRadius:8,background:val==="fail"?C.urgent.bg:"#F8FAFC",border:`1.5px solid ${val==="fail"?C.urgent.bar:C.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:14}}>✗</div>
+                        <div onClick={()=>toggle(item.id,"pass")} style={{width:32,height:32,borderRadius:8,background:val==="pass"?C.done.bg:"#FAF8F4",border:`1.5px solid ${val==="pass"?C.done.bar:C.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:14}}>✓</div>
+                        <div onClick={()=>toggle(item.id,"fail")} style={{width:32,height:32,borderRadius:8,background:val==="fail"?C.urgent.bg:"#FAF8F4",border:`1.5px solid ${val==="fail"?C.urgent.bar:C.border}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:14}}>✗</div>
                       </div>
                     </div>
                     {val==="fail" && (
@@ -1455,7 +1464,7 @@ function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDon
 
         {/* Schedule next inspection — required before completion */}
         <div style={{background:"#fff",borderRadius:12,border:`1px solid ${nextDate?C.primary:C.border}`,padding:"13px 14px",boxShadow:"0 1px 2px rgba(16,24,40,0.04)"}}>
-          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint,marginBottom:4}}>Schedule next inspection <span style={{color:C.urgent.text}}>*</span></div>
+          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:4}}>Schedule next inspection <span style={{color:C.urgent.text}}>*</span></div>
           <div style={{fontSize:11.5,color:C.muted,marginBottom:8,lineHeight:1.4}}>Required before completing. The owner is notified of this date automatically.</div>
           <select value={nextDate} onChange={e=>setNextDate(e.target.value)} style={{width:"100%",border:`1px solid ${nextDate?C.primary:C.border}`,borderRadius:10,padding:"11px 12px",fontSize:13,fontFamily:"inherit",color:nextDate?C.text:C.faint,outline:"none",background:"#fff",appearance:"none"}}>
             <option value="">Select next inspection date…</option>
@@ -1465,7 +1474,7 @@ function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDon
 
         <button
           onClick={submit}
-          style={{width:"100%",background:canSubmit?C.primary:"#E4E7EC",color:canSubmit?"#fff":C.faint,fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:canSubmit?"pointer":"default",fontFamily:"inherit",marginTop:4,boxShadow:canSubmit?"0 2px 10px rgba(31,46,173,0.28)":"none"}}
+          style={{width:"100%",background:canSubmit?C.primary:"#E5E1D8",color:canSubmit?"#fff":C.faint,fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:canSubmit?"pointer":"default",fontFamily:"inherit",marginTop:4,boxShadow:canSubmit?"0 2px 10px rgba(13,27,51,0.28)":"none"}}
         >
           {done===0?"Complete checklist to submit":!nextDate?"Schedule next inspection to submit":`Complete & confirm (${done}/${total} items)`}
         </button>
@@ -1504,16 +1513,16 @@ function TemplatesScreen({onBack,templates,setTemplates,api,role,setRole}) {
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
         <span className="fl-tap" onClick={()=>setEditing(null)} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Cancel</span>
-        <div style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>{editing.isNew?"New template":"Edit template"}</div>
+        <div style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>{editing.isNew?"New template":"Edit template"}</div>
       </div>
       <div style={{padding:"14px 16px",display:"flex",flexDirection:"column",gap:14}}>
         <div>
-          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint,marginBottom:6}}>Template name <span style={{color:C.urgent.text}}>*</span></div>
+          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:6}}>Template name <span style={{color:C.urgent.text}}>*</span></div>
           <input value={editing.name} onChange={e=>setEditing(prev=>({...prev,name:e.target.value}))} placeholder="e.g. Annual Safety Check" style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:10,padding:"11px 13px",fontSize:13.5,fontFamily:"inherit",color:C.text,outline:"none",background:"#fff",boxSizing:"border-box"}} />
         </div>
         <div>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint}}>Checklist items</span>
+            <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint}}>Checklist items</span>
             <span style={{fontSize:11,color:C.faint}}>{editing.items.filter(i=>i.label.trim()).length} items</span>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -1540,7 +1549,7 @@ function TemplatesScreen({onBack,templates,setTemplates,api,role,setRole}) {
             <span style={{fontSize:12.5,fontWeight:700,color:C.primary}}>Add item</span>
           </div>
         </div>
-        <button onClick={save} style={{width:"100%",background:editorValid?C.primary:"#E4E7EC",color:editorValid?"#fff":C.faint,fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:editorValid?"pointer":"default",fontFamily:"inherit"}}>
+        <button onClick={save} style={{width:"100%",background:editorValid?C.primary:"#E5E1D8",color:editorValid?"#fff":C.faint,fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:editorValid?"pointer":"default",fontFamily:"inherit"}}>
           {editing.isNew?"Create template":"Save changes"}
         </button>
       </div>
@@ -1554,7 +1563,7 @@ function TemplatesScreen({onBack,templates,setTemplates,api,role,setRole}) {
       <div style={{background:"#fff",padding:"14px 20px 12px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
           <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Inspection</span>
-          <span style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>Templates</span>
+          <span style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>Templates</span>
           <button onClick={startNew} style={{background:C.primary,color:"#fff",fontSize:12,fontWeight:700,padding:"6px 12px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit"}}>+ New</button>
         </div>
         <div style={{fontSize:11.5,color:C.faint}}>Pre-populated checklists your team can reuse</div>
@@ -1574,7 +1583,7 @@ function TemplatesScreen({onBack,templates,setTemplates,api,role,setRole}) {
             </div>
             <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:10}}>
               {[...new Set(t.items.map(i=>i.category))].map(c=>(
-                <span key={c} style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:10,background:"#F2F3F7",color:C.muted}}>{c}</span>
+                <span key={c} style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:10,background:"#EDEBE7",color:C.muted}}>{c}</span>
               ))}
             </div>
           </div>
@@ -1634,7 +1643,7 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
       <AppHeader role={role} setRole={setRole} />
       <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,gap:12}}>
         <div style={{color:C.primary}}><Icon name="wrench" size={46} strokeWidth={1.5} /></div>
-        <div style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>{isResident?"Request submitted!":"Work order created!"}</div>
+        <div style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>{isResident?"Request submitted!":"Work order created!"}</div>
         <div style={{fontSize:13,color:C.muted,textAlign:"center",lineHeight:1.6}}>{isResident?`"${title}" was sent directly to your property manager (Marcus J.). You'll be notified when a vendor is assigned.`:`${title} has been logged and is now visible in the orders list.`}</div>
       </div>
     </div>
@@ -1645,7 +1654,7 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
         <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Cancel</span>
-        <div style={{fontSize:18,fontWeight:800,letterSpacing:"-.02em",color:C.text}}>{isResident?"Submit a request":"New work order"}</div>
+        <div style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>{isResident?"Submit a request":"New work order"}</div>
         {isResident&&<div style={{fontSize:11.5,color:C.faint,marginTop:2}}>Goes directly to your property manager</div>}
       </div>
 
@@ -1660,28 +1669,28 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
 
         {/* Title */}
         <div>
-          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint,marginBottom:6}}>Issue title <span style={{color:C.urgent.text}}>*</span></div>
+          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:6}}>Issue title <span style={{color:C.urgent.text}}>*</span></div>
           <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="e.g. HVAC not cooling, Leaking faucet..." style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 14px",fontSize:13.5,fontFamily:"inherit",color:C.text,outline:"none",background:"#fff",boxSizing:"border-box"}} />
         </div>
 
         {/* Property + Unit */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           <div>
-            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint,marginBottom:6}}>Property <span style={{color:C.urgent.text}}>*</span></div>
+            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:6}}>Property <span style={{color:C.urgent.text}}>*</span></div>
             <select value={address} onChange={e=>setAddress(e.target.value)} style={{width:"100%",border:`1px solid ${address?C.primary:C.border}`,borderRadius:12,padding:"12px 10px",fontSize:13,fontFamily:"inherit",color:address?C.text:C.faint,outline:"none",background:"#fff",appearance:"none"}}>
               <option value="">Select...</option>
               {addresses.map(a=><option key={a} value={a}>{a}</option>)}
             </select>
           </div>
           <div>
-            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint,marginBottom:6}}>Unit <span style={{color:C.urgent.text}}>*</span></div>
+            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:6}}>Unit <span style={{color:C.urgent.text}}>*</span></div>
             <input value={unit} onChange={e=>setUnit(e.target.value)} placeholder="e.g. Unit 4B" style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 10px",fontSize:13,fontFamily:"inherit",color:C.text,outline:"none",background:"#fff",boxSizing:"border-box"}} />
           </div>
         </div>
 
         {/* Category */}
         <div>
-          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint,marginBottom:8}}>Category <span style={{color:C.urgent.text}}>*</span></div>
+          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:8}}>Category <span style={{color:C.urgent.text}}>*</span></div>
           <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
             {categories.map(c=>(
               <div key={c} onClick={()=>setCategory(c)} style={{padding:"7px 14px",borderRadius:20,border:category===c?`2px solid ${C.primary}`:`1px solid ${C.border}`,background:category===c?C.primaryLight:"#fff",color:category===c?C.primary:C.muted,fontSize:12.5,fontWeight:category===c?700:500,cursor:"pointer"}}>
@@ -1693,7 +1702,7 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
 
         {/* Urgency */}
         <div>
-          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint,marginBottom:8}}>Priority <span style={{color:C.urgent.text}}>*</span></div>
+          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:8}}>Priority <span style={{color:C.urgent.text}}>*</span></div>
           <div style={{display:"flex",flexDirection:"column",gap:7}}>
             {urgencies.map(u=>(
               <div key={u.key} onClick={()=>setUrgency(u.key)} style={{padding:"11px 14px",borderRadius:12,border:urgency===u.key?`2px solid ${u.color.bar}`:`1px solid ${C.border}`,background:urgency===u.key?u.color.bg:"#fff",cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
@@ -1707,11 +1716,11 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
 
         {/* Notes */}
         <div>
-          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.faint,marginBottom:6}}>Additional notes</div>
+          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:6}}>Additional notes</div>
           <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Any extra context for the vendor..." rows={3} style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 14px",fontSize:13,fontFamily:"inherit",color:C.text,outline:"none",background:"#fff",resize:"none",boxSizing:"border-box"}} />
         </div>
 
-        <button onClick={submit} style={{width:"100%",background:canSubmit?C.primary:"#E4E7EC",color:canSubmit?"#fff":C.faint,fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:canSubmit?"pointer":"default",fontFamily:"inherit"}}>
+        <button onClick={submit} style={{width:"100%",background:canSubmit?C.primary:"#E5E1D8",color:canSubmit?"#fff":C.faint,fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:canSubmit?"pointer":"default",fontFamily:"inherit"}}>
           {canSubmit?"Create work order →":"Fill in required fields"}
         </button>
       </div>
@@ -1732,15 +1741,15 @@ function VendorHome({me,orders,onOrder,role,setRole}) {
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"18px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{fontSize:12,color:C.faint,fontWeight:500,marginBottom:2}}>Good morning 👋</div>
-        <div style={{fontSize:22,fontWeight:800,color:C.text,letterSpacing:"-.02em"}}>{me?.entity?.name || "Daflure HVAC"}</div>
+        <div style={{fontSize:25,fontWeight:600,color:C.text,letterSpacing:"-.005em",fontFamily:C.display,lineHeight:1.15}}>{me?.entity?.name || "Daflure HVAC"}</div>
         <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>5 active jobs from Fleming Realty</div>
       </div>
       <div style={{margin:"16px 16px 0",background:"#fff",borderRadius:18,padding:"16px",border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
-        <div style={{fontSize:10,fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",color:C.faint,marginBottom:10}}>My jobs</div>
+        <div style={{fontSize:10,fontWeight:700,letterSpacing:".14em",textTransform:"uppercase",color:C.faint,marginBottom:10}}>My jobs</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
           {[{n:active.length,label:"Active",...C.pending},{n:review.length,label:"In review",...C.review},{n:done.length,label:"Done",...C.done}].map(s=>(
             <div key={s.label} style={{textAlign:"center",padding:"8px 6px",borderRadius:10,background:s.bg,border:`1px solid ${s.border}`}}>
-              <div style={{fontSize:24,fontWeight:700,color:s.text,lineHeight:1}}>{s.n}</div>
+              <div style={{fontSize:26,fontWeight:600,color:s.text,lineHeight:1,fontFamily:C.display}}>{s.n}</div>
               <div style={{fontSize:10,fontWeight:600,color:s.text,marginTop:2}}>{s.label}</div>
             </div>
           ))}
@@ -1792,13 +1801,13 @@ function ApplicantHome({role,setRole}) {
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"18px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{fontSize:12,color:C.faint,fontWeight:500,marginBottom:2}}>Hi Jordan 👋</div>
-        <div style={{fontSize:22,fontWeight:800,color:C.text,letterSpacing:"-.02em"}}>Jordan K.</div>
+        <div style={{fontSize:25,fontWeight:600,color:C.text,letterSpacing:"-.005em",fontFamily:C.display,lineHeight:1.15}}>Jordan K.</div>
         <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>Application #APP-2026-0142</div>
       </div>
 
       {/* Status banner */}
       <div style={{margin:"16px 16px 0",background:"linear-gradient(135deg,#0958D9,#3B82F6)",borderRadius:18,padding:"18px",color:"#fff",boxShadow:"0 6px 20px rgba(9,88,217,0.28)"}}>
-        <div style={{fontSize:10,fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",opacity:.8,marginBottom:4}}>Application status</div>
+        <div style={{fontSize:10,fontWeight:700,letterSpacing:".14em",textTransform:"uppercase",opacity:.8,marginBottom:4}}>Application status</div>
         <div style={{fontSize:18,fontWeight:700,marginBottom:2}}>Under Review</div>
         <div style={{fontSize:12,opacity:.85}}>330 Pine Ave, Unit 2C · $1,200/mo</div>
       </div>
@@ -1836,7 +1845,7 @@ function ApplicantHome({role,setRole}) {
 
       {/* Progress tracker */}
       <div style={{margin:"16px 16px 0",background:"#fff",borderRadius:18,padding:"18px",border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
-        <div style={{fontSize:10,fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",color:C.faint,marginBottom:14}}>Your progress</div>
+        <div style={{fontSize:10,fontWeight:700,letterSpacing:".14em",textTransform:"uppercase",color:C.faint,marginBottom:14}}>Your progress</div>
         {steps.map((s,i)=>(
           <div key={i} style={{display:"flex",gap:12,alignItems:"flex-start",marginBottom:i<steps.length-1?14:0}}>
             <div style={{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}}>
@@ -1915,9 +1924,9 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
 
   return (
     <LiveCtx.Provider value={live}>
-    <div style={{background:"#0D0D0D",display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",padding:"0"}}>
+    <div style={{background:"#071223",display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",padding:"0"}}>
       {/* Fills the screen on a real phone; keeps the demo frame on desktop. */}
-      <div className="fl-app" style={{width:"min(390px,100vw)",height:"min(844px,100dvh)",background:C.bg,overflow:"hidden",display:"flex",flexDirection:"column",fontFamily:"'Plus Jakarta Sans',-apple-system,'SF Pro Text','Segoe UI',sans-serif",WebkitFontSmoothing:"antialiased",MozOsxFontSmoothing:"grayscale",position:"relative"}}>
+      <div className="fl-app" style={{width:"min(390px,100vw)",height:"min(844px,100dvh)",background:C.bg,overflow:"hidden",display:"flex",flexDirection:"column",fontFamily:"var(--font-body), -apple-system, sans-serif",WebkitFontSmoothing:"antialiased",MozOsxFontSmoothing:"grayscale",position:"relative"}}>
         <style>{`
           /* Desktop keeps the phone-frame presentation for demos; a real phone
              gets the full screen instead of a 390px letterbox. */
@@ -1929,7 +1938,7 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
           .fl-app ::-webkit-scrollbar{display:none}
           .fl-app button,.fl-app [style*="cursor: pointer"],.fl-app [style*="cursor:pointer"]{transition:transform .14s ease,opacity .14s ease,box-shadow .14s ease,background-color .14s ease,border-color .14s ease,color .14s ease}
           .fl-app button:active,.fl-app [style*="cursor: pointer"]:active,.fl-app [style*="cursor:pointer"]:active{transform:scale(.97)}
-          .fl-app input:focus:not([style*="transparent"]),.fl-app textarea:focus,.fl-app select:focus{border-color:${C.primary} !important;box-shadow:0 0 0 3px rgba(31,46,173,.12)}
+          .fl-app input:focus:not([style*="transparent"]),.fl-app textarea:focus,.fl-app select:focus{border-color:${C.primary} !important;box-shadow:0 0 0 3px rgba(13,27,51,.14)}
         `}</style>
         {screen==="home"       && homeScreen}
         {screen==="orders"     && <OrdersScreen      orders={orders} onOrder={handleOrder} onNav={handleNav} onNewOrder={()=>setScreen("neworder")} onInspection={()=>setScreen("inspection")} {...sharedProps} />}

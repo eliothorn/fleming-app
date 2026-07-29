@@ -5,8 +5,8 @@ import Icon from "@/components/ui/Icon";
 import { signIn, signUp, sendMagicLink, signInWithGoogle, getEnabledProviders, liveMode } from "@/lib/auth/client";
 
 const C = {
-  primary: "#1F2EAD", primaryLight: "#EDEFFC", border: "#E6E9EF",
-  text: "#0A0F1E", muted: "#5A6376", faint: "#68707F",
+  primary: "#0D1B33", primaryLight: "#E7E9ED", border: "#E5E1D8",
+  text: "#0D1B33", muted: "#4A6A80", faint: "#4A6A80",
 };
 
 // Google's mark must keep its own colours — recolouring it breaks their brand terms.
@@ -75,11 +75,11 @@ export default function LoginPage() {
   const fill = (e) => { setEmail(e); setPassword("demo1234"); setUsePassword(true); setMode("login"); setError(""); };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0D0D0D", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div className="fl-app" style={{ width: "100%", maxWidth: 400, background: "#fff", borderRadius: 24, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,0.5)", fontFamily: "var(--font-jakarta), sans-serif" }}>
-        <div style={{ background: "linear-gradient(135deg,#1F2EAD,#3B4FD8)", padding: "34px 28px 30px", color: "#fff" }}>
+    <div style={{ minHeight: "100vh", background: "#071223", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div className="fl-app" style={{ width: "100%", maxWidth: 400, background: "#fff", borderRadius: 24, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,0.5)", fontFamily: "var(--font-body), sans-serif" }}>
+        <div style={{ background: "linear-gradient(135deg,#0D1B33,#2C4A5E)", padding: "34px 28px 30px", color: "#fff" }}>
           <div style={{ width: 46, height: 46, borderRadius: 13, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}><Icon name="building" size={24} /></div>
-          <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.02em" }}>Fleming Realty Group</div>
+          <div style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 24, fontWeight: 600, letterSpacing: ".04em" }}>FLEMING REALTY</div>
           <div style={{ fontSize: 13, opacity: 0.8, marginTop: 3 }}>Sign in to manage your work orders, lease, and requests</div>
         </div>
 
@@ -90,7 +90,7 @@ export default function LoginPage() {
               <div style={{ width: 52, height: 52, borderRadius: 15, background: C.primaryLight, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", color: C.primary }}>
                 <Icon name="envelope" size={26} />
               </div>
-              <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-.01em", color: C.text, marginBottom: 6 }}>Check your email</div>
+              <div style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 19, fontWeight: 600, color: C.text, marginBottom: 6 }}>Check your email</div>
               <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.55 }}>
                 We sent a sign-in link to <b style={{ color: C.text }}>{email.trim()}</b>. Tap it on this device and you're in — no password needed.
               </div>
@@ -192,9 +192,9 @@ export default function LoginPage() {
 }
 
 const inputStyle = { width: "100%", border: `1px solid ${C.border}`, borderRadius: 11, padding: "12px 14px", fontSize: 16, fontFamily: "inherit", color: C.text, outline: "none", background: "#fff", boxSizing: "border-box" };
-const primaryBtn = (busy) => ({ width: "100%", background: C.primary, color: "#fff", fontSize: 14.5, fontWeight: 700, padding: "13px", borderRadius: 12, border: "none", cursor: busy ? "default" : "pointer", opacity: busy ? 0.7 : 1, boxShadow: "0 2px 10px rgba(31,46,173,0.28)", minHeight: 46 });
+const primaryBtn = (busy) => ({ width: "100%", background: C.primary, color: "#fff", fontSize: 14.5, fontWeight: 700, padding: "13px", borderRadius: 12, border: "none", cursor: busy ? "default" : "pointer", opacity: busy ? 0.7 : 1, boxShadow: "0 2px 10px rgba(13,27,51,0.28)", minHeight: 46 });
 const googleBtn = { width: "100%", background: "#fff", color: C.text, fontSize: 14, fontWeight: 700, padding: "12px", borderRadius: 12, border: `1px solid ${C.border}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, minHeight: 46, boxShadow: "0 1px 2px rgba(16,24,40,.04)" };
-const ghostBtn = { background: "#F7F8FA", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" };
+const ghostBtn = { background: "#FAF8F4", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 16px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" };
 const dividerWrap = { display: "flex", alignItems: "center", gap: 12, margin: "16px 0" };
 const dividerLine = { flex: 1, height: 1, background: C.border };
 

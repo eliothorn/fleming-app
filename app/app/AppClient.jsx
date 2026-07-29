@@ -49,12 +49,12 @@ export default function AppClient() {
 
   if (error) {
     return (
-      <div style={{ minHeight: "100vh", background: "#0D0D0D", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "var(--font-jakarta), sans-serif", padding: 24, textAlign: "center" }}>
+      <div style={{ minHeight: "100vh", background: "#071223", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "var(--font-body), sans-serif", padding: 24, textAlign: "center" }}>
         <div>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 12, color: "#FCA5A5" }}><Icon name="warning" size={30} /></div>
           <div style={{ fontSize: 15, fontWeight: 700 }}>Couldn't load your data</div>
           <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>{error}</div>
-          <button onClick={load} style={{ marginTop: 16, background: "#1F2EAD", color: "#fff", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer" }}>Retry</button>
+          <button onClick={load} style={{ marginTop: 16, background: "#0D1B33", color: "#fff", border: "none", borderRadius: 10, padding: "10px 18px", fontWeight: 700, cursor: "pointer" }}>Retry</button>
         </div>
       </div>
     );
@@ -64,9 +64,9 @@ export default function AppClient() {
     // A first load against live Buildium pages a lot of records and can take
     // several seconds — an unlabelled black screen reads as a broken app.
     return (
-      <div style={{ minHeight: "100vh", background: "#0D0D0D", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "var(--font-jakarta), sans-serif", padding: 24, textAlign: "center" }}>
-        <div style={{ width: 52, height: 52, borderRadius: 15, background: "linear-gradient(135deg,#1F2EAD,#3B4FD8)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16, boxShadow: "0 8px 24px rgba(31,46,173,.4)" }}><Icon name="building" size={26} style={{ color: "#fff" }} /></div>
-        <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-.02em", marginBottom: 6 }}>Fleming Realty Group</div>
+      <div style={{ minHeight: "100vh", background: "#071223", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "var(--font-body), sans-serif", padding: 24, textAlign: "center" }}>
+        <div style={{ width: 52, height: 52, borderRadius: 15, background: "linear-gradient(135deg,#0D1B33,#2C4A5E)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16, boxShadow: "0 8px 24px rgba(13,27,51,.5)" }}><Icon name="building" size={26} style={{ color: "#fff" }} /></div>
+        <div style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 19, fontWeight: 600, letterSpacing: ".04em", marginBottom: 6 }}>FLEMING REALTY</div>
         <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 18 }}>Loading your properties…</div>
         <div style={{ display: "flex", gap: 6 }}>
           {[0, 1, 2].map((i) => (

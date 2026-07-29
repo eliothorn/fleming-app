@@ -1,11 +1,22 @@
 import "./globals.css";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Playfair_Display, Montserrat } from "next/font/google";
 import PwaSetup from "@/components/PwaSetup";
 
-const jakarta = Plus_Jakarta_Sans({
+// Fleming Realty brand fonts. Playfair Display is the heading face from the
+// brand guide — a high-contrast display serif, so it's reserved for titles and
+// screen headings. Montserrat carries all interface text, where Playfair's thin
+// strokes would hurt legibility at small sizes on a phone.
+const playfair = Playfair_Display({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-jakarta",
+  weight: ["500", "600", "700"],
+  variable: "--font-display",
+  display: "swap",
+});
+
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-body",
   display: "swap",
 });
 
@@ -28,7 +39,7 @@ export const metadata = {
 };
 
 export const viewport = {
-  themeColor: "#1F2EAD",
+  themeColor: "#0D1B33",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -39,7 +50,7 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={jakarta.variable}>
+    <html lang="en" className={`${playfair.variable} ${montserrat.variable}`}>
       <body>
         {children}
         <PwaSetup />

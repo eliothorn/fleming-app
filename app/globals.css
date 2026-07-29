@@ -1,49 +1,64 @@
 /* ───────────────────────────────────────────────────────────────────────────
-   Fleming design system
-   Style direction: "Soft UI Evolution" — depth via layered, low-opacity shadows
-   rather than flat borders or heavy neumorphism. Targets WCAG AA+.
-   Typography: Plus Jakarta Sans on a fixed weight scale (800 titles / 700
-   section headers / 600 card titles + buttons / 400 body).
-   Motion: transform+opacity only, 150–300ms, so it stays on the compositor.
+   Fleming Realty design system — built on the official brand guide.
+
+   Palette: Navy #0D1B33 · Slate #4A6A80 · Gold #C8A15A · Sand #F2F0EB
+            Charcoal #333333
+   Type:    Playfair Display (headings) + Montserrat (interface)
+
+   Gold rule, measured not assumed: gold is 2.12:1 on sand and 2.41:1 on white,
+   so it FAILS as text on light surfaces. It is 7.12:1 against navy. Gold is
+   therefore used on navy, as borders/rules, and as icon accents — never as
+   small text on a light background, and never with white on top of it.
    ─────────────────────────────────────────────────────────────────────────── */
 
 :root {
-  /* Brand — Fleming navy is the established identity and stays the primary. */
-  --fl-primary: #1F2EAD;
-  --fl-primary-hover: #1A279A;
-  --fl-primary-soft: #EDEFFC;
-  --fl-primary-ring: rgba(31, 46, 173, 0.14);
+  /* Brand */
+  --fl-navy: #0D1B33;
+  --fl-navy-deep: #071223;
+  --fl-navy-soft: #E7E9ED;        /* navy tint for chips/tiles */
+  --fl-slate: #4A6A80;            /* 5.03:1 on sand — the accessible secondary */
+  --fl-gold: #C8A15A;
+  --fl-gold-soft: #F5EEE1;        /* warm tile background, navy text on top */
+  --fl-gold-deep: #8A6828;        /* 4.51:1 on sand, for rare gold-toned text */
+  --fl-sand: #F2F0EB;
+  --fl-charcoal: #333333;
+
+  /* Aliases used across the app */
+  --fl-primary: var(--fl-navy);
+  --fl-primary-hover: var(--fl-navy-deep);
+  --fl-primary-soft: var(--fl-navy-soft);
+  --fl-primary-ring: rgba(13, 27, 51, 0.16);
   --fl-on-primary: #FFFFFF;
 
-  /* Neutrals */
-  --fl-bg: #F4F6F9;
+  --fl-bg: var(--fl-sand);
   --fl-surface: #FFFFFF;
-  --fl-surface-sunken: #F7F8FA;
-  --fl-text: #0A0F1E;
-  --fl-muted: #5A6376;
-  --fl-faint: #68707F;
-  --fl-border: #E6E9EF;
-  --fl-border-strong: #D6DBE4;
+  --fl-surface-sunken: #FAF8F4;   /* warm, not the old cool grey */
+  --fl-text: var(--fl-navy);
+  --fl-body: var(--fl-charcoal);
+  --fl-muted: var(--fl-slate);
+  --fl-faint: var(--fl-slate);
+  --fl-border: #E5E1D8;           /* warm hairline to match sand */
+  --fl-border-strong: #D3CEC2;
 
-  /* Status — one hue family per state, used for bg/text/border/bar together. */
-  --fl-urgent: #DC2626;      --fl-urgent-bg: #FEF2F2;   --fl-urgent-border: #FECACA;
-  --fl-pending: #C2410C;     --fl-pending-bg: #FFF7ED;  --fl-pending-border: #FED7AA;
-  --fl-scheduled: #1D4ED8;   --fl-scheduled-bg: #EFF6FF;--fl-scheduled-border: #BFDBFE;
-  --fl-review: #6D28D9;      --fl-review-bg: #F5F3FF;   --fl-review-border: #DDD6FE;
-  --fl-done: #15803D;        --fl-done-bg: #F0FDF4;     --fl-done-border: #BBF7D0;
+  /* Status — semantic, kept outside the brand palette so urgency still reads. */
+  --fl-urgent: #B91C1C;      --fl-urgent-bg: #FDF2F0;   --fl-urgent-border: #F3D3CD;
+  --fl-pending: #B45309;     --fl-pending-bg: #FBF3E8;  --fl-pending-border: #EDDBBF;
+  --fl-scheduled: #1D4ED8;   --fl-scheduled-bg: #EEF2FB;--fl-scheduled-border: #CBD8F0;
+  --fl-review: #6D28D9;      --fl-review-bg: #F3F0FA;   --fl-review-border: #DCD3F0;
+  --fl-done: #15803D;        --fl-done-bg: #EFF6F0;     --fl-done-border: #C8E0CD;
 
-  /* Soft UI depth ramp — two layers each: contact shadow + diffuse ambient. */
-  --fl-shadow-sm: 0 1px 2px rgba(16, 24, 40, .04), 0 1px 3px rgba(16, 24, 40, .03);
-  --fl-shadow-md: 0 1px 2px rgba(16, 24, 40, .04), 0 4px 12px rgba(16, 24, 40, .06);
-  --fl-shadow-lg: 0 2px 4px rgba(16, 24, 40, .04), 0 12px 28px rgba(16, 24, 40, .10);
-  --fl-shadow-brand: 0 2px 6px rgba(31, 46, 173, .18), 0 10px 24px rgba(31, 46, 173, .22);
+  /* Depth: warm-tinted shadows so cards sit on sand rather than float on grey. */
+  --fl-shadow-sm: 0 1px 2px rgba(13, 27, 51, .05), 0 1px 3px rgba(13, 27, 51, .03);
+  --fl-shadow-md: 0 1px 2px rgba(13, 27, 51, .05), 0 4px 12px rgba(13, 27, 51, .07);
+  --fl-shadow-lg: 0 2px 4px rgba(13, 27, 51, .05), 0 12px 28px rgba(13, 27, 51, .11);
+  --fl-shadow-brand: 0 2px 6px rgba(13, 27, 51, .22), 0 10px 24px rgba(13, 27, 51, .26);
 
-  --fl-radius-sm: 10px;
-  --fl-radius: 14px;
-  --fl-radius-lg: 18px;
-  --fl-radius-xl: 22px;
+  --fl-radius-sm: 8px;
+  --fl-radius: 12px;
+  --fl-radius-lg: 16px;
+  --fl-radius-xl: 20px;
 
-  --fl-ease: cubic-bezier(.22, .61, .36, 1);   /* power2.out equivalent */
+  --fl-ease: cubic-bezier(.22, .61, .36, 1);
   --fl-dur: 200ms;
 }
 
@@ -51,11 +66,10 @@
 html, body { margin: 0; padding: 0; }
 html { -webkit-text-size-adjust: 100%; }
 body {
-  font-family: var(--font-jakarta), -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-body), -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #0D0D0D;
-  /* Tabular figures keep money and counts from jittering as they update. */
+  background: var(--fl-navy-deep);
   font-variant-numeric: tabular-nums;
 }
 button { font-family: inherit; }
@@ -76,16 +90,30 @@ button { font-family: inherit; }
   .fl-safe-top { justify-content: center !important; }
 }
 
-/* ── Typography scale ────────────────────────────────────────────────────── */
-.fl-title    { font-size: 22px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; }
-.fl-screen   { font-size: 18px; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; }
+/* ── Typography ──────────────────────────────────────────────────────────── */
+/* Playfair for display only. Its hairline strokes disappear below ~16px on a
+   phone, so everything functional stays in Montserrat. */
+.fl-display, .fl-title, .fl-screen {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 600;
+}
+.fl-title   { font-size: 25px; letter-spacing: -.005em; line-height: 1.15; }
+.fl-screen  { font-size: 20px; letter-spacing: -.005em; line-height: 1.2; }
+
 .fl-section  { font-size: 15px; font-weight: 700; letter-spacing: -.01em; line-height: 1.3; }
 .fl-cardtitle{ font-size: 13.5px; font-weight: 600; line-height: 1.35; }
-.fl-body     { font-size: 13px; font-weight: 400; line-height: 1.5; }
+.fl-body     { font-size: 13px; font-weight: 400; line-height: 1.55; color: var(--fl-body); }
 .fl-meta     { font-size: 11.5px; font-weight: 400; line-height: 1.45; color: var(--fl-muted); }
+/* Wide tracking echoes the logo's letterspaced wordmark. */
 .fl-eyebrow  {
-  font-size: 10px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .09em; color: var(--fl-faint);
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .14em; color: var(--fl-muted);
+}
+
+/* The gold hairline used under headings in the brand guide. */
+.fl-rule {
+  display: block; height: 1px; border: 0; margin: 0;
+  background: linear-gradient(90deg, var(--fl-gold), rgba(200,161,90,0));
 }
 
 /* ── Interaction ─────────────────────────────────────────────────────────── */
@@ -113,31 +141,29 @@ button { font-family: inherit; }
               opacity var(--fl-dur) var(--fl-ease),
               color var(--fl-dur) var(--fl-ease);
 }
-/* Press feedback: transform/opacity only so it never triggers layout. */
 .fl-app button:active,
 .fl-app [style*="cursor: pointer"]:active,
 .fl-app [style*="cursor:pointer"]:active { transform: scale(.968); }
 
-/* Pointer devices get a lift; touch devices skip it (no real hover). */
 @media (hover: hover) and (pointer: fine) {
   .fl-press:hover { transform: translateY(-1px); }
   .fl-card:hover { transform: translateY(-2px); box-shadow: var(--fl-shadow-lg); }
+  /* Gold edge on hover — the brand's accent, used where it can't be mistaken
+     for text. */
+  .fl-card:hover { border-color: var(--fl-gold) !important; }
 }
 
 .fl-app input:focus:not([style*="transparent"]),
 .fl-app textarea:focus,
 .fl-app select:focus {
-  border-color: var(--fl-primary) !important;
+  border-color: var(--fl-navy) !important;
   box-shadow: 0 0 0 3px var(--fl-primary-ring);
 }
-/* Keyboard focus must stay visible even though we suppress tap highlight. */
-.fl-app :focus-visible { outline: 2px solid var(--fl-primary); outline-offset: 2px; }
+.fl-app :focus-visible { outline: 2px solid var(--fl-gold); outline-offset: 2px; }
 
 /* ── Motion ──────────────────────────────────────────────────────────────── */
 @keyframes pulse { 0%, 100% { opacity: .3 } 50% { opacity: 1 } }
 
-/* Staggered list entrance — the "wave" reveal, done with CSS so no animation
-   library ships to the phone. Depth is capped so long lists don't crawl in. */
 @keyframes fl-rise {
   from { opacity: 0; transform: translateY(10px) scale(.985); }
   to   { opacity: 1; transform: none; }
@@ -160,7 +186,6 @@ button { font-family: inherit; }
 }
 .fl-sheet { animation: fl-sheet-up 260ms var(--fl-ease) both; }
 
-/* Accessibility: honour the OS "reduce motion" setting. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: .001ms !important;

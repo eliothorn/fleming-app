@@ -61,8 +61,8 @@ export default function PwaSetup() {
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <img src="/icon-192.png" alt="" width={42} height={42} style={{ borderRadius: 10, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0A0F1E" }}>Add Fleming to your home screen</div>
-            <div style={{ fontSize: 11.5, color: "#667085", marginTop: 2, lineHeight: 1.45 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0D1B33" }}>Add Fleming to your home screen</div>
+            <div style={{ fontSize: 11.5, color: "#4A6A80", marginTop: 2, lineHeight: 1.45 }}>
               {showIos ? (
                 <>Tap the Share button, then <b>Add to Home Screen</b>.</>
               ) : (
@@ -93,14 +93,14 @@ const card = {
   pointerEvents: "auto",
   width: "100%", maxWidth: 380,
   background: "#fff", borderRadius: 16,
-  border: "1px solid #E4E7EC",
+  border: "1px solid #E5E1D8",
   boxShadow: "0 12px 40px rgba(10,15,30,.28)",
   padding: "14px 15px",
-  fontFamily: "var(--font-jakarta), sans-serif",
+  fontFamily: "var(--font-body), sans-serif",
 };
 const btnBase = {
   flex: 1, padding: "10px", borderRadius: 10, fontSize: 12.5, fontWeight: 700,
   cursor: "pointer", fontFamily: "inherit",
 };
-const btnGhost = { ...btnBase, background: "#F7F8FA", color: "#667085", border: "1px solid #E4E7EC" };
-const btnPrimary = { ...btnBase, flex: 2, background: "#1F2EAD", color: "#fff", border: "none" };
+const btnGhost = { ...btnBase, background: "#FAF8F4", color: "#4A6A80", border: "1px solid #E5E1D8" };
+const btnPrimary = { ...btnBase, flex: 2, background: "#0D1B33", color: "#fff", border: "none" };
