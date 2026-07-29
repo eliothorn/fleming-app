@@ -22,3 +22,6 @@ npm-debug.log*
 
 # local dev data store
 /.data
+
+# paste-into-Vercel helper (contains real keys)
+vercel-env.txt
