@@ -1,6 +1,7 @@
 "use client";
 import { useState, createContext, useContext } from "react";
 import Icon from "@/components/ui/Icon";
+import PhotoCapture, { StoredPhoto } from "@/components/ui/PhotoCapture";
 
 // Live Buildium data that deep children need without threading props through
 // every screen: the real vendor roster (100+, vs the 5-company demo list) and
@@ -282,13 +283,6 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
   const openCount = myOrders.filter(o=>o.status!=="done").length;
   // "Pending assignment" means their signup email isn't linked to a Buildium unit.
   const isLinked = me?.matched !== false && me?.entity?.unit && me.entity.unit !== "Pending assignment";
-  const [chatOpen,  setChatOpen]  = useState(false);
-  const [messages,  setMessages]  = useState([
-    {from:"ai", text:`Hi ${firstName}! I'm the Fleming Realty assistant. Just describe your maintenance issue in plain English and I'll take care of the rest.`}
-  ]);
-  const [input,     setInput]     = useState("");
-  const [loading,   setLoading]   = useState(false);
-  const [preview,   setPreview]   = useState(null);  // parsed work order
 
   const categoryColor = {
     HVAC:"#0D1B33", Plumbing:"#0958D9", Electrical:"#B45309",
@@ -300,45 +294,7 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
     scheduled:{label:"Low",       ...C.scheduled},
   };
 
-  const send = async () => {
-    const text = input.trim();
-    if (!text || loading) return;
-    setInput("");
-    setMessages(prev => [...prev, {from:"user", text}]);
-    setLoading(true);
 
-    try {
-      // Server-side proxy holds the Anthropic key and does the parsing.
-      const data = await api.ai(text);
-      setMessages(prev => [...prev, {from:"ai", text: data.reply || "Got it — let me create that work order for you."}]);
-      if (data.workOrder) setPreview(data.workOrder);
-    } catch(e) {
-      setMessages(prev => [...prev, {from:"ai", text:"Sorry, I had trouble connecting. Please try again or use the manual form."}]);
-    }
-    setLoading(false);
-  };
-
-  const confirm = () => {
-    if (!preview) return;
-    const newOrder = {
-      id: `WO-${String(Math.floor(Math.random()*9000)+1000)}`,
-      title: preview.title,
-      unit: me?.entity?.unit || "Unit 4B",
-      address: me?.entity?.address || "214 Walnut St",
-      status: preview.urgency || "pending",
-      vendorId: null,
-      reported: "Just now",
-      category: preview.category || "General",
-      residentName: myName,
-      notes: preview.notes || preview.title,
-    };
-    onCreated(newOrder);
-    setPreview(null);
-    setMessages(prev => [...prev, {from:"ai", text: submissionsReachOffice
-      ? "✅ Work order created and sent to the maintenance team. You'll get a notification once a vendor is assigned."
-      : "✅ I've recorded your request. Heads up — sending requests straight into Fleming's maintenance system isn't switched on yet, so please call the office for anything urgent."
-    }]);
-  };
 
   return (
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
@@ -408,96 +364,17 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
         ))}
       </div>
 
-      {/* AI Receptionist button / chat */}
+      {/* Report an issue — goes straight to the request form. The broker runs
+          his own AI receptionist, so this app does not add a second one. */}
       <div style={{padding:"16px 16px 20px"}}>
-        {!chatOpen ? (
-          <div onClick={()=>setChatOpen(true)} style={{background:"linear-gradient(135deg,#0D1B33,#2C4A5E)",borderRadius:18,padding:"18px",cursor:"pointer",display:"flex",alignItems:"center",gap:14,boxShadow:"0 6px 20px rgba(13,27,51,0.30)"}}>
-            <div style={{width:44,height:44,borderRadius:12,background:"rgba(255,255,255,0.15)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="sparkle" size={22} style={{color:"#fff"}} /></div>
-            <div style={{flex:1}}>
-              <div style={{fontSize:14,fontWeight:700,color:"#fff",marginBottom:2}}>Report an issue</div>
-              <div style={{fontSize:12,color:"rgba(255,255,255,0.7)"}}>Describe it in plain English — AI creates the work order</div>
-            </div>
-            <div style={{fontSize:18,color:"rgba(255,255,255,0.6)"}}>›</div>
+        <div onClick={()=>onNav && onNav("neworder")} className="fl-press" style={{background:"linear-gradient(135deg,#0D1B33,#2C4A5E)",borderRadius:18,padding:"18px",cursor:"pointer",display:"flex",alignItems:"center",gap:14,boxShadow:C.shadowBrand}}>
+          <div style={{width:44,height:44,borderRadius:12,background:"rgba(200,161,90,0.18)",border:"1px solid rgba(200,161,90,0.45)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="wrench" size={21} style={{color:C.gold}} /></div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:14.5,fontWeight:700,color:"#fff",marginBottom:2}}>Report an issue</div>
+            <div style={{fontSize:12,color:"rgba(255,255,255,0.75)"}}>Send a maintenance request to your property manager</div>
           </div>
-        ) : null}
-        {!chatOpen && (
-          <div onClick={()=>onNav && onNav("neworder")} style={{marginTop:10,display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"13px",borderRadius:14,border:`1px solid ${C.border}`,background:"#fff",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04)"}}>
-            <Icon name="note" size={15} />
-            <span style={{fontSize:13,fontWeight:700,color:C.text}}>Submit a request to my property manager</span>
-          </div>
-        )}
-        {chatOpen && (
-          <div style={{background:"#fff",borderRadius:18,border:`1px solid ${C.border}`,overflow:"hidden",boxShadow:"0 8px 28px rgba(16,24,40,0.10)"}}>
-            {/* Chat header */}
-            <div style={{background:"linear-gradient(135deg,#0D1B33,#2C4A5E)",padding:"12px 16px",display:"flex",alignItems:"center",gap:10}}>
-              <div style={{width:32,height:32,borderRadius:8,background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center"}}><Icon name="sparkle" size={17} style={{color:"#fff"}} /></div>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:700,color:"#fff"}}>Fleming AI Receptionist</div>
-                <div style={{fontSize:10.5,color:"rgba(255,255,255,0.65)"}}>Powered by Claude · Fleming Realty</div>
-              </div>
-              <div onClick={()=>setChatOpen(false)} style={{fontSize:18,color:"rgba(255,255,255,0.6)",cursor:"pointer",lineHeight:1}}>✕</div>
-            </div>
-
-            {/* Messages */}
-            <div style={{maxHeight:260,overflowY:"auto",padding:"12px 14px",display:"flex",flexDirection:"column",gap:10}}>
-              {messages.map((m,i)=>(
-                <div key={i} style={{display:"flex",flexDirection:"column",alignItems:m.from==="user"?"flex-end":"flex-start"}}>
-                  {m.from==="ai" && (
-                    <div style={{display:"flex",alignItems:"flex-end",gap:6,maxWidth:"88%"}}>
-                      <div style={{width:24,height:24,borderRadius:6,background:"linear-gradient(135deg,#0D1B33,#2C4A5E)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginBottom:2}}><Icon name="sparkle" size={13} style={{color:"#fff"}} /></div>
-                      <div style={{background:"#F2F0EB",borderRadius:"12px 12px 12px 2px",padding:"10px 13px",fontSize:13,color:C.text,lineHeight:1.5}}>{m.text}</div>
-                    </div>
-                  )}
-                  {m.from==="user" && (
-                    <div style={{background:C.primary,borderRadius:"12px 12px 2px 12px",padding:"10px 13px",fontSize:13,color:"#fff",lineHeight:1.5,maxWidth:"82%"}}>{m.text}</div>
-                  )}
-                </div>
-              ))}
-              {loading && (
-                <div style={{display:"flex",alignItems:"flex-end",gap:6}}>
-                  <div style={{width:24,height:24,borderRadius:6,background:"linear-gradient(135deg,#0D1B33,#2C4A5E)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="sparkle" size={13} style={{color:"#fff"}} /></div>
-                  <div style={{background:"#F2F0EB",borderRadius:"12px 12px 12px 2px",padding:"10px 14px"}}>
-                    <div style={{display:"flex",gap:4,alignItems:"center"}}>
-                      {[0,1,2].map(i=><div key={i} style={{width:6,height:6,borderRadius:"50%",background:C.faint,animation:"pulse 1.2s ease-in-out infinite",animationDelay:`${i*0.2}s`}} />)}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Work order preview */}
-              {preview && (
-                <div style={{background:"#fff",border:`2px solid ${C.primary}`,borderRadius:12,padding:"13px 14px",marginTop:4}}>
-                  <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.primary,marginBottom:8}}>Work order preview</div>
-                  <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:6}}>{preview.title}</div>
-                  <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
-                    <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:10,background:C.primaryLight,color:C.primary}}>{preview.category}</span>
-                    <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:10,background:urgencyMeta[preview.urgency||"pending"].bg,color:urgencyMeta[preview.urgency||"pending"].text}}>{urgencyMeta[preview.urgency||"pending"].label}</span>
-                  </div>
-                  <div style={{fontSize:12,color:C.muted,lineHeight:1.5,marginBottom:12}}>{preview.notes}</div>
-                  <div style={{display:"flex",gap:8}}>
-                    <button onClick={()=>setPreview(null)} style={{flex:1,background:"#FAF8F4",color:C.muted,fontSize:12,fontWeight:600,padding:"10px",borderRadius:10,border:`1px solid ${C.border}`,cursor:"pointer",fontFamily:"inherit"}}>Edit</button>
-                    <button onClick={confirm} style={{flex:2,background:C.primary,color:"#fff",fontSize:12,fontWeight:700,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",fontFamily:"inherit"}}>✓ Confirm & submit</button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Input */}
-            <div style={{borderTop:`1px solid ${C.border}`,padding:"10px 12px",display:"flex",gap:8,alignItems:"center"}}>
-              <input
-                value={input}
-                onChange={e=>setInput(e.target.value)}
-                onKeyDown={e=>e.key==="Enter"&&send()}
-                placeholder="Describe your issue..."
-                disabled={loading}
-                style={{flex:1,border:`1px solid ${C.border}`,borderRadius:20,padding:"9px 14px",fontSize:13,fontFamily:"inherit",color:C.text,outline:"none",background:"#FAF8F4"}}
-              />
-              <div onClick={send} style={{width:36,height:36,borderRadius:"50%",background:input.trim()&&!loading?C.primary:C.border,display:"flex",alignItems:"center",justifyContent:"center",cursor:input.trim()&&!loading?"pointer":"default",flexShrink:0,transition:"background .15s"}}>
-                <span style={{fontSize:14,color:"#fff",marginLeft:2}}>➤</span>
-              </div>
-            </div>
-          </div>
-        )}
+          <Icon name="caretRight" size={18} style={{color:"rgba(255,255,255,0.6)"}} />
+        </div>
       </div>
       <style>{`@keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}`}</style>
     </div>
@@ -823,7 +700,7 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
   const apply=(patch)=> onUpdateOrder ? onUpdateOrder(order.id,patch) : setOrders(prev=>prev.map(o=>o.id===order.id?{...o,...patch}:o));
   const markDone=()=>{apply({status:"done"});setOwnerNotified(true);setCompletionNotified(true);};
   const [showComplete,setShowComplete]=useState(false);
-  const [photoAdded,setPhotoAdded]=useState(false);
+  const [photoAdded,setPhotoAdded]=useState(null); // storage path once uploaded
   const [completionNote,setCompletionNote]=useState("");
   const vendorComplete=()=>{
     apply({status:"review",vendorCompleted:true,completionNote,photoAdded});
@@ -923,15 +800,8 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
         {cur?.vendorCompleted&&(
           <div style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
             <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:10}}>Completion proof from vendor</div>
-            {cur.photoAdded&&(
-              <div style={{height:120,borderRadius:10,background:"linear-gradient(135deg,#E6EDF7,#D4E0F0)",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:10,border:`1px solid ${C.border}`}}>
-                <div style={{textAlign:"center"}}>
-                  <div style={{display:"flex",justifyContent:"center",marginBottom:6,color:"#1B3A6B"}}><Icon name="camera" size={28} /></div>
-                  <div style={{fontSize:11,color:"#1B3A6B",fontWeight:600}}>Completion photo attached</div>
-                  <div style={{fontSize:10,color:C.faint,marginTop:2}}>IMG_4471.jpg · uploaded by vendor</div>
-                </div>
-              </div>
-            )}
+            {/* The real uploaded photo, fetched through a signed URL. */}
+            {cur.photoAdded&&<div style={{marginBottom:10}}><StoredPhoto path={cur.photoAdded} /></div>}
             {cur.completionNote&&<div style={{fontSize:12.5,color:C.text,lineHeight:1.5,background:"#FAF8F4",padding:"10px 12px",borderRadius:8,border:`1px solid ${C.border}`}}>{cur.completionNote}</div>}
           </div>
         )}
@@ -959,16 +829,14 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
             <div style={{background:"#fff",borderRadius:14,border:`2px solid ${C.primary}`,padding:"14px"}}>
               <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>Complete this work order</div>
               <div style={{fontSize:11,fontWeight:600,color:C.faint,marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Photo of completed work <span style={{color:C.urgent.text}}>*</span></div>
-              {!photoAdded?(
-                <div onClick={()=>setPhotoAdded(true)} style={{height:90,borderRadius:10,border:`2px dashed ${C.border}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",marginBottom:12,background:"#FAF8F4"}}>
-                  <div style={{display:"flex",justifyContent:"center",marginBottom:6,color:C.muted}}><Icon name="camera" size={24} /></div>
-                  <div style={{fontSize:12,color:C.muted,fontWeight:500}}>Tap to add photo</div>
-                </div>
-              ):(
-                <div style={{height:90,borderRadius:10,background:"linear-gradient(135deg,#D1FAE5,#A7F3D0)",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:12,border:`1px solid ${C.done.border}`,position:"relative"}}>
-                  <div style={{textAlign:"center"}}><div style={{fontSize:24,marginBottom:2}}>✓</div><div style={{fontSize:11,color:C.done.text,fontWeight:600}}>Photo added</div></div>
-                </div>
-              )}
+              <div style={{marginBottom:12}}>
+                <PhotoCapture
+                  kind="completion"
+                  label="Photograph the completed work"
+                  value={photoAdded||null}
+                  onChange={(path)=>setPhotoAdded(path)}
+                />
+              </div>
               <div style={{fontSize:11,fontWeight:600,color:C.faint,marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Work details <span style={{color:C.urgent.text}}>*</span></div>
               <textarea value={completionNote} onChange={e=>setCompletionNote(e.target.value)} placeholder="Describe what was done..." rows={2} style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 12px",fontSize:13,fontFamily:"inherit",color:C.text,outline:"none",resize:"none",boxSizing:"border-box",marginBottom:12}} />
               <div style={{display:"flex",gap:8}}>
@@ -1342,6 +1210,7 @@ function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDon
   const submit = () => {
     if (!canSubmit) return;
     onInspectionDone && onInspectionDone({
+      photos,
       id: `IN-${String(Math.floor(Math.random()*900)+100)}`,
       property: PROPERTY,
       scope: template?.name || "Inspection",
@@ -1441,18 +1310,18 @@ function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDon
                           onChange={e=>setNotes(prev=>({...prev,[item.id]:e.target.value}))}
                           style={{width:"100%",border:`1px solid ${C.urgent.border}`,borderRadius:8,padding:"7px 10px",fontSize:12,fontFamily:"inherit",color:C.text,outline:"none",background:"#fff",boxSizing:"border-box",marginBottom:8}}
                         />
-                        {photos[item.id] ? (
-                          <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",borderRadius:8,background:C.done.bg,border:`1px solid ${C.done.border}`}}>
-                            <Icon name="camera" size={14} />
-                            <span style={{flex:1,fontSize:11.5,fontWeight:600,color:C.done.text}}>Photo attached · IMG_{item.id.toUpperCase()}.jpg</span>
-                            <span onClick={()=>setPhotos(prev=>{const n={...prev};delete n[item.id];return n;})} style={{fontSize:11,fontWeight:700,color:C.muted,cursor:"pointer"}}>Remove</span>
-                          </div>
-                        ) : (
-                          <div onClick={()=>setPhotos(prev=>({...prev,[item.id]:true}))} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"8px 10px",borderRadius:8,border:`1.5px dashed ${C.urgent.border}`,background:"#fff",cursor:"pointer"}}>
-                            <Icon name="camera" size={14} />
-                            <span style={{fontSize:11.5,fontWeight:600,color:C.urgent.text}}>Attach photo of issue</span>
-                          </div>
-                        )}
+                        {/* Real capture: opens the phone camera and uploads. */}
+                        <PhotoCapture
+                          kind="inspection"
+                          tone="urgent"
+                          label="Photograph the issue"
+                          value={photos[item.id] || null}
+                          onChange={(path)=>setPhotos(prev=>{
+                            const n={...prev};
+                            if(path) n[item.id]=path; else delete n[item.id];
+                            return n;
+                          })}
+                        />
                       </div>
                     )}
                   </div>

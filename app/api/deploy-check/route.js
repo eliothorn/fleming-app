@@ -2,7 +2,7 @@
 // Visit /api/deploy-check to see what still blocks a production launch.
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth/session";
-import { isSupabaseConfigured, isBuildiumConfigured, isBuildiumLive, isBuildiumWriteEnabled, isAnthropicConfigured } from "@/lib/env";
+import { isSupabaseConfigured, isBuildiumConfigured, isBuildiumLive, isBuildiumWriteEnabled } from "@/lib/env";
 import { sessionStorageMode, demoAccountsAllowed } from "@/lib/auth/supabaseBackend";
 
 export async function GET(request) {
@@ -36,8 +36,6 @@ export async function GET(request) {
       : "Disabled. Residents' requests do NOT reach the office; the UI says so.",
     false
   );
-
-  add("AI receptionist", isAnthropicConfigured(), isAnthropicConfigured() ? "Anthropic key present." : "No key — deterministic fallback parser in use.", false);
 
   const seedOpen = process.env.ALLOW_DEMO_SEED === "true";
   add("Demo seeding endpoint", !seedOpen, seedOpen ? "OPEN — /api/auth/seed-demo can create accounts. Unset ALLOW_DEMO_SEED." : "Disabled.", seedOpen);

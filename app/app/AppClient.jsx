@@ -44,7 +44,6 @@ export default function AppClient() {
     createTemplate: (input) => send("/api/buildium/templates", "POST", input).then((r) => r.template),
     updateTemplate: (id, patch) => send(`/api/buildium/templates/${id}`, "PATCH", patch).then((r) => r.template),
     deleteTemplate: (id) => send(`/api/buildium/templates/${id}`, "DELETE"),
-    ai: (message) => send("/api/ai/receptionist", "POST", { message }),
   };
 
   if (error) {
