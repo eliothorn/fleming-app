@@ -40,7 +40,7 @@ export default function AppClient() {
   const api = {
     createOrder: (input) => send("/api/buildium/orders", "POST", input).then((r) => r.order),
     updateOrder: (id, patch) => send(`/api/buildium/orders/${id}`, "PATCH", patch).then((r) => r.order),
-    addInspection: (input) => send("/api/buildium/inspections", "POST", input).then((r) => r.inspection),
+    addInspection: (input) => send("/api/inspections", "POST", input).then((r) => r.inspection),
     createTemplate: (input) => send("/api/buildium/templates", "POST", input).then((r) => r.template),
     updateTemplate: (id, patch) => send(`/api/buildium/templates/${id}`, "PATCH", patch).then((r) => r.template),
     deleteTemplate: (id) => send(`/api/buildium/templates/${id}`, "DELETE"),

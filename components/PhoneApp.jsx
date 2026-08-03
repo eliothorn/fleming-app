@@ -1,5 +1,5 @@
 "use client";
-import { useState, createContext, useContext } from "react";
+import { useState, useEffect, createContext, useContext } from "react";
 import Icon from "@/components/ui/Icon";
 import PhotoCapture, { StoredPhoto } from "@/components/ui/PhotoCapture";
 
@@ -257,7 +257,7 @@ function EmployeeHome({me,orders,onNav,onOrder,role,setRole}) {
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,padding:"0 16px 20px"}}>
         {[
           {icon:"wrench",label:"New work order",sub:"Log maintenance",cb:()=>onNav("orders")},
-          {icon:"clipboard",label:"Start inspection",sub:"Open form",cb:()=>onNav("inspection")},
+          {icon:"clipboard",label:"Inspections",sub:"Reports & photos",cb:()=>onNav("inspections")},
           {icon:"chat",label:"Message vendor",sub:"Daflure + others",cb:()=>onNav("messages")},
           {icon:"chart",label:"Owner report",sub:"Send update",cb:()=>onNav("profile")},
         ].map(q=>(
@@ -1141,6 +1141,165 @@ function ProfileScreen({me,role,setRole,onNav,onSignOut,canViewAs}) {
   );
 }
 
+// ── INSPECTION RECORDS ───────────────────────────────────────────────────────
+// Employees manage inspections here; owners get the same list read-only. Opening
+// one loads the full checklist with notes and photo evidence.
+function InspectionsScreen({onBack,onNewInspection,role,setRole}) {
+  const [list,setList]=useState(null);
+  const [error,setError]=useState("");
+  const [open,setOpen]=useState(null);      // selected inspection id
+  const [detail,setDetail]=useState(null);
+  const canManage = role==="employee";
+
+  useEffect(()=>{
+    let alive=true;
+    fetch("/api/inspections").then(r=>r.json()).then(j=>{
+      if(!alive) return;
+      if(j.error) setError(j.error); else setList(j.inspections||[]);
+    }).catch(()=>alive&&setError("Couldn't load inspections."));
+    return ()=>{alive=false;};
+  },[]);
+
+  useEffect(()=>{
+    let alive=true;
+    if(!open){setDetail(null);return;}
+    setDetail("loading");
+    fetch(`/api/inspections/${open}`).then(r=>r.json()).then(j=>{
+      if(alive) setDetail(j.inspection||null);
+    }).catch(()=>alive&&setDetail(null));
+    return ()=>{alive=false;};
+  },[open]);
+
+  // ── Detail view ──
+  if(open){
+    const d = detail==="loading"?null:detail;
+    const failed=(d?.items||[]).filter(i=>i.result==="fail");
+    const passed=(d?.items||[]).filter(i=>i.result==="pass");
+    return (
+      <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
+        <AppHeader role={role} setRole={setRole} />
+        <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
+          <span className="fl-tap" onClick={()=>setOpen(null)} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Inspections</span>
+          <div style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>{d?.property||"Inspection"}</div>
+          <div style={{fontSize:12.5,color:C.muted,marginTop:2}}>{[d?.scope,d?.date,d?.by].filter(Boolean).join(" · ")}</div>
+        </div>
+
+        {detail==="loading"&&<div style={{padding:"28px",textAlign:"center",fontSize:12.5,color:C.muted}}>Loading report…</div>}
+        {detail!=="loading"&&!d&&<div style={{padding:"28px",textAlign:"center",fontSize:12.5,color:C.muted}}>That report couldn't be loaded.</div>}
+
+        {d&&(
+          <div style={{padding:"14px 16px 20px",display:"flex",flexDirection:"column",gap:12}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              <div style={{padding:"12px",borderRadius:12,background:C.done.bg,border:`1px solid ${C.done.border}`,textAlign:"center"}}>
+                <div style={{fontSize:24,fontWeight:600,color:C.done.text,fontFamily:C.display,lineHeight:1}}>{d.passed}</div>
+                <div style={{fontSize:10.5,fontWeight:600,color:C.done.text,marginTop:3}}>Passed</div>
+              </div>
+              <div style={{padding:"12px",borderRadius:12,background:d.failed>0?C.urgent.bg:C.sunken,border:`1px solid ${d.failed>0?C.urgent.border:C.border}`,textAlign:"center"}}>
+                <div style={{fontSize:24,fontWeight:600,color:d.failed>0?C.urgent.text:C.muted,fontFamily:C.display,lineHeight:1}}>{d.failed}</div>
+                <div style={{fontSize:10.5,fontWeight:600,color:d.failed>0?C.urgent.text:C.muted,marginTop:3}}>Flagged</div>
+              </div>
+            </div>
+            {d.nextDate&&(
+              <div style={{padding:"11px 13px",borderRadius:12,background:C.scheduled.bg,border:`1px solid ${C.scheduled.border}`,display:"flex",alignItems:"center",gap:9}}>
+                <Icon name="calendar" size={16} style={{color:C.scheduled.text}} />
+                <span style={{fontSize:12,color:C.scheduled.text,fontWeight:600}}>Next inspection {d.nextDate}</span>
+              </div>
+            )}
+
+            {failed.length>0&&(
+              <div>
+                <div className="fl-eyebrow" style={{marginBottom:8}}>Items needing attention</div>
+                <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                  {failed.map((it,i)=>(
+                    <div key={i} className="fl-rise" style={{background:"#fff",borderRadius:14,border:`1px solid ${C.urgent.border}`,padding:"13px 14px",boxShadow:C.shadowSm}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:6}}>
+                        <div style={{fontSize:13,fontWeight:600,color:C.text,lineHeight:1.35}}>{it.label}</div>
+                        {it.critical&&<span style={{fontSize:9,fontWeight:700,letterSpacing:".06em",textTransform:"uppercase",color:C.urgent.text,whiteSpace:"nowrap"}}>Critical</span>}
+                      </div>
+                      {it.note&&<div style={{fontSize:12,color:C.body,lineHeight:1.5,marginBottom:it.photoPath?10:0}}>{it.note}</div>}
+                      {it.photoPath&&<StoredPhoto path={it.photoPath} height={200} />}
+                      {!it.photoPath&&<div style={{fontSize:11,color:C.faint,fontStyle:"italic"}}>No photo attached</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {passed.length>0&&(
+              <div>
+                <div className="fl-eyebrow" style={{marginBottom:8}}>Passed ({passed.length})</div>
+                <div style={{background:"#fff",borderRadius:14,border:`1px solid ${C.border}`,overflow:"hidden"}}>
+                  {passed.map((it,i)=>(
+                    <div key={i} style={{display:"flex",alignItems:"center",gap:9,padding:"9px 13px",borderBottom:i<passed.length-1?`1px solid ${C.border}`:"none"}}>
+                      <Icon name="check" size={14} style={{color:C.done.text}} />
+                      <span style={{fontSize:12.5,color:C.body}}>{it.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(d.items||[]).length===0&&(
+              <div style={{textAlign:"center",padding:"24px 16px",fontSize:12.5,color:C.muted,lineHeight:1.5}}>
+                This report was recorded before item-level detail was captured, so only the totals are available.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── List view ──
+  return (
+    <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
+      <AppHeader role={role} setRole={setRole} />
+      <div style={{background:"#fff",padding:"14px 20px 12px",borderBottom:`1px solid ${C.border}`}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+          <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Home</span>
+          <span style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>Inspections</span>
+          {canManage
+            ? <button onClick={onNewInspection} style={{background:C.primary,color:"#fff",fontSize:12,fontWeight:700,padding:"7px 13px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit"}}>+ New</button>
+            : <span style={{fontSize:12,color:C.faint}}>View only</span>}
+        </div>
+        <div style={{fontSize:11.5,color:C.muted}}>Completed reports with photo evidence</div>
+      </div>
+
+      <div style={{padding:"14px 16px 20px",display:"flex",flexDirection:"column",gap:10}}>
+        {error&&<div style={{fontSize:12.5,color:C.urgent.text,padding:"12px",background:C.urgent.bg,borderRadius:12,border:`1px solid ${C.urgent.border}`}}>{error}</div>}
+        {list===null&&!error&&<div style={{textAlign:"center",padding:"28px",fontSize:12.5,color:C.muted}}>Loading…</div>}
+
+        {list&&list.length===0&&(
+          <div style={{textAlign:"center",padding:"40px 24px"}}>
+            <div style={{display:"flex",justifyContent:"center",marginBottom:12,color:C.faint}}><Icon name="clipboard" size={30} strokeWidth={1.6} /></div>
+            <div style={{fontSize:14.5,fontWeight:700,color:C.text,marginBottom:6}}>No inspections yet</div>
+            <div style={{fontSize:12.5,color:C.muted,lineHeight:1.55}}>
+              {canManage?"Start one and it'll be saved here with its photos.":"Completed inspections will appear here."}
+            </div>
+          </div>
+        )}
+
+        {(list||[]).map(ins=>(
+          <div key={ins.id} className="fl-rise fl-card" onClick={()=>setOpen(ins.id)} style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",cursor:"pointer",boxShadow:C.shadow}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:8}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:14,fontWeight:600,color:C.text}}>{ins.property}</div>
+                <div style={{fontSize:11.5,color:C.muted,marginTop:2}}>{[ins.scope,ins.by].filter(Boolean).join(" · ")}</div>
+              </div>
+              <Icon name="caretRight" size={16} style={{color:C.faint,marginTop:2}} />
+            </div>
+            <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+              <span style={{fontSize:10.5,fontWeight:700,padding:"3px 9px",borderRadius:20,background:C.done.bg,color:C.done.text,border:`1px solid ${C.done.border}`}}>{ins.passed} passed</span>
+              {ins.failed>0&&<span style={{fontSize:10.5,fontWeight:700,padding:"3px 9px",borderRadius:20,background:C.urgent.bg,color:C.urgent.text,border:`1px solid ${C.urgent.border}`}}>{ins.failed} flagged</span>}
+              <span style={{fontSize:11,color:C.faint,marginLeft:"auto"}}>{fmtDate(ins.date)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── INSPECTION SCREEN ────────────────────────────────────────────────────────
 const INSPECTION_ITEMS = [
   {id:"i1", category:"Exterior",  label:"Entry doors & locks functional",       critical:true },
@@ -1209,16 +1368,24 @@ function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDon
 
   const submit = () => {
     if (!canSubmit) return;
+    // Send the whole checklist, not just a tally — which item failed, the
+    // inspector's note and its photo are the substance of the report.
     onInspectionDone && onInspectionDone({
-      photos,
-      id: `IN-${String(Math.floor(Math.random()*900)+100)}`,
       property: PROPERTY,
       scope: template?.name || "Inspection",
-      date: "Today",
       passed: done - fails,
       failed: fails,
       nextDate,
-      by: "Marcus J.",
+      items: items
+        .filter(it => checks[it.id])
+        .map(it => ({
+          label: it.label,
+          category: it.category,
+          critical: it.critical,
+          result: checks[it.id],
+          note: notes[it.id] || null,
+          photoPath: photos[it.id] || null,
+        })),
     });
     setSubmitted(true);
   };
@@ -1765,7 +1932,7 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
   // reloads scoped data. In live mode a user has one role, so this is disabled.
   const handleSetRole= (r) => { if (canViewAs && onViewAs) onViewAs(r); };
   const handleCreated= (o) => { setOrders(prev=>[o,...prev]); api?.createOrder(o).catch(()=>{}); };
-  const handleInspectionDone = (rec) => { setInspections(prev=>[rec,...prev]); api?.addInspection(rec).catch(()=>{}); };
+  const handleInspectionDone = (rec) => { setInspections(prev=>[rec,...prev]); api?.addInspection(rec).catch(()=>{}); setScreen("inspections"); };
   const updateOrderLocal = (id, patch) => { setOrders(prev=>prev.map(o=>o.id===id?{...o,...patch}:o)); api?.updateOrder(id, patch).catch(()=>{}); };
 
   const homeScreen = role==="employee"
@@ -1779,7 +1946,7 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
     : <OwnerHome inspections={inspections} balances={initial.balances} properties={initial.properties} role={role} setRole={handleSetRole} />;
 
   const sharedProps = {role, setRole:handleSetRole, canViewAs, me, properties:initial.properties};
-  const navActive = ["detail","assign","inspection","neworder","templates"].includes(screen) ? "orders" : screen;
+  const navActive = ["detail","assign","inspection","inspections","neworder","templates"].includes(screen) ? "orders" : screen;
 
   // One place that knows what is real: the live vendor roster, and whether
   // writes/notifications actually reach anywhere (they don't while Buildium is
@@ -1815,6 +1982,7 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
         {screen==="assign"     && assigningOrder  && <AssignScreen   order={assigningOrder} orders={orders} setOrders={setOrders} onUpdateOrder={updateOrderLocal} onBack={()=>setScreen("detail")} {...sharedProps} />}
         {screen==="messages"   && <MessagesScreen    messages={initial.messages} messagingEnabled={initial.messagingEnabled!==false} onNav={handleNav} {...sharedProps} />}
         {screen==="profile"    && <ProfileScreen     me={me} role={role} setRole={handleSetRole} onNav={handleNav} onSignOut={onSignOut} canViewAs={canViewAs} />}
+        {screen==="inspections"&& <InspectionsScreen onBack={()=>handleNav("home")} onNewInspection={()=>setScreen("inspection")} {...sharedProps} />}
         {screen==="inspection" && <InspectionScreen  onBack={()=>setScreen("orders")} templates={templates} onManageTemplates={()=>setScreen("templates")} onInspectionDone={handleInspectionDone} {...sharedProps} />}
         {screen==="templates"  && <TemplatesScreen   onBack={()=>setScreen("inspection")} templates={templates} setTemplates={setTemplates} api={api} {...sharedProps} />}
         {screen==="neworder"   && <NewWorkOrderScreen onBack={()=>setScreen("orders")} onCreated={handleCreated} {...sharedProps} />}
