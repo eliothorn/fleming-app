@@ -200,6 +200,8 @@ const NavBar = ({active,onNav,role}) => {
 
 // ── EMPLOYEE HOME ─────────────────────────────────────────────────────────────
 function EmployeeHome({me,orders,onNav,onOrder,role,setRole}) {
+  const {vendors=[]}=useLive();
+  const vendorCount=vendors.length;
   const urgent=orders.filter(o=>o.status==="urgent");
   const open=orders.filter(o=>["urgent","pending","scheduled"].includes(o.status));
   const done=orders.filter(o=>o.status==="done");
@@ -215,7 +217,7 @@ function EmployeeHome({me,orders,onNav,onOrder,role,setRole}) {
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"18px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{fontSize:12,color:C.faint,fontWeight:500,marginBottom:2}}>Good morning 👋</div>
-        <div style={{fontSize:25,fontWeight:600,color:C.text,letterSpacing:"-.005em",fontFamily:C.display,lineHeight:1.15}}>{me?.entity?.name||"Marcus J."}</div>
+        <div style={{fontSize:25,fontWeight:600,color:C.text,letterSpacing:"-.005em",fontFamily:C.display,lineHeight:1.15}}>{me?.entity?.name||me?.email||"Employee"}</div>
         <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>{[today,me?.entity?.sub].filter(Boolean).join(" · ")}</div>
       </div>
       <div style={{margin:"16px 16px 0",background:"#fff",borderRadius:18,padding:"16px",border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
@@ -258,7 +260,8 @@ function EmployeeHome({me,orders,onNav,onOrder,role,setRole}) {
         {[
           {icon:"wrench",label:"New work order",sub:"Log maintenance",cb:()=>onNav("orders")},
           {icon:"clipboard",label:"Inspections",sub:"Reports & photos",cb:()=>onNav("inspections")},
-          {icon:"chat",label:"Message vendor",sub:"Daflure + others",cb:()=>onNav("messages")},
+          // Named the demo vendor regardless of the real roster (100+ live).
+          {icon:"chat",label:"Message vendor",sub:vendorCount?`${vendorCount} on file`:"Vendor directory",cb:()=>onNav("messages")},
           {icon:"chart",label:"Owner report",sub:"Send update",cb:()=>onNav("profile")},
         ].map(q=>(
           <div key={q.label} className="fl-rise fl-card" onClick={q.cb} style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:16,padding:"14px 15px",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
@@ -274,7 +277,9 @@ function EmployeeHome({me,orders,onNav,onOrder,role,setRole}) {
 
 // ── RESIDENT HOME ─────────────────────────────────────────────────────────────
 function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOffice=true,role,setRole}) {
-  const myName = me?.entity?.name || "Sarah M.";
+  // Fell back to the demo resident's name, so a real resident whose Buildium
+  // record has no name was greeted as "Sarah M."
+  const myName = me?.entity?.name || me?.email || "Resident";
   const firstName = myName.split(" ")[0];
   // Server already scopes to this resident (by Buildium tenant id when available);
   // re-filtering by name here would drop their own orders when the requestor name
@@ -384,8 +389,11 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
 }
 
 // ── OWNER HOME ────────────────────────────────────────────────────────────────
-function OwnerHome({inspections=[],balances=RESIDENT_BALANCES,properties=OWNER_PROPS,role,setRole}) {
-  const props=properties&&properties.length?properties:OWNER_PROPS;
+function OwnerHome({me,inspections=[],balances=[],properties=[],balancesEnabled=true,role,setRole}) {
+  // Previously these defaulted to the seeded demo portfolio and fell back to it
+  // whenever the real list was empty, so an owner with nothing yet was shown
+  // three invented buildings and their invented revenue as if they owned them.
+  const props=Array.isArray(properties)?properties:[];
   const totalUnits=props.reduce((n,p)=>n+(p.units||0),0);
   const totalOcc=props.reduce((n,p)=>n+(p.occupied||0),0);
   const totalOrders=props.reduce((n,p)=>n+(p.openOrders||0),0);
@@ -404,7 +412,9 @@ function OwnerHome({inspections=[],balances=RESIDENT_BALANCES,properties=OWNER_P
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"18px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{fontSize:12,color:C.faint,fontWeight:500,marginBottom:2}}>Welcome back 👋</div>
-        <div style={{fontSize:25,fontWeight:600,color:C.text,letterSpacing:"-.005em",fontFamily:C.display,lineHeight:1.15}}>Robert H.</div>
+        {/* Was hardcoded to the demo owner, so every real owner was greeted by
+            somebody else's name. */}
+        <div style={{fontSize:25,fontWeight:600,color:C.text,letterSpacing:"-.005em",fontFamily:C.display,lineHeight:1.15}}>{me?.entity?.name||me?.email||"Owner"}</div>
         <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>Portfolio Owner · {props.length} {props.length===1?"Property":"Properties"}</div>
       </div>
       <div style={{margin:"16px 16px 0",background:"#fff",borderRadius:18,padding:"16px",border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
@@ -422,11 +432,22 @@ function OwnerHome({inspections=[],balances=RESIDENT_BALANCES,properties=OWNER_P
           <span style={{fontSize:15,fontWeight:700,color:"#065F46"}}>${totalRev.toLocaleString("en-US")}</span>
         </div>
       </div>
-      {/* Resident balances across all units */}
+      {/* Resident balances. Buildium's lease ledger isn't mapped, so live mode
+          has nothing truthful to put here. Rendering an empty table instead
+          would read as "every resident is paid up", which is worse than saying
+          nothing — an owner could act on it. */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"20px 16px 10px"}}>
         <span style={{fontSize:15,fontWeight:700,color:C.text,letterSpacing:"-.01em"}}>Resident balances</span>
-        <span style={{fontSize:11,color:C.faint}}>{owingCount} of {balances.length} owing</span>
+        {balancesEnabled&&<span style={{fontSize:11,color:C.faint}}>{owingCount} of {balances.length} owing</span>}
       </div>
+      {!balancesEnabled ? (
+        <div style={{margin:"0 16px",background:C.pending.bg,border:`1px solid ${C.pending.border}`,borderRadius:16,padding:"13px 15px",display:"flex",gap:10,alignItems:"flex-start"}}>
+          <Icon name="info" size={17} style={{color:C.pending.text,marginTop:1,flexShrink:0}} />
+          <div style={{fontSize:11.5,color:C.pending.text,lineHeight:1.5}}>
+            Rent balances aren&apos;t connected to the accounting system yet, so none are shown here. Contact the office for a current rent roll.
+          </div>
+        </div>
+      ) : (
       <div style={{margin:"0 16px",flexShrink:0,background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
         <div style={{padding:"12px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",background:totalOwed>0?"#FEF2F2":"#F0FDF4",borderBottom:`1px solid ${C.border}`}}>
           <span style={{fontSize:11.5,fontWeight:700,color:totalOwed>0?C.urgent.text:C.done.text}}>Total outstanding</span>
@@ -445,6 +466,7 @@ function OwnerHome({inspections=[],balances=RESIDENT_BALANCES,properties=OWNER_P
           </div>
         ))}
       </div>
+      )}
 
       {/* Completed inspections — read-only for owner */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"20px 16px 10px"}}>
@@ -452,6 +474,12 @@ function OwnerHome({inspections=[],balances=RESIDENT_BALANCES,properties=OWNER_P
         <span style={{fontSize:11,color:C.faint}}>View only</span>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10,padding:"0 16px"}}>
+        {inspections.length===0&&(
+          <div style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:16,padding:"16px",textAlign:"center"}}>
+            <div style={{fontSize:12.5,fontWeight:600,color:C.text,marginBottom:3}}>No inspections yet</div>
+            <div style={{fontSize:11.5,color:C.faint,lineHeight:1.5}}>Completed reports will appear here once Fleming Realty files one.</div>
+          </div>
+        )}
         {inspections.map(ins=>(
           <div key={ins.id} style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"13px 14px",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
@@ -482,6 +510,12 @@ function OwnerHome({inspections=[],balances=RESIDENT_BALANCES,properties=OWNER_P
         {props.length>listed.length&&<span style={{fontSize:11,color:C.faint}}>Top {listed.length} of {props.length}</span>}
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10,padding:"0 16px 20px"}}>
+        {listed.length===0&&(
+          <div style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:16,padding:"16px",textAlign:"center"}}>
+            <div style={{fontSize:12.5,fontWeight:600,color:C.text,marginBottom:3}}>No properties linked yet</div>
+            <div style={{fontSize:11.5,color:C.faint,lineHeight:1.5}}>Your account isn&apos;t linked to a property in the office system yet. Fleming Realty can connect it.</div>
+          </div>
+        )}
         {listed.map(p=>(
           <div key={p.id} className="fl-rise" style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
             <div style={{padding:"13px 14px"}}>
@@ -1675,7 +1709,7 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
       vendorId: null,
       reported: "Just now",
       category,
-      residentName: isResident ? (me?.entity?.name || "Sarah M.") : null,
+      residentName: isResident ? (me?.entity?.name || me?.email || null) : null,
       notes: notes.trim() || "New work order submitted via app.",
     };
     // Wait for the server before claiming anything. Confirming first and checking
@@ -1811,9 +1845,13 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
 
 // ── VENDOR HOME ───────────────────────────────────────────────────────────────
 function VendorHome({me,orders,onOrder,role,setRole}) {
-  const myVendorId = me?.entity?.vendorId ?? 1;
+  // No default: this used to fall back to vendor id 1, so any vendor account
+  // without a linked Buildium vendor record would have been shown that vendor's
+  // jobs. The server already scopes by the same id, which contained it — but the
+  // fallback should never have been there.
+  const myVendorId = me?.entity?.vendorId ?? null;
   // vendor sees orders assigned to their own vendor id (identity-driven)
-  const myJobs = orders.filter(o=>o.vendorId===myVendorId);
+  const myJobs = myVendorId==null ? [] : orders.filter(o=>o.vendorId===myVendorId);
   const active = myJobs.filter(o=>["urgent","pending","scheduled"].includes(o.status));
   const review = myJobs.filter(o=>o.status==="review");
   const done = myJobs.filter(o=>o.status==="done");
@@ -1822,8 +1860,9 @@ function VendorHome({me,orders,onOrder,role,setRole}) {
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"18px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{fontSize:12,color:C.faint,fontWeight:500,marginBottom:2}}>Good morning 👋</div>
-        <div style={{fontSize:25,fontWeight:600,color:C.text,letterSpacing:"-.005em",fontFamily:C.display,lineHeight:1.15}}>{me?.entity?.name || "Daflure HVAC"}</div>
-        <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>5 active jobs from Fleming Realty</div>
+        <div style={{fontSize:25,fontWeight:600,color:C.text,letterSpacing:"-.005em",fontFamily:C.display,lineHeight:1.15}}>{me?.entity?.name || me?.email || "Vendor"}</div>
+        {/* Was hardcoded to "5 active jobs" regardless of the real number. */}
+        <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>{active.length} active {active.length===1?"job":"jobs"} from Fleming Realty</div>
       </div>
       <div style={{margin:"16px 16px 0",background:"#fff",borderRadius:18,padding:"16px",border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
         <div style={{fontSize:10,fontWeight:700,letterSpacing:".14em",textTransform:"uppercase",color:C.faint,marginBottom:10}}>My jobs</div>
@@ -1841,6 +1880,16 @@ function VendorHome({me,orders,onOrder,role,setRole}) {
         <span style={{fontSize:11,color:C.faint}}>{active.length} active</span>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10,padding:"0 16px 20px"}}>
+        {myJobs.length===0&&(
+          <div style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:16,padding:"16px",textAlign:"center"}}>
+            <div style={{fontSize:12.5,fontWeight:600,color:C.text,marginBottom:3}}>No jobs assigned</div>
+            <div style={{fontSize:11.5,color:C.faint,lineHeight:1.5}}>
+              {myVendorId==null
+                ? "Your account isn't linked to a vendor record yet. Fleming Realty can connect it."
+                : "Nothing is assigned to you right now. New jobs will appear here."}
+            </div>
+          </div>
+        )}
         {myJobs.map(o=>(
           <div key={o.id} className="fl-rise fl-card" onClick={()=>onOrder(o)} style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
             <div style={{padding:"12px 14px"}}>
@@ -1865,10 +1914,12 @@ function VendorHome({me,orders,onOrder,role,setRole}) {
 }
 
 // ── APPLICANT HOME ──────────────────────────────────────────────────────────
-function ApplicantHome({role,setRole}) {
+function ApplicantHome({me,applicationsEnabled=true,role,setRole}) {
   const [coEmail,setCoEmail]=useState("");
   const [invited,setInvited]=useState(false);
   const invite=()=>{ if(coEmail.trim()) setInvited(true); };
+  const applicantName = me?.entity?.name || me?.email || "Applicant";
+  const firstName = String(applicantName).split(" ")[0];
   const steps = [
     {label:"Application submitted",done:true, date:"Jun 5"},
     {label:"Documents verified",   done:true, date:"Jun 6"},
@@ -1881,10 +1932,27 @@ function ApplicantHome({role,setRole}) {
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"18px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
-        <div style={{fontSize:12,color:C.faint,fontWeight:500,marginBottom:2}}>Hi Jordan 👋</div>
-        <div style={{fontSize:25,fontWeight:600,color:C.text,letterSpacing:"-.005em",fontFamily:C.display,lineHeight:1.15}}>Jordan K.</div>
-        <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>Application #APP-2026-0142</div>
+        {/* Name and reference were hardcoded to the demo applicant. */}
+        <div style={{fontSize:12,color:C.faint,fontWeight:500,marginBottom:2}}>Hi {firstName} 👋</div>
+        <div style={{fontSize:25,fontWeight:600,color:C.text,letterSpacing:"-.005em",fontFamily:C.display,lineHeight:1.15}}>{applicantName}</div>
+        {applicationsEnabled&&<div style={{fontSize:11.5,color:C.faint,marginTop:1}}>Application #APP-2026-0142</div>}
       </div>
+
+      {/* There is no application backend. Everything below — the reference
+          number, the property, the rent, the progress timeline — is seeded
+          example content, so a real applicant must be told that rather than
+          being shown someone else's application as their own. */}
+      {!applicationsEnabled&&(
+        <div style={{margin:"16px 16px 0",background:C.pending.bg,border:`1px solid ${C.pending.border}`,borderRadius:16,padding:"14px 16px",display:"flex",gap:12,alignItems:"flex-start"}}>
+          <Icon name="info" size={18} style={{color:C.pending.text,marginTop:1,flexShrink:0}} />
+          <div>
+            <div style={{fontSize:13,fontWeight:700,color:C.pending.text,marginBottom:3}}>Application tracking isn&apos;t live yet</div>
+            <div style={{fontSize:12,color:C.pending.text,opacity:.9,lineHeight:1.5}}>
+              The progress below is an example of how this will look — it is not your application. Please contact Fleming Realty for the status of yours.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Status banner */}
       <div style={{margin:"16px 16px 0",background:"linear-gradient(135deg,#0958D9,#3B82F6)",borderRadius:18,padding:"18px",color:"#fff",boxShadow:"0 6px 20px rgba(9,88,217,0.28)"}}>
@@ -1898,7 +1966,8 @@ function ApplicantHome({role,setRole}) {
         <div style={{width:36,height:36,borderRadius:10,background:C.done.bg,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="envelope" size={18} style={{color:C.done.text}} /></div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:13,fontWeight:700,color:C.text}}>Email verified ✓</div>
-          <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>Verification sent to jordan.k@email.com on submission</div>
+          {/* Was hardcoded to the demo applicant's address. */}
+          <div style={{fontSize:11.5,color:C.faint,marginTop:1,overflowWrap:"anywhere"}}>Verification sent to {me?.email||"your email"} on submission</div>
         </div>
       </div>
 
@@ -1912,10 +1981,22 @@ function ApplicantHome({role,setRole}) {
           </div>
         </div>
         {invited ? (
-          <div style={{marginTop:10,display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:10,background:C.done.bg,border:`1px solid ${C.done.border}`}}>
-            <span style={{fontSize:14}}>✓</span>
-            <span style={{fontSize:12,fontWeight:600,color:C.done.text}}>Invitation sent to {coEmail}</span>
-          </div>
+          // Nothing is actually sent — there is no invitation backend. Claiming
+          // "Invitation sent" left someone waiting on an email that was never
+          // going to arrive.
+          applicationsEnabled ? (
+            <div style={{marginTop:10,display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:10,background:C.done.bg,border:`1px solid ${C.done.border}`}}>
+              <span style={{fontSize:14}}>✓</span>
+              <span style={{fontSize:12,fontWeight:600,color:C.done.text}}>Invitation sent to {coEmail}</span>
+            </div>
+          ) : (
+            <div style={{marginTop:10,display:"flex",alignItems:"flex-start",gap:8,padding:"10px 12px",borderRadius:10,background:C.pending.bg,border:`1px solid ${C.pending.border}`}}>
+              <Icon name="warning" size={15} style={{color:C.pending.text,marginTop:1,flexShrink:0}} />
+              <span style={{fontSize:11.5,fontWeight:600,color:C.pending.text,lineHeight:1.45,overflowWrap:"anywhere"}}>
+                Co-applicant invitations aren&apos;t connected yet, so nothing was sent to {coEmail}. Please give their details to Fleming Realty directly.
+              </span>
+            </div>
+          )
         ) : (
           <div style={{display:"flex",gap:8}}>
             <input value={coEmail} onChange={e=>setCoEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&invite()} placeholder="co-applicant@email.com" style={{flex:1,border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 12px",fontSize:12.5,fontFamily:"inherit",color:C.text,outline:"none",background:"#fff",boxSizing:"border-box"}} />
@@ -1947,12 +2028,14 @@ function ApplicantHome({role,setRole}) {
       {/* Notifications toggle */}
       <div style={{margin:"16px 16px 20px",background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",display:"flex",alignItems:"center",gap:12,boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
         <div style={{width:36,height:36,borderRadius:10,background:"#EFF6FF",display:"flex",alignItems:"center",justifyContent:"center"}}><Icon name="bell" size={18} style={{color:"#0958D9"}} /></div>
+        {/* The toggle is decorative and no texts are sent. Promising an SMS on a
+            decision is the kind of thing someone waits on. */}
         <div style={{flex:1}}>
-          <div style={{fontSize:13,fontWeight:700,color:C.text}}>Notifications on</div>
-          <div style={{fontSize:11.5,color:C.faint}}>We'll text you the moment there's a decision</div>
+          <div style={{fontSize:13,fontWeight:700,color:C.text}}>{applicationsEnabled?"Notifications on":"Notifications not set up"}</div>
+          <div style={{fontSize:11.5,color:C.faint}}>{applicationsEnabled?"We'll text you the moment there's a decision":"Fleming Realty will contact you directly with a decision"}</div>
         </div>
-        <div style={{width:40,height:24,borderRadius:12,background:C.done.bar,position:"relative",flexShrink:0}}>
-          <div style={{position:"absolute",top:2,right:2,width:20,height:20,borderRadius:"50%",background:"#fff"}} />
+        <div style={{width:40,height:24,borderRadius:12,background:applicationsEnabled?C.done.bar:C.border,position:"relative",flexShrink:0}}>
+          <div style={{position:"absolute",top:2,[applicationsEnabled?"right":"left"]:2,width:20,height:20,borderRadius:"50%",background:"#fff"}} />
         </div>
       </div>
     </div>
@@ -2035,8 +2118,8 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
     : role==="vendor"
     ? <VendorHome me={me} orders={orders} onOrder={handleOrder} role={role} setRole={handleSetRole} />
     : role==="applicant"
-    ? <ApplicantHome me={me} role={role} setRole={handleSetRole} />
-    : <OwnerHome inspections={inspections} balances={initial.balances} properties={initial.properties} role={role} setRole={handleSetRole} />;
+    ? <ApplicantHome me={me} applicationsEnabled={initial.applicationsEnabled!==false} role={role} setRole={handleSetRole} />
+    : <OwnerHome me={me} inspections={inspections} balances={initial.balances} properties={initial.properties} balancesEnabled={initial.balancesEnabled!==false} role={role} setRole={handleSetRole} />;
 
   const sharedProps = {role, setRole:handleSetRole, canViewAs, me, properties:initial.properties};
   const navActive = ["detail","assign","inspection","inspections","neworder","templates"].includes(screen) ? "orders" : screen;

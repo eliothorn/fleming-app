@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth/session";
 import { buildium } from "@/lib/buildium";
+import { listInspections as listDurableInspections } from "@/lib/inspections";
 import { isBuildiumLive, submissionsReachOffice } from "@/lib/env";
 
 // A cold load pages ~30 throttled Buildium requests and takes ~9s. The default
@@ -19,8 +20,11 @@ export async function GET(request) {
   // Narrow at the source for residents so their own tickets are never truncated
   // away by the portfolio-wide display cap.
   const scope = me.role === "resident" && me.entity?.tenantId != null ? { residentId: me.entity.tenantId } : {};
+  // Inspections come from the durable store, not the mock one behind buildium():
+  // the mock returns two invented reports ("812 Market St, by Marcus J.") that
+  // an owner would read as a real record of their own property.
   const [allOrders, vendors, properties, balances, inspections, templates] = await Promise.all([
-    b.listOrders(scope), b.listVendors(), b.listProperties(), b.listBalances(), b.listInspections(), b.listTemplates(),
+    b.listOrders(scope), b.listVendors(), b.listProperties(), b.listBalances(), listDurableInspections(), b.listTemplates(),
   ]);
 
   const staff = me.role === "employee";
@@ -47,7 +51,17 @@ export async function GET(request) {
     orders,
     vendors,
     properties: staff || owner ? properties : [],
-    balances: staff || owner ? balances : [],
+    // Resident balances are still the seeded mock set — Buildium's lease ledger
+    // is not mapped. Serving them in live mode puts invented people with
+    // invented debts ("Derek W. owes $1,200") in front of an owner as though it
+    // were their rent roll, so live mode gets nothing and the UI says so.
+    balances: (staff || owner) && !isBuildiumLive() ? balances : [],
+    balancesEnabled: !isBuildiumLive(),
+    // The applicant screen is entirely seeded content — a fixed reference
+    // number, property, rent and progress timeline. There is no application
+    // backend, so in live mode it must not be presented as somebody's real
+    // application.
+    applicationsEnabled: !isBuildiumLive(),
     inspections: staff || owner ? inspections : [],
     templates: staff ? templates : [],
     // The seeded message threads are demo fiction. Serving them alongside real
