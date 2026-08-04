@@ -128,6 +128,14 @@ export default function LoginPage() {
                   placeholder="you@email.com" style={inputStyle}
                 />
               </Field>
+              {/* The email is what links an account to its Buildium record, so
+                  getting it right is the difference between landing in your unit
+                  and landing in "Pending assignment". Residents have never heard of
+                  Buildium — it is the broker's back-office system — so ask in terms
+                  they recognise. */}
+              <div style={{ fontSize: 11.5, color: C.muted, marginTop: -6, marginBottom: 14, lineHeight: 1.5 }}>
+                Use the email address Fleming Realty has on file for you — that&apos;s how we find your unit and your requests.
+              </div>
               {usePassword && (
                 <Field label="Password">
                   <input

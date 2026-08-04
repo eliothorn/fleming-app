@@ -371,7 +371,9 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
           <div style={{width:44,height:44,borderRadius:12,background:"rgba(200,161,90,0.18)",border:"1px solid rgba(200,161,90,0.45)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="wrench" size={21} style={{color:C.gold}} /></div>
           <div style={{flex:1}}>
             <div style={{fontSize:14.5,fontWeight:700,color:"#fff",marginBottom:2}}>Report an issue</div>
-            <div style={{fontSize:12,color:"rgba(255,255,255,0.75)"}}>Send a maintenance request to your property manager</div>
+            <div style={{fontSize:12,color:"rgba(255,255,255,0.75)"}}>
+              {submissionsReachOffice ? "Send a maintenance request to your property manager" : "Log a request here — for anything urgent, call the office"}
+            </div>
           </div>
           <Icon name="caretRight" size={18} style={{color:"rgba(255,255,255,0.6)"}} />
         </div>
@@ -1634,6 +1636,9 @@ function TemplatesScreen({onBack,templates,setTemplates,api,role,setRole}) {
 
 // ── NEW WORK ORDER SCREEN ────────────────────────────────────────────────────
 function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
+  // Whether a submitted request genuinely reaches the office. This screen makes
+  // the app's strongest promise to a resident, so it must not overstate it.
+  const {syncs=true} = useLive();
   const isResident = role==="resident";
   const residentUnit = me?.entity?.unit && me.entity.unit !== "Pending assignment" ? me.entity.unit : "";
   const residentAddr = me?.entity?.address && me.entity.address !== "—" ? me.entity.address : "";
@@ -1644,6 +1649,8 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
   const [urgency,setUrgency]   = useState("");
   const [notes,setNotes]       = useState("");
   const [submitted,setSubmitted] = useState(false);
+  const [saving,setSaving]       = useState(false);
+  const [failed,setFailed]       = useState("");
 
   const categories = ["HVAC","Plumbing","Electrical","Security","General","Inspection","Move-out","Landscaping"];
   const urgencies  = [{key:"urgent",label:"Urgent — same day",color:C.urgent},{key:"pending",label:"Standard — within 3 days",color:C.pending},{key:"scheduled",label:"Scheduled — pick a date",color:C.scheduled}];
@@ -1655,8 +1662,10 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
 
   const canSubmit = title.trim() && unit.trim() && address && category && urgency;
 
-  const submit = () => {
-    if (!canSubmit) return;
+  const submit = async () => {
+    if (!canSubmit || saving) return;
+    setFailed("");
+    setSaving(true);
     const newOrder = {
       id: `WO-${String(Math.floor(Math.random()*9000)+1000)}`,
       title: title.trim(),
@@ -1669,7 +1678,15 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
       residentName: isResident ? (me?.entity?.name || "Sarah M.") : null,
       notes: notes.trim() || "New work order submitted via app.",
     };
-    onCreated(newOrder);
+    // Wait for the server before claiming anything. Confirming first and checking
+    // later is how a resident ends up believing the office has a request it never
+    // received.
+    const res = await onCreated(newOrder);
+    setSaving(false);
+    if (res && res.ok === false) {
+      setFailed(res.error || "We couldn't send that request. Please try again.");
+      return;
+    }
     setSubmitted(true);
     setTimeout(()=>onBack(), 1600);
   };
@@ -1679,8 +1696,18 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
       <AppHeader role={role} setRole={setRole} />
       <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,gap:12}}>
         <div style={{color:C.primary}}><Icon name="wrench" size={46} strokeWidth={1.5} /></div>
-        <div style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>{isResident?"Request submitted!":"Work order created!"}</div>
-        <div style={{fontSize:13,color:C.muted,textAlign:"center",lineHeight:1.6}}>{isResident?`"${title}" was sent directly to your property manager (Marcus J.). You'll be notified when a vendor is assigned.`:`${title} has been logged and is now visible in the orders list.`}</div>
+        <div style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>
+          {isResident ? (syncs?"Request sent":"Request saved") : (syncs?"Work order created":"Work order saved")}
+        </div>
+        <div style={{fontSize:13,color:C.muted,textAlign:"center",lineHeight:1.6}}>
+          {isResident
+            ? (syncs
+                ? `"${title}" has gone to Fleming Realty. You'll be notified when a vendor is assigned.`
+                : `"${title}" is saved in your list, but requests don't reach the office through the app yet — please call Fleming Realty if this is urgent.`)
+            : (syncs
+                ? `${title} has been logged in Buildium and is visible in the orders list.`
+                : `${title} is visible in the orders list on this device only — it has not been logged in Buildium.`)}
+        </div>
       </div>
     </div>
   );
@@ -1691,15 +1718,23 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
       <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
         <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Cancel</span>
         <div style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>{isResident?"Submit a request":"New work order"}</div>
-        {isResident&&<div style={{fontSize:11.5,color:C.faint,marginTop:2}}>Goes directly to your property manager</div>}
+        {isResident&&syncs&&<div style={{fontSize:11.5,color:C.faint,marginTop:2}}>Goes directly to your property manager</div>}
       </div>
 
       <div style={{padding:"14px 16px",display:"flex",flexDirection:"column",gap:14}}>
 
-        {isResident&&(
+        {/* The staff name here used to be hardcoded demo fiction, and the promise
+            was made whether or not requests actually reach anyone. */}
+        {isResident&&syncs&&(
           <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 13px",borderRadius:12,background:C.primaryLight,border:`1px solid ${C.primary}22`}}>
             <Icon name="building" size={17} style={{color:C.primary}} />
-            <span style={{fontSize:11.5,color:C.primary,fontWeight:600,lineHeight:1.4}}>Fleming Realty (Marcus J.) will receive this request and assign a vendor.</span>
+            <span style={{fontSize:11.5,color:C.primary,fontWeight:600,lineHeight:1.4}}>Fleming Realty will receive this request and assign a vendor.</span>
+          </div>
+        )}
+        {isResident&&!syncs&&(
+          <div style={{display:"flex",alignItems:"flex-start",gap:10,padding:"11px 13px",borderRadius:12,background:C.pending.bg,border:`1px solid ${C.pending.border}`}}>
+            <Icon name="warning" size={17} style={{color:C.pending.text,marginTop:1,flexShrink:0}} />
+            <span style={{fontSize:11.5,color:C.pending.text,fontWeight:600,lineHeight:1.4}}>Requests don't reach the office through the app yet. This will be saved to your list — please call Fleming Realty for anything urgent.</span>
           </div>
         )}
 
@@ -1756,8 +1791,18 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
           <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Any extra context for the vendor..." rows={3} style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 14px",fontSize:13,fontFamily:"inherit",color:C.text,outline:"none",background:"#fff",resize:"none",boxSizing:"border-box"}} />
         </div>
 
-        <button onClick={submit} style={{width:"100%",background:canSubmit?C.primary:"#E5E1D8",color:canSubmit?"#fff":C.faint,fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:canSubmit?"pointer":"default",fontFamily:"inherit"}}>
-          {canSubmit?"Create work order →":"Fill in required fields"}
+        {failed && (
+          <div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:12,padding:"11px 13px",display:"flex",gap:10,alignItems:"flex-start"}}>
+            <Icon name="warning" size={17} style={{color:"#B91C1C",marginTop:1,flexShrink:0}} />
+            <div style={{minWidth:0}}>
+              <div style={{fontSize:12.5,fontWeight:700,color:"#B91C1C",marginBottom:2}}>{isResident?"Not sent":"Not saved"}</div>
+              <div style={{fontSize:11.5,color:"#B91C1C",opacity:.9,lineHeight:1.45,wordBreak:"break-word"}}>{failed}</div>
+            </div>
+          </div>
+        )}
+
+        <button onClick={submit} disabled={!canSubmit||saving} style={{width:"100%",background:canSubmit&&!saving?C.primary:"#E5E1D8",color:canSubmit&&!saving?"#fff":C.faint,fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:canSubmit&&!saving?"pointer":"default",fontFamily:"inherit"}}>
+          {saving ? "Sending…" : canSubmit ? (isResident?"Send request →":"Create work order →") : "Fill in required fields"}
         </button>
       </div>
     </div>
@@ -1924,6 +1969,9 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
   const [assigningOrder,setAssigningOrder] = useState(null);
   const [templates,setTemplates]      = useState(initial.templates || []);
   const [inspections,setInspections]  = useState(initial.inspections || []);
+  // Surfaced when a write is rejected after the UI has already moved on.
+  const [notice,setNotice]            = useState("");
+  useEffect(()=>{ if(!notice) return; const t=setTimeout(()=>setNotice(""),7000); return ()=>clearTimeout(t); },[notice]);
 
   const handleOrder  = (o) => { setSelectedOrder(o); setScreen("detail"); };
   const handleAssign = (o) => { setAssigningOrder(o); setScreen("assign"); };
@@ -1931,9 +1979,54 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
   // Role switching now re-authenticates as the seeded role account (demo only) and
   // reloads scoped data. In live mode a user has one role, so this is disabled.
   const handleSetRole= (r) => { if (canViewAs && onViewAs) onViewAs(r); };
-  const handleCreated= (o) => { setOrders(prev=>[o,...prev]); api?.createOrder(o).catch(()=>{}); };
-  const handleInspectionDone = (rec) => { setInspections(prev=>[rec,...prev]); api?.addInspection(rec).catch(()=>{}); setScreen("inspections"); };
-  const updateOrderLocal = (id, patch) => { setOrders(prev=>prev.map(o=>o.id===id?{...o,...patch}:o)); api?.updateOrder(id, patch).catch(()=>{}); };
+
+  // Writes were fire-and-forget: the optimistic change stayed on screen and any
+  // server error was swallowed, so a resident could be shown "request submitted"
+  // for a request the office never received. Each write now awaits the server,
+  // restores the previous state if it failed, and returns the outcome so the
+  // caller can say something true.
+  const handleCreated = async (o) => {
+    const previous = orders;
+    setOrders([o, ...previous]);
+    if (!api?.createOrder) return {ok:true};
+    try {
+      const saved = await api.createOrder(o);
+      // Keep what the server actually stored — its id is the real one.
+      setOrders([saved || o, ...previous]);
+      return {ok:true};
+    } catch (e) {
+      setOrders(previous);
+      return {ok:false, error:e.message};
+    }
+  };
+
+  const handleInspectionDone = async (rec) => {
+    const previous = inspections;
+    setInspections([rec, ...previous]);
+    setScreen("inspections");
+    if (!api?.addInspection) return {ok:true};
+    try {
+      const saved = await api.addInspection(rec);
+      setInspections([saved || rec, ...previous]);
+      return {ok:true};
+    } catch (e) {
+      setInspections(previous);
+      setNotice(`That inspection wasn't saved. ${e.message}`);
+      return {ok:false, error:e.message};
+    }
+  };
+
+  const updateOrderLocal = async (id, patch) => {
+    const previous = orders;
+    setOrders(previous.map(o=>o.id===id?{...o,...patch}:o));
+    if (!api?.updateOrder) return {ok:true};
+    try { await api.updateOrder(id, patch); return {ok:true}; }
+    catch (e) {
+      setOrders(previous);
+      setNotice(`That change wasn't saved. ${e.message}`);
+      return {ok:false, error:e.message};
+    }
+  };
 
   const homeScreen = role==="employee"
     ? <EmployeeHome me={me} orders={orders} onNav={handleNav} onOrder={handleOrder} role={role} setRole={handleSetRole} />
@@ -1976,6 +2069,16 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
           .fl-app button:active,.fl-app [style*="cursor: pointer"]:active,.fl-app [style*="cursor:pointer"]:active{transform:scale(.97)}
           .fl-app input:focus:not([style*="transparent"]),.fl-app textarea:focus,.fl-app select:focus{border-color:${C.primary} !important;box-shadow:0 0 0 3px rgba(13,27,51,.14)}
         `}</style>
+        {/* A write that failed after the screen already moved on. Tapping dismisses. */}
+        {notice && (
+          <div onClick={()=>setNotice("")} className="fl-fade" style={{position:"absolute",top:12,left:12,right:12,zIndex:60,background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:13,padding:"11px 13px",display:"flex",gap:10,alignItems:"flex-start",boxShadow:"0 10px 30px rgba(0,0,0,.22)",cursor:"pointer"}}>
+            <Icon name="warning" size={17} style={{color:"#B91C1C",marginTop:1,flexShrink:0}} />
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:12.5,fontWeight:700,color:"#B91C1C",marginBottom:2}}>Not saved</div>
+              <div style={{fontSize:11.5,color:"#B91C1C",opacity:.9,lineHeight:1.45,wordBreak:"break-word"}}>{notice}</div>
+            </div>
+          </div>
+        )}
         {screen==="home"       && homeScreen}
         {screen==="orders"     && <OrdersScreen      orders={orders} onOrder={handleOrder} onNav={handleNav} onNewOrder={()=>setScreen("neworder")} onInspection={()=>setScreen("inspection")} {...sharedProps} />}
         {screen==="detail"     && selectedOrder   && <DetailScreen   order={selectedOrder}  orders={orders} setOrders={setOrders} onUpdateOrder={updateOrderLocal} onBack={()=>setScreen("orders")} onAssign={handleAssign} {...sharedProps} />}
