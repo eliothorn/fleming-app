@@ -1685,6 +1685,14 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
   const [submitted,setSubmitted] = useState(false);
   const [saving,setSaving]       = useState(false);
   const [failed,setFailed]       = useState("");
+  // Staff file on someone's behalf, so they must name the unit and its current
+  // tenant — Buildium refuses a request without both. Residents supply them
+  // from their own session and never see this.
+  const [propertyId,setPropertyId] = useState("");
+  const [tenancy,setTenancy]       = useState(null);
+  const [units,setUnits]           = useState([]);
+  const [unitsState,setUnitsState] = useState("idle"); // idle | loading | ready | error
+  const [unitsError,setUnitsError] = useState("");
 
   const categories = ["HVAC","Plumbing","Electrical","Security","General","Inspection","Move-out","Landscaping"];
   const urgencies  = [{key:"urgent",label:"Urgent — same day",color:C.urgent},{key:"pending",label:"Standard — within 3 days",color:C.pending},{key:"scheduled",label:"Scheduled — pick a date",color:C.scheduled}];
@@ -1693,8 +1701,27 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
   const addresses = (properties?.length
     ? [...new Set(properties.map(p=>p.name).filter(Boolean))].sort((a,b)=>a.localeCompare(b))
     : ["214 Walnut St","330 Pine Ave","812 Market St"]);
+  // Staff pick by id, because the occupancy lookup is keyed on it.
+  const propertyOptions = (properties||[])
+    .filter(p=>p&&p.name!=null&&p.id!=null)
+    .slice()
+    .sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  const selectedProperty = propertyOptions.find(p=>String(p.id)===String(propertyId)) || null;
 
-  const canSubmit = title.trim() && unit.trim() && address && category && urgency;
+  useEffect(()=>{
+    if (isResident || !propertyId) { setUnits([]); setUnitsState("idle"); setUnitsError(""); return; }
+    let alive = true;
+    setUnitsState("loading"); setUnitsError(""); setUnits([]); setTenancy(null);
+    fetch(`/api/buildium/occupancy?propertyId=${encodeURIComponent(propertyId)}`,{cache:"no-store"})
+      .then(async r=>{ const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.error||`Couldn't load units (${r.status})`); return j; })
+      .then(j=>{ if(!alive) return; setUnits(j.units||[]); setUnitsState("ready"); })
+      .catch(e=>{ if(!alive) return; setUnitsError(e.message); setUnitsState("error"); });
+    return ()=>{ alive=false; };
+  },[propertyId,isResident]);
+
+  const canSubmit = isResident
+    ? Boolean(title.trim() && unit.trim() && address && category && urgency)
+    : Boolean(title.trim() && selectedProperty && tenancy && category && urgency);
 
   const submit = async () => {
     if (!canSubmit || saving) return;
@@ -1703,14 +1730,18 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
     const newOrder = {
       id: `WO-${String(Math.floor(Math.random()*9000)+1000)}`,
       title: title.trim(),
-      unit: unit.trim(),
-      address,
+      unit: isResident ? unit.trim() : (tenancy?.unitNumber ? `Unit ${tenancy.unitNumber}` : ""),
+      address: isResident ? address : (selectedProperty?.name || ""),
       status: urgency,
       vendorId: null,
       reported: "Just now",
       category,
-      residentName: isResident ? (me?.entity?.name || me?.email || null) : null,
+      residentName: isResident ? (me?.entity?.name || me?.email || null) : (tenancy?.tenantName || null),
       notes: notes.trim() || "New work order submitted via app.",
+      // Buildium files a maintenance request against a lease and the tenant
+      // raising it. A resident's pair is taken from their session server-side;
+      // staff send the pair they selected, which the route re-validates.
+      ...(isResident ? {} : { leaseId: tenancy?.leaseId ?? null, residentId: tenancy?.tenantId ?? null }),
     };
     // Wait for the server before claiming anything. Confirming first and checking
     // later is how a resident ends up believing the office has a request it never
@@ -1778,7 +1809,12 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
           <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="e.g. HVAC not cooling, Leaking faucet..." style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 14px",fontSize:13.5,fontFamily:"inherit",color:C.text,outline:"none",background:"#fff",boxSizing:"border-box"}} />
         </div>
 
-        {/* Property + Unit */}
+        {/* Property + Unit. A resident's are prefilled from their own lease, so
+            they keep the simple pair. Staff are filing on someone else's behalf,
+            and Buildium refuses a maintenance request that doesn't name a lease
+            and the tenant raising it — so they pick a real occupied unit rather
+            than typing free text that would be rejected. */}
+        {isResident ? (
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           <div>
             <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:6}}>Property <span style={{color:C.urgent.text}}>*</span></div>
@@ -1792,6 +1828,55 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
             <input value={unit} onChange={e=>setUnit(e.target.value)} placeholder="e.g. Unit 4B" style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 10px",fontSize:13,fontFamily:"inherit",color:C.text,outline:"none",background:"#fff",boxSizing:"border-box"}} />
           </div>
         </div>
+        ) : (
+        <>
+          <div>
+            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:6}}>Property <span style={{color:C.urgent.text}}>*</span></div>
+            <select value={propertyId} onChange={e=>setPropertyId(e.target.value)} style={{width:"100%",border:`1px solid ${propertyId?C.primary:C.border}`,borderRadius:12,padding:"12px 12px",fontSize:13,fontFamily:"inherit",color:propertyId?C.text:C.faint,outline:"none",background:"#fff",appearance:"none"}}>
+              <option value="">Select a property…</option>
+              {propertyOptions.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:6}}>Unit &amp; resident <span style={{color:C.urgent.text}}>*</span></div>
+            {!propertyId ? (
+              <div style={{fontSize:12,color:C.faint,padding:"11px 13px",borderRadius:12,background:"#FAF8F4",border:`1px solid ${C.border}`}}>Choose a property first.</div>
+            ) : unitsState==="loading" ? (
+              <div style={{fontSize:12,color:C.faint,padding:"11px 13px",borderRadius:12,background:"#FAF8F4",border:`1px solid ${C.border}`}}>Loading units…</div>
+            ) : unitsState==="error" ? (
+              <div style={{display:"flex",gap:9,alignItems:"flex-start",padding:"11px 13px",borderRadius:12,background:"#FEF2F2",border:"1px solid #FECACA"}}>
+                <Icon name="warning" size={16} style={{color:"#B91C1C",marginTop:1,flexShrink:0}} />
+                <span style={{fontSize:11.5,color:"#B91C1C",lineHeight:1.45,overflowWrap:"anywhere"}}>{unitsError}</span>
+              </div>
+            ) : units.length===0 ? (
+              <div style={{display:"flex",gap:9,alignItems:"flex-start",padding:"11px 13px",borderRadius:12,background:C.pending.bg,border:`1px solid ${C.pending.border}`}}>
+                <Icon name="warning" size={16} style={{color:C.pending.text,marginTop:1,flexShrink:0}} />
+                <span style={{fontSize:11.5,color:C.pending.text,lineHeight:1.45}}>
+                  No active tenancy at {selectedProperty?.name||"this property"}. Buildium files maintenance against a resident&apos;s lease, so a vacant unit has to be logged in Buildium directly for now.
+                </span>
+              </div>
+            ) : (
+              <select
+                value={tenancy?`${tenancy.leaseId}:${tenancy.tenantId}`:""}
+                onChange={e=>setTenancy(units.find(u=>`${u.leaseId}:${u.tenantId}`===e.target.value)||null)}
+                style={{width:"100%",border:`1px solid ${tenancy?C.primary:C.border}`,borderRadius:12,padding:"12px 12px",fontSize:13,fontFamily:"inherit",color:tenancy?C.text:C.faint,outline:"none",background:"#fff",appearance:"none"}}
+              >
+                <option value="">Select a unit… ({units.length} occupied)</option>
+                {units.map(u=>(
+                  <option key={`${u.leaseId}:${u.tenantId}`} value={`${u.leaseId}:${u.tenantId}`}>
+                    {u.unitNumber?`Unit ${u.unitNumber}`:"Unit —"} · {u.tenantName}
+                  </option>
+                ))}
+              </select>
+            )}
+            {tenancy&&(
+              <div style={{fontSize:11,color:C.faint,marginTop:6,lineHeight:1.45}}>
+                Filed for <b style={{color:C.text}}>{tenancy.tenantName}</b>{tenancy.unitNumber?` in Unit ${tenancy.unitNumber}`:""}.
+              </div>
+            )}
+          </div>
+        </>
+        )}
 
         {/* Category */}
         <div>

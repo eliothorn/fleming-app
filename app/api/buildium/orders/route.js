@@ -19,6 +19,14 @@ export async function POST(request) {
     input.leaseId = me.entity?.leaseId ?? null;
     if (me.entity?.unit && me.entity.unit !== "Pending assignment") input.unit = me.entity.unit;
     if (me.entity?.address && !["—", "-"].includes(me.entity.address)) input.address = me.entity.address;
+  } else if (me.role === "employee") {
+    // Staff file on a resident's behalf, so the lease and tenant come from the
+    // unit picker rather than the session. Coerce here: Buildium rejects string
+    // ids, and a malformed value should fail as "not linked to a unit" rather
+    // than as an opaque error from the mapper.
+    const id = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
+    input.leaseId = id(input.leaseId);
+    input.residentId = id(input.residentId);
   }
 
   try {

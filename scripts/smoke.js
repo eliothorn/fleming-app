@@ -91,6 +91,11 @@ async function publicSafety() {
 
   const anonInsp = await req("/api/inspections");
   check("inspections rejects anonymous callers", anonInsp.status === 401, `got ${anonInsp.status}`);
+
+  // Occupancy maps tenant names onto unit numbers, so it must never be readable
+  // without an employee session.
+  const anonOcc = await req("/api/buildium/occupancy?propertyId=1");
+  check("occupancy rejects anonymous callers", anonOcc.status === 401, `got ${anonOcc.status}`);
 }
 
 // ── Role scoping: what each role's browser is allowed to receive ──────────────
@@ -143,6 +148,16 @@ async function roleScoping() {
     `${strayVendor.length} order(s) assigned elsewhere`);
 
   check("applicant receives no orders", isEmpty(boot.applicant.orders));
+
+  // Occupancy backs the staff work-order picker and exposes who lives where, so
+  // only employees may read it. Employees are checked for reachability only —
+  // asserting a unit count would tie the test to the broker's live portfolio.
+  for (const role of ["resident", "owner", "vendor", "applicant"]) {
+    const r = await req("/api/buildium/occupancy?propertyId=1", { cookie: cookies[role] });
+    check(`${role} GET /api/buildium/occupancy → 403`, r.status === 403, `got ${r.status}`);
+  }
+  const empOcc = await req("/api/buildium/occupancy", { cookie: cookies.employee });
+  check("employee occupancy without a property → 400", empOcc.status === 400, `got ${empOcc.status}`);
 
   // Inspection reports are evidence: employees manage, owners read, residents nothing.
   const matrix = [
