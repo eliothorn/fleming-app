@@ -159,6 +159,17 @@ async function roleScoping() {
   const empOcc = await req("/api/buildium/occupancy", { cookie: cookies.employee });
   check("employee occupancy without a property → 400", empOcc.status === 400, `got ${empOcc.status}`);
 
+  // Property photos are served to the roles that see property cards only.
+  for (const role of ["resident", "vendor", "applicant"]) {
+    const r = await req("/api/buildium/property-image?propertyId=1", { cookie: cookies[role] });
+    check(`${role} GET /api/buildium/property-image → 403`, r.status === 403, `got ${r.status}`);
+  }
+  // 200 with bytes when a photo exists, 404 when it doesn't — never a redirect
+  // to Buildium's signed link, which expires in 302s and would render blank.
+  const empImg = await req("/api/buildium/property-image?propertyId=24816", { cookie: cookies.employee });
+  check("employee property-image → 200 or 404, not a redirect",
+    empImg.status === 200 || empImg.status === 404, `got ${empImg.status}`);
+
   // Inspection reports are evidence: employees manage, owners read, residents nothing.
   const matrix = [
     ["resident", 403, 403],

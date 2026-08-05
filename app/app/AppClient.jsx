@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { signOut, viewAs, liveMode } from "@/lib/auth/client";
+import { signOut, viewAs, liveMode, getSession } from "@/lib/auth/client";
 import Icon from "@/components/ui/Icon";
 import PhoneApp from "@/components/PhoneApp";
 
@@ -18,6 +18,14 @@ export default function AppClient() {
   const router = useRouter();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  // Who is signed in, fetched alongside the payload. The session is one fast
+  // lookup; bootstrap can page dozens of throttled Buildium requests. Asking for
+  // both at once means the frame and the person's own name appear immediately
+  // rather than after everything else has landed.
+  const [who, setWho] = useState(null);
+  // A skeleton that flashes up and vanishes is more jarring than no skeleton at
+  // all, so it waits out a warm load before appearing.
+  const [showSkeleton, setShowSkeleton] = useState(false);
 
   const load = useCallback(async () => {
     setError(""); // clear a previous failure so Retry can actually recover
@@ -26,6 +34,13 @@ export default function AppClient() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    let alive = true;
+    getSession().then((u) => { if (alive && u) setWho(u); }).catch(() => {});
+    const t = setTimeout(() => { if (alive) setShowSkeleton(true); }, 250);
+    return () => { alive = false; clearTimeout(t); };
+  }, []);
 
   const handleSignOut = async () => { await signOut(); router.push("/login"); router.refresh(); };
   const handleViewAs = async (role) => {
@@ -60,17 +75,53 @@ export default function AppClient() {
   }
 
   if (!data) {
-    // A first load against live Buildium pages a lot of records and can take
-    // several seconds — an unlabelled black screen reads as a broken app.
+    // A cold load pages a lot of throttled Buildium records and can take a long
+    // while. This used to be a centred spinner over "Loading your properties…"
+    // — which residents don't have, and which tells you nothing about progress.
+    // Now the real frame appears at once with the signed-in person's own name,
+    // and the content it is waiting for is outlined in place.
+    const name = who?.entity?.name || who?.email || "";
+    const first = String(name).split(" ")[0];
+    const bar = (w, h = 12, r = 6) => ({ width: w, height: h, borderRadius: r, background: "#ECE8E1", backgroundImage: "linear-gradient(90deg,#ECE8E1 0%,#F6F3EE 50%,#ECE8E1 100%)", backgroundSize: "200% 100%", animation: "flshimmer 1.4s ease-in-out infinite" });
     return (
-      <div style={{ minHeight: "100vh", background: "#071223", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "var(--font-body), sans-serif", padding: 24, textAlign: "center" }}>
-        <div style={{ width: 52, height: 52, borderRadius: 15, background: "linear-gradient(135deg,#0D1B33,#2C4A5E)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16, boxShadow: "0 8px 24px rgba(13,27,51,.5)" }}><Icon name="building" size={26} style={{ color: "#fff" }} /></div>
-        <div style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 19, fontWeight: 600, letterSpacing: ".04em", marginBottom: 6 }}>FLEMING REALTY</div>
-        <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 18 }}>Loading your properties…</div>
-        <div style={{ display: "flex", gap: 6 }}>
-          {[0, 1, 2].map((i) => (
-            <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff", animation: "pulse 1.2s ease-in-out infinite", animationDelay: `${i * 0.2}s` }} />
-          ))}
+      <div style={{ background: "#071223", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <style>{`@keyframes flshimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
+        <div className="fl-app" style={{ width: "min(390px,100vw)", height: "min(844px,100dvh)", background: "#FAF8F4", overflow: "hidden", display: "flex", flexDirection: "column", fontFamily: "var(--font-body), sans-serif" }}>
+          <div className="fl-safe-top" style={{ background: "#fff", padding: "12px 20px 10px", borderBottom: "1px solid #E5E1D8", display: "flex", justifyContent: "center", alignItems: "center", flexShrink: 0 }}>
+            <div style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 13, fontWeight: 600, letterSpacing: ".12em", color: "#0D1B33" }}>FLEMING REALTY</div>
+          </div>
+
+          <div style={{ background: "#fff", padding: "18px 20px 16px", borderBottom: "1px solid #E5E1D8" }}>
+            {name ? (
+              <>
+                <div style={{ fontSize: 12, color: "#4A6A80", fontWeight: 500, marginBottom: 2 }}>Hi {first} 👋</div>
+                <div style={{ fontSize: 25, fontWeight: 600, color: "#0D1B33", fontFamily: "var(--font-display), Georgia, serif", lineHeight: 1.15 }}>{name}</div>
+              </>
+            ) : (
+              <>
+                <div style={{ ...bar(70, 10), marginBottom: 8 }} />
+                <div style={bar(160, 20)} />
+              </>
+            )}
+          </div>
+
+          {showSkeleton && (
+            <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ background: "#fff", border: "1px solid #E5E1D8", borderRadius: 18, padding: 16, display: "flex", gap: 8 }}>
+                {[0, 1, 2].map((i) => <div key={i} style={{ flex: 1, height: 52, borderRadius: 10, ...bar("100%", 52, 10) }} />)}
+              </div>
+              {[0, 1, 2].map((i) => (
+                <div key={i} style={{ background: "#fff", border: "1px solid #E5E1D8", borderRadius: 16, padding: 14, opacity: 1 - i * 0.22 }}>
+                  <div style={{ ...bar("70%", 13), marginBottom: 9 }} />
+                  <div style={bar("45%", 10)} />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ marginTop: "auto", padding: "14px 20px 22px", textAlign: "center", fontSize: 11.5, color: "#4A6A80" }}>
+            Fetching the latest from the office…
+          </div>
         </div>
       </div>
     );

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect, useRef, createContext, useContext } from "react";
 import Icon from "@/components/ui/Icon";
 import PhotoCapture, { StoredPhoto } from "@/components/ui/PhotoCapture";
 
@@ -110,6 +110,50 @@ const VendorAvatar = ({v, size=20}) => {
   }
   return <div style={{width:size,height:size,borderRadius:"50%",background:v?v.color:"#B0B5C3",display:"flex",alignItems:"center",justifyContent:"center",fontSize:size<=18?7:size<=24?9:11,fontWeight:700,color:"#fff",flexShrink:0,letterSpacing:"-.5px"}}>{v?v.initials:"?"}</div>;
 };
+
+// The broker's own photo of a building, fetched only once the card scrolls into
+// view — each one costs two Buildium requests against a 10/s limit, so loading
+// 25 at once would starve the rest of the app.
+//
+// Where no photo exists (~40% of the portfolio) this stays a typographic tile
+// carrying the property's own initials. It deliberately does NOT fall back to
+// stock architecture: a handsome building that isn't theirs is a lie a resident
+// or owner would spot immediately.
+function PropertyPhoto({propertyId,name,height=104}) {
+  // The endpoint serves the bytes and 404s when there is no photo, so the <img>
+  // can point straight at it: onError keeps the tile. Handing the browser
+  // Buildium's own signed link does not work — those expire after 302 seconds.
+  const [src,setSrc]       = useState(null);
+  const [loaded,setLoaded] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(()=>{
+    if (propertyId==null||!ref.current) return;
+    const show=()=>setSrc(`/api/buildium/property-image?propertyId=${encodeURIComponent(propertyId)}`);
+    if (typeof IntersectionObserver==="undefined") { show(); return; }
+    const io=new IntersectionObserver(es=>{ if(es.some(e=>e.isIntersecting)){ io.disconnect(); show(); } },{rootMargin:"250px"});
+    io.observe(ref.current);
+    return ()=>io.disconnect();
+  },[propertyId]);
+
+  // Strip a leading street number so the initials read as the street, not "12".
+  const initials=(String(name||"").replace(/^[\d\s\-–—]+/,"").trim().slice(0,2).toUpperCase())||"FR";
+
+  return (
+    <div ref={ref} style={{height,background:`linear-gradient(135deg,${C.primary},#2C4A5E)`,position:"relative",overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+      {!loaded&&(
+        <span style={{fontFamily:C.display,fontSize:32,fontWeight:600,letterSpacing:".1em",color:"rgba(255,255,255,.26)",userSelect:"none"}}>{initials}</span>
+      )}
+      {src&&(
+        // eslint-disable-next-line @next/next/no-img-element -- proxied, auth-gated, not a static asset
+        <img src={src} alt="" onLoad={()=>setLoaded(true)} onError={()=>setSrc(null)}
+          style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:loaded?1:0,transition:"opacity .4s ease"}} />
+      )}
+      {/* Real photographs vary wildly; a scrim keeps anything laid over them readable. */}
+      {loaded&&<div style={{position:"absolute",inset:0,background:"linear-gradient(180deg,rgba(13,27,51,0) 50%,rgba(13,27,51,.5) 100%)"}} />}
+    </div>
+  );
+}
 
 const VendorChip = ({vendorId,small}) => {
   const {vendors=VENDORS} = useLive();
@@ -518,6 +562,7 @@ function OwnerHome({me,inspections=[],balances=[],properties=[],balancesEnabled=
         )}
         {listed.map(p=>(
           <div key={p.id} className="fl-rise" style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
+            <PropertyPhoto propertyId={p.id} name={p.name} height={104} />
             <div style={{padding:"13px 14px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                 <div>
@@ -746,6 +791,11 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
   return (
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
+      {/* The building this is about. Staff and owners only: other roles can't
+          read the photo endpoint, and a resident already knows their own home. */}
+      {order.propertyId!=null&&["employee","owner"].includes(role)&&(
+        <PropertyPhoto propertyId={order.propertyId} name={order.address} height={92} />
+      )}
       <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
           <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Orders</span>
