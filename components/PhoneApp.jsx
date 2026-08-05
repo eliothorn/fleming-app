@@ -740,7 +740,7 @@ function VendorThread({vendor, role}) {
 
 // ── DETAIL ────────────────────────────────────────────────────────────────────
 function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role,setRole}) {
-  const {vendors=[],syncs=true,notificationsEnabled=true}=useLive();
+  const {vendors=[],syncs=true,notificationsEnabled=true,vendorVisible=true}=useLive();
   const [notified,setNotified]=useState(false);
   const [ownerNotified,setOwnerNotified]=useState(false);
   const [completionNotified,setCompletionNotified]=useState(false);
@@ -808,6 +808,10 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
             </div>
           </div>
         )}
+        {/* Roles that aren't given the assignment stay silent about it. Saying
+            "Not yet assigned" to a resident whose job already has a contractor
+            booked would be a claim the app can't back. */}
+        {vendorVisible&&(
         <div style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
           <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:8}}>Vendor</div>
           {vendor?(
@@ -827,24 +831,27 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
               :<div style={{fontSize:13,color:C.muted}}>Not yet assigned</div>
           )}
         </div>
+        )}
         <div style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
           <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:10}}>Timeline</div>
           {[
             {label:"Reported",done:true,time:order.reported},
             {label:"Work order created",done:true,time:order.reported},
-            {label:"Vendor assigned",done:!!vendor,time:vendor?"Assigned":null},
+            // Omitted rather than shown unticked for roles that aren't told who
+            // is on the job — an unticked step reads as "nobody assigned yet".
+            vendorVisible&&{label:"Vendor assigned",done:!!vendor,time:vendor?"Assigned":null},
             {label:"Resident notified",done:notified,time:notified?"Just now":null},
             {label:"Work completed by vendor",done:cur?.vendorCompleted||cur?.status==="done",time:cur?.vendorCompleted?"With photo":null},
             {label:"Closed by employee",done:cur?.status==="done",time:null},
             {label:"Resident notified of completion",done:completionNotified,time:completionNotified?"Just now":null},
             {label:"Owner notified",done:ownerNotified,time:ownerNotified?"Just now":null},
-          ].map((step,i)=>(
-            <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:i<7?10:0}}>
+          ].filter(Boolean).map((step,i,arr)=>(
+            <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:i<arr.length-1?10:0}}>
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}}>
                 <div style={{width:18,height:18,borderRadius:"50%",background:step.done?C.primary:C.border,display:"flex",alignItems:"center",justifyContent:"center"}}>
                   {step.done&&<span style={{fontSize:9,color:"#fff",fontWeight:700}}>✓</span>}
                 </div>
-                {i<7&&<div style={{width:2,height:14,background:C.border,borderRadius:1,marginTop:2}} />}
+                {i<arr.length-1&&<div style={{width:2,height:14,background:C.border,borderRadius:1,marginTop:2}} />}
               </div>
               <div style={{paddingTop:1}}>
                 <div style={{fontSize:12.5,fontWeight:step.done?600:400,color:step.done?C.text:C.faint}}>{step.label}</div>
@@ -2216,6 +2223,8 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
     properties: initial.properties || [],
     syncs: initial.submissionsReachOffice !== false,
     notificationsEnabled: initial.messagingEnabled !== false,
+    // Whether this role is told which contractor is on a job.
+    vendorVisible: initial.vendorVisible !== false,
   };
 
   return (

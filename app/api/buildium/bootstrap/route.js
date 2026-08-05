@@ -23,9 +23,18 @@ export async function GET(request) {
   const owner = me.role === "owner";
   const portfolio = staff || owner; // who is allowed to see properties/balances/inspections
 
+  // Who is told which vendor is on a job. Naming the contractor costs ~12
+  // requests to page Buildium's work orders, so only the roles that are shown
+  // it pay for it — a vendor is included because without it they cannot see
+  // their own assignments at all.
+  const seesVendors = staff || owner || me.role === "vendor";
+
   // Narrow at the source for residents so their own tickets are never truncated
   // away by the portfolio-wide display cap.
-  const scope = me.role === "resident" && me.entity?.tenantId != null ? { residentId: me.entity.tenantId } : {};
+  const scope = {
+    ...(me.role === "resident" && me.entity?.tenantId != null ? { residentId: me.entity.tenantId } : {}),
+    withVendors: seesVendors,
+  };
 
   // Fetch only what this role is allowed to receive. This used to load
   // everything and filter afterwards, which meant a resident waited on the
@@ -38,8 +47,9 @@ export async function GET(request) {
   // an owner would read as a real record of their own property.
   const [allOrders, vendors, properties, balances, inspections, templates] = await Promise.all([
     me.role === "applicant" ? [] : b.listOrders(scope),
-    // Vendors name who a job is assigned to; roles with no jobs never need them.
-    me.role === "applicant" ? [] : b.listVendors(),
+    // The roster only exists to put a name to an assignment, so roles that
+    // aren't shown assignments don't need it either.
+    seesVendors ? b.listVendors() : [],
     portfolio ? b.listProperties() : [],
     portfolio && !isBuildiumLive() ? b.listBalances() : [],
     portfolio ? listDurableInspections() : [],
@@ -73,6 +83,10 @@ export async function GET(request) {
     // were their rent roll, so live mode gets nothing and the UI says so.
     balances: (staff || owner) && !isBuildiumLive() ? balances : [],
     balancesEnabled: !isBuildiumLive(),
+    // Whether this role is told who is on a job. Residents are not, so their
+    // screens must stay silent about it rather than claim "not yet assigned"
+    // for a job that does in fact have a contractor booked.
+    vendorVisible: seesVendors,
     // The applicant screen is entirely seeded content — a fixed reference
     // number, property, rent and progress timeline. There is no application
     // backend, so in live mode it must not be presented as somebody's real
