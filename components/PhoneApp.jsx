@@ -808,6 +808,33 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
             </div>
           </div>
         )}
+        {/* Can whoever attends let themselves in, and what do they need to know
+            first. Only shown to the people who actually turn up. There is no
+            invoice or amount beside it on purpose: this account never fills
+            those fields, so the panel would always be empty and a "$0.00" would
+            read as "this job was free". */}
+        {["employee","vendor"].includes(role)&&(order.entryAllowed||order.entryNotes)&&(()=>{
+          const allowed=String(order.entryAllowed||"").toLowerCase();
+          const tone = allowed==="yes" ? C.done : allowed==="no" ? C.urgent : C.pending;
+          const label = allowed==="yes" ? "Entry permitted"
+                      : allowed==="no"  ? "Do not enter unaccompanied"
+                      : "Entry permission not confirmed";
+          return (
+            <div style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:8}}>Access</div>
+              <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:10,background:tone.bg,border:`1px solid ${tone.border}`,marginBottom:order.entryNotes?10:0}}>
+                <Icon name={allowed==="yes"?"check":"warning"} size={16} style={{color:tone.text,flexShrink:0}} />
+                <span style={{fontSize:12.5,fontWeight:700,color:tone.text}}>{label}</span>
+              </div>
+              {order.entryNotes&&(
+                // Buildium stores these as free text with newlines, e.g.
+                // "Pets on Property: Yes\nTenant Entry Notes: call me first".
+                <div style={{fontSize:12.5,color:C.text,lineHeight:1.55,whiteSpace:"pre-wrap",overflowWrap:"anywhere",background:"#FAF8F4",border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 12px"}}>{order.entryNotes}</div>
+              )}
+            </div>
+          );
+        })()}
+
         {/* Roles that aren't given the assignment stay silent about it. Saying
             "Not yet assigned" to a resident whose job already has a contractor
             booked would be a claim the app can't back. */}
