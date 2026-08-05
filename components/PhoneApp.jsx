@@ -47,41 +47,12 @@ const ROLES = {
   applicant:{key:"applicant",name:"Jordan K.",sub:"Prospective Resident",init:"J",color:"#2C4A5E",label:"Applicant",labelBg:"#E8EFF3",labelText:"#2C4A5E",homeIcon:"clipboard"},
 };
 
-const VENDORS = [
-  {id:1,name:"Zimmerman Plumbing & HVAC",initials:"Z",color:"#1B3A6B",specialty:"HVAC · Plumbing · Electrical",    phone:"(717) 737-3700",location:"Mechanicsburg, PA",logo:"https://www.ezimmerman.com/wp-content/uploads/2017/06/ez-logo.jpg"},
-  {id:2,name:"Fetrow Electric",          initials:"F",color:"#B45309",specialty:"Electrical · Commercial & Residential",phone:"(717) 766-5795",location:"Mechanicsburg, PA",logo:null},
-  {id:3,name:"Mitchell's Landscaping",   initials:"M",color:"#166534",specialty:"Landscaping · Snow Removal · Grounds",phone:"(717) 555-0193",location:"Camp Hill, PA",      logo:"https://images.squarespace-cdn.com/content/v1/6499b43c65992b46d5ab2ce1/e8a5f36c-2676-479c-8b48-95ec00f073e2/MLC-Mitchells+Landscaping+Company_Logo_FINAL-04.png?format=300w"},
-  {id:4,name:"FlyLock Security",         initials:"FL",color:"#1E3A5F",specialty:"Locks · Access Control · Doors",   phone:"(717) 707-2399",location:"Lemoyne, PA",         logo:"https://flylock.com/wp-content/uploads/2025/07/cropped-Flylock-Favicon-270x270.png"},
-  {id:5,name:"Murray Plumbing",          initials:"MP",color:"#7C3AED",specialty:"Plumbing · Drains · Water Heaters",phone:"(717) 555-0147",location:"Mechanicsburg, PA",logo:null},
-];
-
-const INIT_ORDERS = [
-  {id:"WO-0041",title:"HVAC not cooling",      unit:"Unit 4B",address:"214 Walnut St",status:"urgent",   vendorId:null,reported:"2h ago",       category:"HVAC",      residentName:"Sarah M.",   notes:"Resident says it's been out since last night. High priority given heat."},
-  {id:"WO-0039",title:"Water leak under sink", unit:"Unit 1C",address:"330 Pine Ave", status:"urgent",   vendorId:1,   reported:"5h ago",       category:"Plumbing",  residentName:"James T.",   notes:"Active leak. Bucket placed. Vendor contacted, awaiting confirmation."},
-  {id:"WO-0037",title:"Front door lock broken",unit:"Unit 8A",address:"812 Market St",status:"urgent",   vendorId:4,   reported:"Yesterday",    category:"Security",  residentName:"Linda R.",   notes:"Resident cannot fully lock door. Safety concern."},
-  {id:"WO-0035",title:"Bathroom exhaust fan",  unit:"Unit 2A",address:"214 Walnut St",status:"pending",  vendorId:2,   reported:"2 days ago",   category:"General",   residentName:"Tom B.",     notes:"Fan rattling loudly. Resident available afternoons."},
-  {id:"WO-0033",title:"Parking lot light out", unit:"Lot B",  address:"330 Pine Ave", status:"pending",  vendorId:3,   reported:"3 days ago",   category:"Electrical",residentName:null,         notes:"Two lights out on east side. Safety concern at night."},
-  {id:"WO-0030",title:"Semi-annual inspection",unit:"6 units",address:"330 Pine Ave", status:"scheduled",vendorId:1,   reported:"Scheduled",    category:"Inspection",residentName:null,         notes:"Bi-annual walkthrough. All 6 units. Residents notified."},
-  {id:"WO-0028",title:"Carpet replacement",    unit:"Unit 6B",address:"812 Market St",status:"review",   vendorId:2,   reported:"Completed Jun 7",category:"Move-out",residentName:"Prior tenant",notes:"Completed. Awaiting owner approval before closing."},
-  {id:"WO-0025",title:"Window seal repair",    unit:"Unit 3A",address:"214 Walnut St",status:"done",     vendorId:2,   reported:"Jun 5",        category:"General",   residentName:"Mark D.",    notes:"Completed and closed."},
-];
-
-const OWNER_PROPS = [
-  {id:1,name:"214 Walnut St", units:12,occupied:11,openOrders:3,urgentOrders:1,nextInspection:"Sep 2026",monthlyRev:"$14,400"},
-  {id:2,name:"330 Pine Ave",  units:8, occupied:8, openOrders:4,urgentOrders:1,nextInspection:"Aug 2026",monthlyRev:"$9,600" },
-  {id:3,name:"812 Market St", units:18,occupied:16,openOrders:2,urgentOrders:0,nextInspection:"Oct 2026",monthlyRev:"$21,600"},
-];
-
-// Resident balances across all owner units (balance = amount currently owed)
-const RESIDENT_BALANCES = [
-  {property:"214 Walnut St", unit:"Unit 4B", resident:"Sarah M.",  balance:0},
-  {property:"214 Walnut St", unit:"Unit 2A", resident:"Tom B.",    balance:145},
-  {property:"214 Walnut St", unit:"Unit 5C", resident:"Priya N.",  balance:0},
-  {property:"330 Pine Ave",  unit:"Unit 1C", resident:"James T.",  balance:0},
-  {property:"330 Pine Ave",  unit:"Unit 3B", resident:"Derek W.",  balance:1200},
-  {property:"812 Market St", unit:"Unit 6B", resident:"Ana R.",    balance:0},
-  {property:"812 Market St", unit:"Unit 8A", resident:"Linda R.",  balance:75},
-];
+// The seeded demo vendors, work orders, properties and resident balances that
+// used to live here are gone. Nothing rendered them any more — every screen
+// reads live Buildium data or an honest empty state — but leaving them in was a
+// standing invitation to wire invented residents and invented arrears back in
+// by accident. The mock store still holds equivalents for demo mode, which is
+// the one place they belong.
 
 const SM = {
   urgent:   {label:"Urgent",      bg:"#FEF2F2",text:"#B91C1C",border:"#FECACA",bar:"#EF4444"},
@@ -156,7 +127,7 @@ function PropertyPhoto({propertyId,name,height=104}) {
 }
 
 const VendorChip = ({vendorId,small}) => {
-  const {vendors=VENDORS} = useLive();
+  const {vendors=[]} = useLive();
   const v = vendors.find(v=>v.id===vendorId);
   return (
     <div style={{display:"flex",alignItems:"center",gap:5,background:"#FAF8F4",padding:small?"3px 8px 3px 4px":"4px 10px 4px 5px",borderRadius:20,border:"1px solid #E5E1D8"}}>
@@ -769,7 +740,7 @@ function VendorThread({vendor, role}) {
 
 // ── DETAIL ────────────────────────────────────────────────────────────────────
 function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role,setRole}) {
-  const {vendors=VENDORS,syncs=true,notificationsEnabled=true}=useLive();
+  const {vendors=[],syncs=true,notificationsEnabled=true}=useLive();
   const [notified,setNotified]=useState(false);
   const [ownerNotified,setOwnerNotified]=useState(false);
   const [completionNotified,setCompletionNotified]=useState(false);
@@ -964,7 +935,7 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
 
 // ── ASSIGN VENDOR ─────────────────────────────────────────────────────────────
 function AssignScreen({order,orders,setOrders,onUpdateOrder,onBack,role,setRole}) {
-  const {vendors=VENDORS,syncs=true}=useLive();
+  const {vendors=[],syncs=true}=useLive();
   const [selected,setSelected]=useState(order.vendorId);
   const [confirmed,setConfirmed]=useState(false);
   const [vq,setVq]=useState("");
@@ -1387,52 +1358,16 @@ function InspectionsScreen({onBack,onNewInspection,role,setRole}) {
 }
 
 // ── INSPECTION SCREEN ────────────────────────────────────────────────────────
-const INSPECTION_ITEMS = [
-  {id:"i1", category:"Exterior",  label:"Entry doors & locks functional",       critical:true },
-  {id:"i2", category:"Exterior",  label:"Windows — no cracks or broken seals",  critical:false},
-  {id:"i3", category:"Exterior",  label:"Exterior lighting working",             critical:false},
-  {id:"i4", category:"Exterior",  label:"No visible water damage / staining",    critical:true },
-  {id:"i5", category:"Kitchen",   label:"Appliances functioning",               critical:false},
-  {id:"i6", category:"Kitchen",   label:"Faucet — no leaks, proper pressure",   critical:true },
-  {id:"i7", category:"Kitchen",   label:"Cabinet doors / hinges intact",        critical:false},
-  {id:"i8", category:"Bathroom",  label:"Toilet flushes correctly",             critical:true },
-  {id:"i9", category:"Bathroom",  label:"Exhaust fan working",                  critical:false},
-  {id:"i10",category:"Bathroom",  label:"No mold or mildew visible",            critical:true },
-  {id:"i11",category:"HVAC",      label:"Thermostat responsive",                critical:true },
-  {id:"i12",category:"HVAC",      label:"Vents clear and unobstructed",         critical:false},
-  {id:"i13",category:"HVAC",      label:"Filter replaced",                      critical:false},
-  {id:"i14",category:"Safety",    label:"Smoke detector functional",            critical:true },
-  {id:"i15",category:"Safety",    label:"CO detector present and functional",   critical:true },
-  {id:"i16",category:"Safety",    label:"Fire extinguisher in date",            critical:true },
-  {id:"i17",category:"General",   label:"Walls — no major holes or damage",     critical:false},
-  {id:"i18",category:"General",   label:"Flooring in good condition",           critical:false},
-  {id:"i19",category:"General",   label:"Ceilings — no stains or damage",       critical:false},
-  {id:"i20",category:"General",   label:"All lights functional",                critical:false},
-];
+// The seeded checklists and completed-inspection records that stood here are
+// gone. Checklists now come from the database via /api/buildium/templates, and
+// completed reports from the inspections table — both real, both durable.
 
-const MOVEOUT_ITEMS = [
-  {id:"m1",category:"General",  label:"Walls patched & repainted",        critical:false},
-  {id:"m2",category:"General",  label:"Carpets professionally cleaned",   critical:false},
-  {id:"m3",category:"Kitchen",  label:"Appliances cleaned & functional",  critical:true },
-  {id:"m4",category:"Kitchen",  label:"Countertops undamaged",            critical:false},
-  {id:"m5",category:"Bathroom", label:"No mold; grout & caulk intact",    critical:true },
-  {id:"m6",category:"Keys",     label:"All keys & fobs returned",         critical:true },
-];
-
-// Employee-managed inspection templates (pre-populated checklists)
-const DEFAULT_TEMPLATES = [
-  {id:"t1", name:"Semi-Annual Standard", desc:"Full 20-point unit walkthrough", items:INSPECTION_ITEMS},
-  {id:"t2", name:"Move-Out Inspection",  desc:"Turnover & deposit checklist",   items:MOVEOUT_ITEMS},
-];
-
-// Completed inspections the owner can view (read-only)
-const INIT_INSPECTIONS = [
-  {id:"IN-204", property:"812 Market St", scope:"Semi-annual · 18 units", date:"May 12, 2026", passed:16, failed:2, nextDate:"Nov 12, 2026", by:"Marcus J."},
-  {id:"IN-198", property:"214 Walnut St", scope:"Semi-annual · 12 units", date:"Apr 3, 2026",  passed:20, failed:0, nextDate:"Oct 3, 2026",  by:"Marcus J."},
-];
-
-function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDone,role,setRole}) {
-  const PROPERTY = "330 Pine Ave";
+function InspectionScreen({onBack,templates=[],properties=[],onManageTemplates,onInspectionDone,role,setRole}) {
+  // Every completed report used to be filed against a hardcoded "330 Pine Ave"
+  // — an address that does not exist in this portfolio. A real inspection has
+  // to name the real property it was carried out at, so it is chosen here and
+  // required before the report can be submitted.
+  const [property, setProperty] = useState("");
   const [templateId, setTemplateId] = useState(templates[0]?.id);
   const [checks, setChecks] = useState({});
   const [notes, setNotes] = useState({});
@@ -1442,7 +1377,7 @@ function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDon
 
   const template = templates.find(t=>t.id===templateId) || templates[0];
   const items = template?.items || [];
-  const nextOptions = ["Oct 15, 2026","Nov 15, 2026","Dec 15, 2026","Jan 15, 2027"];
+  const propertyNames = [...new Set((properties||[]).map(p=>p?.name).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
 
   const toggle = (id, val) => setChecks(prev => ({...prev, [id]: val}));
   const categories = [...new Set(items.map(i=>i.category))];
@@ -1450,14 +1385,14 @@ function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDon
   const done = Object.keys(checks).filter(k=>checks[k]!==undefined).length;
   const fails = Object.keys(checks).filter(k=>checks[k]==="fail").length;
   const pct = total ? Math.round((done/total)*100) : 0;
-  const canSubmit = done>0 && !!nextDate;
+  const canSubmit = done>0 && !!nextDate && !!property;
 
   const submit = () => {
     if (!canSubmit) return;
     // Send the whole checklist, not just a tally — which item failed, the
     // inspector's note and its photo are the substance of the report.
     onInspectionDone && onInspectionDone({
-      property: PROPERTY,
+      property,
       scope: template?.name || "Inspection",
       passed: done - fails,
       failed: fails,
@@ -1508,7 +1443,7 @@ function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDon
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
           <div>
             <div style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>Unit Inspection</div>
-            <div style={{fontSize:12,color:C.muted,marginTop:2}}>{PROPERTY} · {template?.name}</div>
+            <div style={{fontSize:12,color:C.muted,marginTop:2}}>{property||"Choose a property"} · {template?.name}</div>
           </div>
           <div style={{textAlign:"right"}}>
             <div style={{fontSize:18,fontWeight:700,color:pct===100?C.done.text:C.primary}}>{pct}%</div>
@@ -1518,6 +1453,20 @@ function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDon
         <div style={{marginTop:10,height:4,background:C.border,borderRadius:2,overflow:"hidden"}}>
           <div style={{height:"100%",width:`${pct}%`,background:pct===100?C.done.bar:C.primary,borderRadius:2,transition:"width .3s"}} />
         </div>
+      </div>
+
+      {/* Which property is being inspected. Required — a report that doesn't
+          name a real address is worthless as a record. */}
+      <div style={{padding:"12px 16px 0"}}>
+        <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:6}}>Property <span style={{color:C.urgent.text}}>*</span></div>
+        {propertyNames.length===0 ? (
+          <div style={{fontSize:12,color:C.faint,padding:"11px 13px",borderRadius:10,background:"#FAF8F4",border:`1px solid ${C.border}`}}>No properties loaded.</div>
+        ) : (
+          <select value={property} onChange={e=>setProperty(e.target.value)} style={{width:"100%",border:`1px solid ${property?C.primary:C.border}`,borderRadius:10,padding:"11px 12px",fontSize:13,fontFamily:"inherit",color:property?C.text:C.faint,outline:"none",background:"#fff",appearance:"none"}}>
+            <option value="">Select the property inspected…</option>
+            {propertyNames.map(n=><option key={n} value={n}>{n}</option>)}
+          </select>
+        )}
       </div>
 
       {/* Template picker */}
@@ -1588,10 +1537,9 @@ function InspectionScreen({onBack,templates=[],onManageTemplates,onInspectionDon
         <div style={{background:"#fff",borderRadius:12,border:`1px solid ${nextDate?C.primary:C.border}`,padding:"13px 14px",boxShadow:"0 1px 2px rgba(16,24,40,0.04)"}}>
           <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:4}}>Schedule next inspection <span style={{color:C.urgent.text}}>*</span></div>
           <div style={{fontSize:11.5,color:C.muted,marginBottom:8,lineHeight:1.4}}>Required before completing. The owner is notified of this date automatically.</div>
-          <select value={nextDate} onChange={e=>setNextDate(e.target.value)} style={{width:"100%",border:`1px solid ${nextDate?C.primary:C.border}`,borderRadius:10,padding:"11px 12px",fontSize:13,fontFamily:"inherit",color:nextDate?C.text:C.faint,outline:"none",background:"#fff",appearance:"none"}}>
-            <option value="">Select next inspection date…</option>
-            {nextOptions.map(d=><option key={d} value={d}>{d}</option>)}
-          </select>
+          {/* Was a fixed list of four dates that would quietly go stale. */}
+          <input type="date" value={nextDate} onChange={e=>setNextDate(e.target.value)}
+            style={{width:"100%",border:`1px solid ${nextDate?C.primary:C.border}`,borderRadius:10,padding:"11px 12px",fontSize:13,fontFamily:"inherit",color:nextDate?C.text:C.faint,outline:"none",background:"#fff",boxSizing:"border-box"}} />
         </div>
 
         <button
@@ -2263,7 +2211,8 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
   // writes/notifications actually reach anywhere (they don't while Buildium is
   // read-only, so the UI must not claim otherwise).
   const live = {
-    vendors: initial.vendors?.length ? initial.vendors : VENDORS,
+    // No demo fallback: an empty roster must read as empty, not as five invented firms.
+    vendors: initial.vendors || [],
     properties: initial.properties || [],
     syncs: initial.submissionsReachOffice !== false,
     notificationsEnabled: initial.messagingEnabled !== false,

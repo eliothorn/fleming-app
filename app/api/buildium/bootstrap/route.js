@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth/session";
 import { buildium } from "@/lib/buildium";
 import { listInspections as listDurableInspections } from "@/lib/inspections";
+import { listTemplates as listDurableTemplates } from "@/lib/templates";
 import { isBuildiumLive, submissionsReachOffice } from "@/lib/env";
 
 // A cold staff load still pages a lot of throttled Buildium requests (measured at
@@ -42,7 +43,7 @@ export async function GET(request) {
     portfolio ? b.listProperties() : [],
     portfolio && !isBuildiumLive() ? b.listBalances() : [],
     portfolio ? listDurableInspections() : [],
-    staff ? b.listTemplates() : [],
+    staff ? listDurableTemplates() : [],
   ]);
 
   let orders;

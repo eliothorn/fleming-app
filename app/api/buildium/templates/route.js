@@ -1,6 +1,9 @@
+// Inspection templates are the company's own checklists, not Buildium data, so
+// they come from the durable store rather than through buildium(). They used to
+// be held in server memory and were lost on every restart.
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth/session";
-import { buildium } from "@/lib/buildium";
+import { listTemplates, createTemplate } from "@/lib/templates";
 
 async function requireEmployee(request) {
   const me = await getServerUser(request);
@@ -12,12 +15,15 @@ async function requireEmployee(request) {
 export async function GET(request) {
   const { error } = await requireEmployee(request);
   if (error) return error;
-  return NextResponse.json({ templates: buildium().listTemplates() });
+  return NextResponse.json({ templates: await listTemplates() });
 }
 
 export async function POST(request) {
   const { error } = await requireEmployee(request);
   if (error) return error;
   const input = await request.json().catch(() => ({}));
-  return NextResponse.json({ template: buildium().createTemplate(input) });
+  if (!String(input.name || "").trim()) {
+    return NextResponse.json({ error: "A checklist needs a name." }, { status: 400 });
+  }
+  return NextResponse.json({ template: await createTemplate(input) });
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth/session";
-import { buildium } from "@/lib/buildium";
+import { updateTemplate, deleteTemplate } from "@/lib/templates";
 
 async function requireEmployee(request) {
   const me = await getServerUser(request);
@@ -13,7 +13,7 @@ export async function PATCH(request, { params }) {
   const { error } = await requireEmployee(request);
   if (error) return error;
   const patch = await request.json().catch(() => ({}));
-  const template = buildium().updateTemplate(params.id, patch);
+  const template = await updateTemplate(params.id, patch);
   if (!template) return NextResponse.json({ error: "Template not found." }, { status: 404 });
   return NextResponse.json({ template });
 }
@@ -21,7 +21,7 @@ export async function PATCH(request, { params }) {
 export async function DELETE(request, { params }) {
   const { error } = await requireEmployee(request);
   if (error) return error;
-  const ok = buildium().deleteTemplate(params.id);
+  const ok = await deleteTemplate(params.id);
   if (!ok) return NextResponse.json({ error: "Template not found." }, { status: 404 });
   return NextResponse.json({ ok: true });
 }
