@@ -7,8 +7,9 @@ import { buildium } from "@/lib/buildium";
 import { listInspections as listDurableInspections } from "@/lib/inspections";
 import { isBuildiumLive, submissionsReachOffice } from "@/lib/env";
 
-// A cold load pages ~30 throttled Buildium requests and takes ~9s. The default
-// serverless timeout is 10s, which this would intermittently exceed.
+// A cold staff load still pages a lot of throttled Buildium requests (measured at
+// ~16s before role-scoping the fetches below). The default serverless timeout is
+// 10s, which that would exceed. Caches are per-instance, so cold is not rare.
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
@@ -17,18 +18,32 @@ export async function GET(request) {
   if (!me) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   const b = buildium();
+  const staff = me.role === "employee";
+  const owner = me.role === "owner";
+  const portfolio = staff || owner; // who is allowed to see properties/balances/inspections
+
   // Narrow at the source for residents so their own tickets are never truncated
   // away by the portfolio-wide display cap.
   const scope = me.role === "resident" && me.entity?.tenantId != null ? { residentId: me.entity.tenantId } : {};
+
+  // Fetch only what this role is allowed to receive. This used to load
+  // everything and filter afterwards, which meant a resident waited on the
+  // portfolio sweep — every property and every lease, the single most expensive
+  // thing the app does — purely to have it discarded a few lines below. Measured
+  // cold, that was the difference between ~16s and a fraction of it.
+  //
   // Inspections come from the durable store, not the mock one behind buildium():
   // the mock returns two invented reports ("812 Market St, by Marcus J.") that
   // an owner would read as a real record of their own property.
   const [allOrders, vendors, properties, balances, inspections, templates] = await Promise.all([
-    b.listOrders(scope), b.listVendors(), b.listProperties(), b.listBalances(), listDurableInspections(), b.listTemplates(),
+    me.role === "applicant" ? [] : b.listOrders(scope),
+    // Vendors name who a job is assigned to; roles with no jobs never need them.
+    me.role === "applicant" ? [] : b.listVendors(),
+    portfolio ? b.listProperties() : [],
+    portfolio && !isBuildiumLive() ? b.listBalances() : [],
+    portfolio ? listDurableInspections() : [],
+    staff ? b.listTemplates() : [],
   ]);
-
-  const staff = me.role === "employee";
-  const owner = me.role === "owner";
 
   let orders;
   if (staff || owner) orders = allOrders;

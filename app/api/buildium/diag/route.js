@@ -5,7 +5,7 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth/session";
 import { isBuildiumConfigured, isBuildiumLive } from "@/lib/env";
-import { buildiumRequest } from "@/lib/buildium/real";
+import { buildiumRequest, buildiumRequestCount } from "@/lib/buildium/real";
 import { matchByEmail } from "@/lib/buildium/matcher";
 
 // Diagnostics page through many Buildium records; allow more than the 10s default.
@@ -18,8 +18,17 @@ export async function GET(request) {
     return NextResponse.json({ error: "Log in as the employee to run diagnostics." }, { status: 403 });
   }
 
-  // Test the email→Buildium matcher without creating an account: /diag?email=...
   const params = new URL(request.url).searchParams;
+
+  // How many Buildium calls has this process made? Buildium's latency swings by
+  // an order of magnitude, so timing a load tells you little; the request count
+  // is what the throttle actually spends and is reproducible.
+  // /diag?requests=1  (add &reset=1 to zero it before a measurement)
+  if (params.get("requests")) {
+    return NextResponse.json({ requests: buildiumRequestCount(params.get("reset") === "1") });
+  }
+
+  // Test the email→Buildium matcher without creating an account: /diag?email=...
   const testEmail = params.get("email");
   if (testEmail) {
     return NextResponse.json({ email: testEmail, match: await matchByEmail(testEmail) });
