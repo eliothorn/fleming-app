@@ -9,7 +9,7 @@
   happens to open the mail, rather than only the one that requested it.
 
   The address below is already set to this deployment. If a custom domain is
-  added later, change both occurrences of https://fleming-app-kohl.vercel.app
+  added later, change both occurrences of https://www.flemingrealty.org
   to it. Supabase does not expand {{ .SiteURL }} reliably inside an href, so it
   is written out literally on purpose.
 
@@ -39,7 +39,7 @@
 
         <tr>
           <td style="padding:22px 32px 8px;">
-            <a href="https://fleming-app-kohl.vercel.app/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink"
+            <a href="https://www.flemingrealty.org/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink"
                style="display:block;background:#0D1B33;color:#ffffff;text-decoration:none;text-align:center;font-size:15px;font-weight:700;padding:15px 20px;border-radius:12px;">
               Sign in to Fleming Realty
             </a>
@@ -60,7 +60,7 @@
           <td style="border-top:1px solid #E5E1D8;padding:18px 32px 24px;">
             <div style="font-size:12px;color:#8A93A5;line-height:1.6;">
               Trouble with the button? Copy this address into your browser:<br>
-              <span style="color:#4A6A80;word-break:break-all;">https://fleming-app-kohl.vercel.app/auth/confirm?token_hash={{ .TokenHash }}&amp;type=magiclink</span>
+              <span style="color:#4A6A80;word-break:break-all;">https://www.flemingrealty.org/auth/confirm?token_hash={{ .TokenHash }}&amp;type=magiclink</span>
             </div>
           </td>
         </tr>
