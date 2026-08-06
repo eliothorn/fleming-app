@@ -39,6 +39,17 @@ export default function LoginPage() {
     return () => { alive = false; };
   }, []);
 
+  // /auth/confirm sends people back here with a reason when a link fails —
+  // expired, already used, or malformed. Landing on a blank sign-in screen with
+  // no explanation is what makes someone assume the app is broken.
+  useEffect(() => {
+    const reason = new URLSearchParams(window.location.search).get("error");
+    if (!reason) return;
+    setError(reason);
+    // Clear it so a refresh doesn't resurrect a stale message.
+    window.history.replaceState({}, "", window.location.pathname);
+  }, []);
+
   const magic = async () => {
     if (busy) return;
     setError("");
