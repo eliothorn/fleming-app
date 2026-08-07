@@ -45,7 +45,7 @@ export async function GET(request) {
   // Inspections come from the durable store, not the mock one behind buildium():
   // the mock returns two invented reports ("812 Market St, by Marcus J.") that
   // an owner would read as a real record of their own property.
-  const [allOrders, vendors, properties, balances, inspections, templates] = await Promise.all([
+  const [allOrders, vendors, properties, balances, inspections, templates, myBalance] = await Promise.all([
     me.role === "applicant" ? [] : b.listOrders(scope),
     // The roster only exists to put a name to an assignment, so roles that
     // aren't shown assignments don't need it either.
@@ -54,6 +54,12 @@ export async function GET(request) {
     portfolio && !isBuildiumLive() ? b.listBalances() : [],
     portfolio ? listDurableInspections() : [],
     staff ? listDurableTemplates() : [],
+    // A resident's own balance. Their unit and address are already in the
+    // header, so the lease card can show what they actually owe instead of
+    // repeating the unit number back at them.
+    me.role === "resident" && me.entity?.leaseId != null
+      ? b.leaseBalance(me.entity.leaseId, me.entity?.name)
+      : null,
   ]);
 
   let orders;
@@ -83,6 +89,10 @@ export async function GET(request) {
     // were their rent roll, so live mode gets nothing and the UI says so.
     balances: (staff || owner) && !isBuildiumLive() ? balances : [],
     balancesEnabled: !isBuildiumLive(),
+    // The signed-in resident's own balance, from Buildium's outstanding-balance
+    // ledger. null means we couldn't determine it — which the UI must say,
+    // rather than showing $0.00 to somebody who is in arrears.
+    myBalance: me.role === "resident" ? myBalance : null,
     // Whether this role is told who is on a job. Residents are not, so their
     // screens must stay silent about it rather than claim "not yet assigned"
     // for a job that does in fact have a contractor booked.

@@ -2,7 +2,7 @@ import "./globals.css";
 import { Playfair_Display, Montserrat } from "next/font/google";
 import PwaSetup from "@/components/PwaSetup";
 
-// Fleming Realty brand fonts. Playfair Display is the heading face from the
+// Stephen Fleming Realty brand fonts. Playfair Display is the heading face from the
 // brand guide — a high-contrast display serif, so it's reserved for titles and
 // screen headings. Montserrat carries all interface text, where Playfair's thin
 // strokes would hurt legibility at small sizes on a phone.
@@ -21,7 +21,7 @@ const montserrat = Montserrat({
 });
 
 export const metadata = {
-  title: "Fleming Realty Group",
+  title: "Stephen Fleming Realty",
   description: "Property management — work orders, inspections, and resident services.",
   manifest: "/manifest.webmanifest",
   applicationName: "Fleming",

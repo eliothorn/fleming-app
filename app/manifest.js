@@ -2,10 +2,10 @@
 // screen and launch without browser chrome.
 export default function manifest() {
   return {
-    name: "Fleming Realty Group",
+    name: "Stephen Fleming Realty",
     short_name: "Fleming",
     description:
-      "Maintenance requests, work orders, inspections and property updates for Fleming Realty residents, owners, vendors and staff.",
+      "Maintenance requests, work orders, inspections and property updates for Stephen Fleming Realty residents, owners, vendors and staff.",
     start_url: "/",
     scope: "/",
     display: "standalone",

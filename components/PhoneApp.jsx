@@ -9,7 +9,7 @@ import PhotoCapture, { StoredPhoto } from "@/components/ui/PhotoCapture";
 const LiveCtx = createContext(null);
 const useLive = () => useContext(LiveCtx) || {};
 
-// Design tokens — Fleming Realty brand guide. Mirrors globals.css for the
+// Design tokens — Stephen Fleming Realty brand guide. Mirrors globals.css for the
 // inline-styled components ported from the demo.
 //
 // Gold (#C8A15A) is measured at 2.12:1 on sand and 2.41:1 on white, so it never
@@ -72,6 +72,20 @@ const fmtDate = (d) => {
   const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   return `${MON[Number(m[2]) - 1]} ${Number(m[3])}, ${m[1]}`;
 };
+// Money always to the cent — a rent balance shown as "$1,206" reads as an
+// estimate, and people query estimates.
+const money = (n) =>
+  "$" + Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// Was hardcoded to "Good morning" whatever the hour. Runs in the browser, so it
+// follows the reader's own clock rather than the server's.
+const greeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+};
+
 const Badge = ({status}) => { const m=SM[status]; return <span style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:10,fontWeight:700,letterSpacing:".02em",padding:"3px 10px",borderRadius:20,background:m.bg,color:m.text,border:`1px solid ${m.border}`,whiteSpace:"nowrap"}}><span style={{width:5,height:5,borderRadius:"50%",background:m.bar,flexShrink:0}} />{m.label}</span>; };
 
 const VendorAvatar = ({v, size=20}) => {
@@ -231,7 +245,7 @@ function EmployeeHome({me,orders,onNav,onOrder,role,setRole}) {
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"18px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
-        <div style={{fontSize:12,color:C.faint,fontWeight:500,marginBottom:2}}>Good morning 👋</div>
+        <div style={{fontSize:12,color:C.faint,fontWeight:500,marginBottom:2}}>{greeting()} 👋</div>
         <div style={{fontSize:25,fontWeight:600,color:C.text,letterSpacing:"-.005em",fontFamily:C.display,lineHeight:1.15}}>{me?.entity?.name||me?.email||"Employee"}</div>
         <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>{[today,me?.entity?.sub].filter(Boolean).join(" · ")}</div>
       </div>
@@ -291,7 +305,7 @@ function EmployeeHome({me,orders,onNav,onOrder,role,setRole}) {
 }
 
 // ── RESIDENT HOME ─────────────────────────────────────────────────────────────
-function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOffice=true,role,setRole}) {
+function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOffice=true,balance=null,role,setRole}) {
   // Fell back to the demo resident's name, so a real resident whose Buildium
   // record has no name was greeted as "Sarah M."
   const myName = me?.entity?.name || me?.email || "Resident";
@@ -348,19 +362,32 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
             {label:"Lease ends", val:fmtDate(me?.entity?.leaseEnd)},
             {label:"Monthly rent", val:me?.entity?.rent?`$${Number(me.entity.rent).toLocaleString("en-US")}`:"—"},
             {label:"Status", val:me?.entity?.leaseStatus||"—"},
-            {label:"Unit", val:isLinked?(me?.entity?.unit||"—"):"—"},
+            // Was a second copy of the unit number, which is already in the
+            // header two lines above. A resident opening this wants to know
+            // what they owe. null means we could not determine it — shown as
+            // "—", never as $0.00, because telling somebody in arrears they owe
+            // nothing is the worst thing this card could do.
+            balance
+              ? {label:"Balance", val:money(balance.total), tone: balance.total>0 ? C.urgent.text : C.done.text}
+              : {label:"Balance", val:"—"},
           ].map(s=>{
             const known=s.val&&s.val!=="—";
             return (
               <div key={s.label} style={{padding:"10px 12px",borderRadius:10,background:known?"#FAF8F4":"#FBFBFC",border:`1px solid ${C.border}`}}>
                 <div style={{fontSize:9.5,fontWeight:600,color:C.faint,textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>{s.label}</div>
-                <div style={{fontSize:13,fontWeight:700,color:known?C.text:C.faint}}>{s.val}</div>
+                <div style={{fontSize:13,fontWeight:700,color:known?(s.tone||C.text):C.faint}}>{s.val}</div>
               </div>
             );
           })}
         </div>
+        {/* Buildium's ledger is the source, and paying still happens in the
+            Resident Center — the app reports the number, it does not take money. */}
         <div style={{fontSize:11,color:C.faint,marginTop:10,lineHeight:1.45}}>
-          Account balance isn't shown here yet — contact the office for billing questions.
+          {balance
+            ? (balance.total>0
+                ? `Balance as recorded by the office.${balance.over90>0?" Includes amounts over 90 days old.":""} Contact Stephen Fleming Realty to pay or query it.`
+                : "Nothing outstanding on your account. Contact the office with any billing questions.")
+            : "We couldn't load your balance just now — contact the office for billing questions."}
         </div>
       </div>
 
@@ -426,7 +453,7 @@ function OwnerHome({me,inspections=[],balances=[],properties=[],balancesEnabled=
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"18px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
-        <div style={{fontSize:12,color:C.faint,fontWeight:500,marginBottom:2}}>Welcome back 👋</div>
+        <div style={{fontSize:12,color:C.faint,fontWeight:500,marginBottom:2}}>{greeting()} 👋</div>
         {/* Was hardcoded to the demo owner, so every real owner was greeted by
             somebody else's name. */}
         <div style={{fontSize:25,fontWeight:600,color:C.text,letterSpacing:"-.005em",fontFamily:C.display,lineHeight:1.15}}>{me?.entity?.name||me?.email||"Owner"}</div>
@@ -492,7 +519,7 @@ function OwnerHome({me,inspections=[],balances=[],properties=[],balancesEnabled=
         {inspections.length===0&&(
           <div style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:16,padding:"16px",textAlign:"center"}}>
             <div style={{fontSize:12.5,fontWeight:600,color:C.text,marginBottom:3}}>No inspections yet</div>
-            <div style={{fontSize:11.5,color:C.faint,lineHeight:1.5}}>Completed reports will appear here once Fleming Realty files one.</div>
+            <div style={{fontSize:11.5,color:C.faint,lineHeight:1.5}}>Completed reports will appear here once Stephen Fleming Realty files one.</div>
           </div>
         )}
         {inspections.map(ins=>(
@@ -528,7 +555,7 @@ function OwnerHome({me,inspections=[],balances=[],properties=[],balancesEnabled=
         {listed.length===0&&(
           <div style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:16,padding:"16px",textAlign:"center"}}>
             <div style={{fontSize:12.5,fontWeight:600,color:C.text,marginBottom:3}}>No properties linked yet</div>
-            <div style={{fontSize:11.5,color:C.faint,lineHeight:1.5}}>Your account isn&apos;t linked to a property in the office system yet. Fleming Realty can connect it.</div>
+            <div style={{fontSize:11.5,color:C.faint,lineHeight:1.5}}>Your account isn&apos;t linked to a property in the office system yet. Stephen Fleming Realty can connect it.</div>
           </div>
         )}
         {listed.map(p=>(
@@ -904,7 +931,7 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
               <Icon name="calendar" size={18} style={{color:C.scheduled.text}} />
               <div style={{flex:1}}>
                 <div style={{fontSize:13,fontWeight:700,color:C.scheduled.text}}>Scheduling request sent</div>
-                <div style={{fontSize:11.5,color:C.scheduled.text,opacity:.85,marginTop:2}}>Fleming Realty will reach out to coordinate a time.</div>
+                <div style={{fontSize:11.5,color:C.scheduled.text,opacity:.85,marginTop:2}}>Stephen Fleming Realty will reach out to coordinate a time.</div>
               </div>
             </div>
           ):(
@@ -1052,9 +1079,9 @@ function MessagesScreen({messages,messagingEnabled=true,onNav,role,setRole}) {
   // tell a resident a vendor is coming to their unit today. The demo threads below
   // are only used in mock/demo mode.
   const demoConvos=role==="resident"
-    ?[{name:"Fleming Realty",last:"Your HVAC request assigned to Daflure HVAC.",time:"1h ago",unread:1,color:C.primary,init:"F",type:"manager",role:"Property Manager"},{name:"Daflure HVAC",last:"We'll be there between 2–4pm today.",time:"3h ago",unread:0,color:"#5B6AE8",init:"D",type:"vendor",role:"Vendor · HVAC"}]
+    ?[{name:"Stephen Fleming Realty",last:"Your HVAC request assigned to Daflure HVAC.",time:"1h ago",unread:1,color:C.primary,init:"F",type:"manager",role:"Property Manager"},{name:"Daflure HVAC",last:"We'll be there between 2–4pm today.",time:"3h ago",unread:0,color:"#5B6AE8",init:"D",type:"vendor",role:"Vendor · HVAC"}]
     :role==="owner"
-    ?[{name:"Marcus J.",last:"Carpet replacement at 812 Market complete.",time:"Jun 7",unread:1,color:C.primary,init:"M",type:"employee",role:"Employee · Leasing"},{name:"Fleming Realty",last:"Monthly report for May is ready to review.",time:"Jun 1",unread:0,color:"#065F46",init:"F",type:"manager",role:"Property Manager"},{name:"Denise K.",last:"330 Pine inspection is scheduled for next week.",time:"Jun 3",unread:0,color:"#1B3A6B",init:"D",type:"employee",role:"Employee · Inspections"}]
+    ?[{name:"Marcus J.",last:"Carpet replacement at 812 Market complete.",time:"Jun 7",unread:1,color:C.primary,init:"M",type:"employee",role:"Employee · Leasing"},{name:"Stephen Fleming Realty",last:"Monthly report for May is ready to review.",time:"Jun 1",unread:0,color:"#065F46",init:"F",type:"manager",role:"Property Manager"},{name:"Denise K.",last:"330 Pine inspection is scheduled for next week.",time:"Jun 3",unread:0,color:"#1B3A6B",init:"D",type:"employee",role:"Employee · Inspections"}]
     :allConvos;
   const convos=Array.isArray(messages)?messages:demoConvos;
   const tabs=role==="employee"?[{key:"all",label:"All"},{key:"vendor",label:"Vendors"},{key:"resident",label:"Residents"},{key:"owner",label:"Owners"},{key:"applicant",label:"Applicants"}]:[{key:"all",label:"All"}];
@@ -1142,7 +1169,7 @@ function MessagesScreen({messages,messagingEnabled=true,onNav,role,setRole}) {
           <div style={{fontSize:14.5,fontWeight:700,color:C.text,marginBottom:6}}>No messages yet</div>
           <div style={{fontSize:12.5,color:C.muted,lineHeight:1.55}}>
             In-app messaging isn't switched on yet. For anything you need right now,
-            call the Fleming Realty office and we'll take care of it.
+            call the Stephen Fleming Realty office and we'll take care of it.
           </div>
         </div>
       )}
@@ -1223,7 +1250,7 @@ function ProfileScreen({me,role,setRole,onNav,onSignOut,canViewAs}) {
       )}
       <div style={{margin:"12px 16px 0",padding:"14px 16px",background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:12,boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
         <div style={{width:36,height:36,borderRadius:10,background:C.primaryLight,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="building" size={18} style={{color:C.primary}} /></div>
-        <div><div style={{fontSize:13,fontWeight:700,color:C.text}}>Fleming Realty Group</div><div style={{fontSize:11.5,color:C.faint}}>325 units · Camp Hill, PA</div></div>
+        <div><div style={{fontSize:13,fontWeight:700,color:C.text}}>Stephen Fleming Realty</div><div style={{fontSize:11.5,color:C.faint}}>325 units · Camp Hill, PA</div></div>
       </div>
       <div style={{margin:"12px 16px 20px"}}>
         <button onClick={onSignOut} style={{width:"100%",background:"#fff",color:C.urgent.text,fontSize:13.5,fontWeight:700,padding:"13px",borderRadius:14,border:`1px solid ${C.urgent.border}`,cursor:"pointer",fontFamily:"inherit"}}>Sign out</button>
@@ -1799,8 +1826,8 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
         <div style={{fontSize:13,color:C.muted,textAlign:"center",lineHeight:1.6}}>
           {isResident
             ? (syncs
-                ? `"${title}" has gone to Fleming Realty. You'll be notified when a vendor is assigned.`
-                : `"${title}" is saved in your list, but requests don't reach the office through the app yet — please call Fleming Realty if this is urgent.`)
+                ? `"${title}" has gone to Stephen Fleming Realty. You'll be notified when a vendor is assigned.`
+                : `"${title}" is saved in your list, but requests don't reach the office through the app yet — please call Stephen Fleming Realty if this is urgent.`)
             : (syncs
                 ? `${title} has been logged in Buildium and is visible in the orders list.`
                 : `${title} is visible in the orders list on this device only — it has not been logged in Buildium.`)}
@@ -1825,13 +1852,13 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
         {isResident&&syncs&&(
           <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 13px",borderRadius:12,background:C.primaryLight,border:`1px solid ${C.primary}22`}}>
             <Icon name="building" size={17} style={{color:C.primary}} />
-            <span style={{fontSize:11.5,color:C.primary,fontWeight:600,lineHeight:1.4}}>Fleming Realty will receive this request and assign a vendor.</span>
+            <span style={{fontSize:11.5,color:C.primary,fontWeight:600,lineHeight:1.4}}>Stephen Fleming Realty will receive this request and assign a vendor.</span>
           </div>
         )}
         {isResident&&!syncs&&(
           <div style={{display:"flex",alignItems:"flex-start",gap:10,padding:"11px 13px",borderRadius:12,background:C.pending.bg,border:`1px solid ${C.pending.border}`}}>
             <Icon name="warning" size={17} style={{color:C.pending.text,marginTop:1,flexShrink:0}} />
-            <span style={{fontSize:11.5,color:C.pending.text,fontWeight:600,lineHeight:1.4}}>Requests don't reach the office through the app yet. This will be saved to your list — please call Fleming Realty for anything urgent.</span>
+            <span style={{fontSize:11.5,color:C.pending.text,fontWeight:600,lineHeight:1.4}}>Requests don't reach the office through the app yet. This will be saved to your list — please call Stephen Fleming Realty for anything urgent.</span>
           </div>
         )}
 
@@ -1976,10 +2003,10 @@ function VendorHome({me,orders,onOrder,role,setRole}) {
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
       <div style={{background:"#fff",padding:"18px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
-        <div style={{fontSize:12,color:C.faint,fontWeight:500,marginBottom:2}}>Good morning 👋</div>
+        <div style={{fontSize:12,color:C.faint,fontWeight:500,marginBottom:2}}>{greeting()} 👋</div>
         <div style={{fontSize:25,fontWeight:600,color:C.text,letterSpacing:"-.005em",fontFamily:C.display,lineHeight:1.15}}>{me?.entity?.name || me?.email || "Vendor"}</div>
         {/* Was hardcoded to "5 active jobs" regardless of the real number. */}
-        <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>{active.length} active {active.length===1?"job":"jobs"} from Fleming Realty</div>
+        <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>{active.length} active {active.length===1?"job":"jobs"} from Stephen Fleming Realty</div>
       </div>
       <div style={{margin:"16px 16px 0",background:"#fff",borderRadius:18,padding:"16px",border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
         <div style={{fontSize:10,fontWeight:700,letterSpacing:".14em",textTransform:"uppercase",color:C.faint,marginBottom:10}}>My jobs</div>
@@ -2002,7 +2029,7 @@ function VendorHome({me,orders,onOrder,role,setRole}) {
             <div style={{fontSize:12.5,fontWeight:600,color:C.text,marginBottom:3}}>No jobs assigned</div>
             <div style={{fontSize:11.5,color:C.faint,lineHeight:1.5}}>
               {myVendorId==null
-                ? "Your account isn't linked to a vendor record yet. Fleming Realty can connect it."
+                ? "Your account isn't linked to a vendor record yet. Stephen Fleming Realty can connect it."
                 : "Nothing is assigned to you right now. New jobs will appear here."}
             </div>
           </div>
@@ -2065,7 +2092,7 @@ function ApplicantHome({me,applicationsEnabled=true,role,setRole}) {
           <div>
             <div style={{fontSize:13,fontWeight:700,color:C.pending.text,marginBottom:3}}>Application tracking isn&apos;t live yet</div>
             <div style={{fontSize:12,color:C.pending.text,opacity:.9,lineHeight:1.5}}>
-              The progress below is an example of how this will look — it is not your application. Please contact Fleming Realty for the status of yours.
+              The progress below is an example of how this will look — it is not your application. Please contact Stephen Fleming Realty for the status of yours.
             </div>
           </div>
         </div>
@@ -2110,7 +2137,7 @@ function ApplicantHome({me,applicationsEnabled=true,role,setRole}) {
             <div style={{marginTop:10,display:"flex",alignItems:"flex-start",gap:8,padding:"10px 12px",borderRadius:10,background:C.pending.bg,border:`1px solid ${C.pending.border}`}}>
               <Icon name="warning" size={15} style={{color:C.pending.text,marginTop:1,flexShrink:0}} />
               <span style={{fontSize:11.5,fontWeight:600,color:C.pending.text,lineHeight:1.45,overflowWrap:"anywhere"}}>
-                Co-applicant invitations aren&apos;t connected yet, so nothing was sent to {coEmail}. Please give their details to Fleming Realty directly.
+                Co-applicant invitations aren&apos;t connected yet, so nothing was sent to {coEmail}. Please give their details to Stephen Fleming Realty directly.
               </span>
             </div>
           )
@@ -2149,7 +2176,7 @@ function ApplicantHome({me,applicationsEnabled=true,role,setRole}) {
             decision is the kind of thing someone waits on. */}
         <div style={{flex:1}}>
           <div style={{fontSize:13,fontWeight:700,color:C.text}}>{applicationsEnabled?"Notifications on":"Notifications not set up"}</div>
-          <div style={{fontSize:11.5,color:C.faint}}>{applicationsEnabled?"We'll text you the moment there's a decision":"Fleming Realty will contact you directly with a decision"}</div>
+          <div style={{fontSize:11.5,color:C.faint}}>{applicationsEnabled?"We'll text you the moment there's a decision":"Stephen Fleming Realty will contact you directly with a decision"}</div>
         </div>
         <div style={{width:40,height:24,borderRadius:12,background:applicationsEnabled?C.done.bar:C.border,position:"relative",flexShrink:0}}>
           <div style={{position:"absolute",top:2,[applicationsEnabled?"right":"left"]:2,width:20,height:20,borderRadius:"50%",background:"#fff"}} />
@@ -2231,7 +2258,7 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
   const homeScreen = role==="employee"
     ? <EmployeeHome me={me} orders={orders} onNav={handleNav} onOrder={handleOrder} role={role} setRole={handleSetRole} />
     : role==="resident"
-    ? <ResidentHome me={me} api={api} orders={orders} onOrder={handleOrder} onCreated={handleCreated} onNav={handleNav} submissionsReachOffice={initial.submissionsReachOffice!==false} role={role} setRole={handleSetRole} />
+    ? <ResidentHome me={me} api={api} balance={initial.myBalance||null} orders={orders} onOrder={handleOrder} onCreated={handleCreated} onNav={handleNav} submissionsReachOffice={initial.submissionsReachOffice!==false} role={role} setRole={handleSetRole} />
     : role==="vendor"
     ? <VendorHome me={me} orders={orders} onOrder={handleOrder} role={role} setRole={handleSetRole} />
     : role==="applicant"

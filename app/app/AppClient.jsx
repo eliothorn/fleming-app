@@ -88,7 +88,7 @@ export default function AppClient() {
         <style>{`@keyframes flshimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
         <div className="fl-app" style={{ width: "min(390px,100vw)", height: "min(844px,100dvh)", background: "#FAF8F4", overflow: "hidden", display: "flex", flexDirection: "column", fontFamily: "var(--font-body), sans-serif" }}>
           <div className="fl-safe-top" style={{ background: "#fff", padding: "12px 20px 10px", borderBottom: "1px solid #E5E1D8", display: "flex", justifyContent: "center", alignItems: "center", flexShrink: 0 }}>
-            <div style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 13, fontWeight: 600, letterSpacing: ".12em", color: "#0D1B33" }}>FLEMING REALTY</div>
+            <div style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 13, fontWeight: 600, letterSpacing: ".12em", color: "#0D1B33" }}>STEPHEN FLEMING REALTY</div>
           </div>
 
           <div style={{ background: "#fff", padding: "18px 20px 16px", borderBottom: "1px solid #E5E1D8" }}>

@@ -90,7 +90,7 @@ export default function LoginPage() {
       <div className="fl-app" style={{ width: "100%", maxWidth: 400, background: "#fff", borderRadius: 24, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,0.5)", fontFamily: "var(--font-body), sans-serif" }}>
         <div style={{ background: "linear-gradient(135deg,#0D1B33,#2C4A5E)", padding: "34px 28px 30px", color: "#fff" }}>
           <div style={{ width: 46, height: 46, borderRadius: 13, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}><Icon name="building" size={24} /></div>
-          <div style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 24, fontWeight: 600, letterSpacing: ".04em" }}>FLEMING REALTY</div>
+          <div style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 19, fontWeight: 600, letterSpacing: ".03em", lineHeight: 1.2 }}>STEPHEN FLEMING REALTY</div>
           <div style={{ fontSize: 13, opacity: 0.8, marginTop: 3 }}>Sign in to manage your work orders, lease, and requests</div>
         </div>
 
@@ -145,7 +145,7 @@ export default function LoginPage() {
                   Buildium — it is the broker's back-office system — so ask in terms
                   they recognise. */}
               <div style={{ fontSize: 11.5, color: C.muted, marginTop: -6, marginBottom: 14, lineHeight: 1.5 }}>
-                Use the email address Fleming Realty has on file for you — that&apos;s how we find your unit and your requests.
+                Use the email address Stephen Fleming Realty has on file for you — that&apos;s how we find your unit and your requests.
               </div>
               {usePassword && (
                 <Field label="Password">
