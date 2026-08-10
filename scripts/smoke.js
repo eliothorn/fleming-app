@@ -96,6 +96,16 @@ async function publicSafety() {
   // without an employee session.
   const anonOcc = await req("/api/buildium/occupancy?propertyId=1");
   check("occupancy rejects anonymous callers", anonOcc.status === 401, `got ${anonOcc.status}`);
+
+  for (const [label, path, method] of [
+    ["map", "/api/buildium/map", "GET"],
+    ["vacancies", "/api/buildium/vacancies", "GET"],
+    ["owner reports", "/api/reports/owner", "GET"],
+    ["assignment notices", "/api/notify/assignment", "POST"],
+  ]) {
+    const r = await req(path, method === "POST" ? { method: "POST", body: {} } : {});
+    check(`${label} reject anonymous callers`, r.status === 401, `got ${r.status}`);
+  }
 }
 
 // ── Role scoping: what each role's browser is allowed to receive ──────────────
@@ -158,6 +168,33 @@ async function roleScoping() {
   }
   const empOcc = await req("/api/buildium/occupancy", { cookie: cookies.employee });
   check("employee occupancy without a property → 400", empOcc.status === 400, `got ${empOcc.status}`);
+
+  // The map plots where the work is, which means property addresses and job
+  // counts — office information, not something a resident or contractor gets.
+  for (const role of ["resident", "vendor", "applicant"]) {
+    const r = await req("/api/buildium/map", { cookie: cookies[role] });
+    check(`${role} GET /api/buildium/map → 403`, r.status === 403, `got ${r.status}`);
+  }
+
+  // Owner reports name owners and their email addresses; employees only, and
+  // notably NOT owners themselves.
+  for (const role of ["resident", "owner", "vendor", "applicant"]) {
+    const r = await req("/api/reports/owner", { cookie: cookies[role] });
+    check(`${role} GET /api/reports/owner → 403`, r.status === 403, `got ${r.status}`);
+  }
+
+  // Notifying on assignment sends real email; only staff may trigger it.
+  for (const role of ["resident", "owner", "vendor"]) {
+    const r = await req("/api/notify/assignment", {
+      method: "POST", cookie: cookies[role], body: { orderId: "WO-1" },
+    });
+    check(`${role} POST /api/notify/assignment → 403`, r.status === 403, `got ${r.status}`);
+  }
+
+  // Vacancies are deliberately open to every signed-in role — a resident
+  // considering a move is the whole point — but never to anonymous callers.
+  const resVac = await req("/api/buildium/vacancies", { cookie: cookies.resident });
+  check("resident GET /api/buildium/vacancies → 200", resVac.status === 200, `got ${resVac.status}`);
 
   // Property photos are served to the roles that see property cards only.
   for (const role of ["resident", "vendor", "applicant"]) {

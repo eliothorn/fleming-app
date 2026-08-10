@@ -206,9 +206,9 @@ const AppHeader = ({role,setRole}) => {
 };
 
 // ── NAV BAR ───────────────────────────────────────────────────────────────────
-const NavBar = ({active,onNav,role}) => {
+const NavBar = ({active,onNav,role,unread=0}) => {
   const p = ROLES[role];
-  const items = [{id:"home",icon:p.homeIcon,label:"Home"},{id:"orders",icon:"wrench",label:"Orders"},{id:"messages",icon:"chat",label:"Messages"},{id:"profile",icon:"user",label:"Profile"}];
+  const items = [{id:"home",icon:p.homeIcon,label:"Home"},{id:"orders",icon:"wrench",label:"Orders"},{id:"messages",icon:"chat",label:"Messages",badge:unread},{id:"profile",icon:"user",label:"Profile"}];
   return (
     <div className="fl-safe-bottom" style={{background:"#fff",borderTop:`1px solid ${C.border}`,boxShadow:"0 -4px 16px rgba(16,24,40,0.05)",display:"grid",gridTemplateColumns:"repeat(4,1fr)",padding:"8px 0 18px",flexShrink:0}}>
       {items.map(it=>{
@@ -217,7 +217,15 @@ const NavBar = ({active,onNav,role}) => {
         // 44px minimum target height per the mobile touch guideline.
         <div key={it.id} onClick={()=>onNav(it.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,cursor:"pointer",minHeight:44,justifyContent:"center",paddingTop:2}}>
           {/* Active tab reads through weight + colour, not a second colour system. */}
-          <Icon name={it.icon} size={21} strokeWidth={on?2.1:1.75} style={{color:on?C.primary:C.faint}} />
+          <div style={{position:"relative",display:"flex"}}>
+            <Icon name={it.icon} size={21} strokeWidth={on?2.1:1.75} style={{color:on?C.primary:C.faint}} />
+            {/* Count of open jobs whose conversation hasn't been opened yet. */}
+            {it.badge>0&&(
+              <span style={{position:"absolute",top:-5,right:-9,minWidth:16,height:16,padding:"0 4px",borderRadius:9,background:"#DC2626",color:"#fff",fontSize:9.5,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",border:"1.5px solid #fff",boxSizing:"border-box"}}>
+                {it.badge>99?"99+":it.badge}
+              </span>
+            )}
+          </div>
           <span style={{fontSize:10,fontWeight:on?700:600,letterSpacing:".01em",color:on?C.primary:C.faint}}>{it.label}</span>
           {on && <div style={{width:4,height:4,borderRadius:"50%",background:C.gold}} />}
         </div>
@@ -289,9 +297,10 @@ function EmployeeHome({me,orders,onNav,onOrder,role,setRole}) {
         {[
           {icon:"wrench",label:"New work order",sub:"Log maintenance",cb:()=>onNav("orders")},
           {icon:"clipboard",label:"Inspections",sub:"Reports & photos",cb:()=>onNav("inspections")},
+          {icon:"pin",label:"Map",sub:"Where the work is",cb:()=>onNav("map")},
           // Named the demo vendor regardless of the real roster (100+ live).
           {icon:"chat",label:"Message vendor",sub:vendorCount?`${vendorCount} on file`:"Vendor directory",cb:()=>onNav("messages")},
-          {icon:"chart",label:"Owner report",sub:"Send update",cb:()=>onNav("profile")},
+          {icon:"chart",label:"Owner report",sub:"Email an owner",cb:()=>onNav("ownerreport")},
         ].map(q=>(
           <div key={q.label} className="fl-rise fl-card" onClick={q.cb} style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:16,padding:"14px 15px",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
             <div style={{width:38,height:38,borderRadius:12,background:C.goldSoft,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:11}}><Icon name={q.icon} size={19} style={{color:C.primary}} /></div>
@@ -380,8 +389,16 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
             );
           })}
         </div>
-        {/* Buildium's ledger is the source, and paying still happens in the
-            Resident Center — the app reports the number, it does not take money. */}
+        {/* Paying happens in Buildium's Resident Center, which already handles
+            it. Taking rent here would mean card data and, in the US, likely
+            money-transmitter licensing — a lot of exposure to rebuild something
+            that works. The app reports the number and hands over. */}
+        {balance&&balance.total>0&&(
+          <a href="https://dangelo-realty.managebuilding.com/Resident/portal/login" target="_blank" rel="noopener noreferrer"
+             style={{display:"block",marginTop:12,background:C.primary,color:"#fff",fontSize:13.5,fontWeight:700,padding:"12px",borderRadius:12,textAlign:"center",textDecoration:"none",boxShadow:"0 2px 10px rgba(13,27,51,0.28)"}}>
+            Pay this balance →
+          </a>
+        )}
         <div style={{fontSize:11,color:C.faint,marginTop:10,lineHeight:1.45}}>
           {balance
             ? (balance.total>0
@@ -409,6 +426,19 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
             <div style={{height:3,background:SM[o.status].bar}} />
           </div>
         ))}
+      </div>
+
+      {/* Somewhere else in the portfolio, for a resident thinking about moving.
+          Only shown when there is genuinely something to look at. */}
+      <div style={{padding:"16px 16px 0"}}>
+        <div onClick={()=>onNav&&onNav("available")} className="fl-press fl-card" style={{background:"#fff",borderRadius:18,padding:"14px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:13,border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
+          <div style={{width:40,height:40,borderRadius:11,background:C.goldSoft,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="building" size={19} style={{color:C.primary}} /></div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13.5,fontWeight:700,color:C.text}}>Looking for something else?</div>
+            <div style={{fontSize:11.5,color:C.faint,marginTop:1}}>See what else Stephen Fleming Realty has available</div>
+          </div>
+          <Icon name="caretRight" size={17} style={{color:C.faint}} />
+        </div>
       </div>
 
       {/* Report an issue — goes straight to the request form. The broker runs
@@ -633,12 +663,16 @@ function OrdersScreen({me,orders,onOrder,onNav,onNewOrder,onInspection,role,setR
         ))}
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10,padding:"4px 16px 20px"}}>
-        {(filter==="all"?sections:[{key:filter,label:SM[filter]?.label||filter}]).map(sec=>{
-          const items=filtered.filter(o=>o.status===sec.key);
+        {/* Headings only while showing everything. Once a chip is selected the
+            whole list is already that one status, so repeating it as a heading
+            above the results stated the same thing twice — the duplication that
+            made this screen feel like two lists. */}
+        {(filter==="all"?sections:[{key:filter,label:null}]).map(sec=>{
+          const items=filter==="all"?filtered.filter(o=>o.status===sec.key):filtered;
           if(!items.length) return null;
           return (
             <div key={sec.key}>
-              <div style={{padding:"8px 0 4px"}}><span style={{fontSize:10,fontWeight:700,letterSpacing:".14em",textTransform:"uppercase",color:C.faint}}>{sec.label}</span></div>
+              {sec.label&&<div style={{padding:"8px 0 4px"}}><span style={{fontSize:10,fontWeight:700,letterSpacing:".14em",textTransform:"uppercase",color:C.faint}}>{sec.label}</span></div>}
               {items.map(o=>(
                 <div key={o.id} className="fl-rise fl-card" onClick={()=>onOrder(o)} style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)",marginBottom:10}}>
                   <div style={{padding:"12px 14px"}}>
@@ -1005,7 +1039,22 @@ function AssignScreen({order,orders,setOrders,onUpdateOrder,onBack,role,setRole}
     ? vendors.filter(v=>[v.name,v.specialty,v.location].filter(Boolean).join(" ").toLowerCase().includes(vNeedle))
     : vendors
   ).slice(0,40);
-  const confirm=()=>{ (onUpdateOrder?onUpdateOrder(order.id,{vendorId:selected}):setOrders(prev=>prev.map(o=>o.id===order.id?{...o,vendorId:selected}:o))); setConfirmed(true); setTimeout(()=>onBack(),1400); };
+  // "Resident notified automatically" used to be printed whatever happened, and
+  // nothing was ever sent. Now the assignment actually emails the resident and
+  // the employee, and the screen reports what really went out — including when
+  // the resident has no address on file, which is true of 91 of them.
+  const [notifyState,setNotifyState]=useState(null); // null | "sending" | {ok,residentReached,error}
+  const confirm=async()=>{
+    (onUpdateOrder?onUpdateOrder(order.id,{vendorId:selected}):setOrders(prev=>prev.map(o=>o.id===order.id?{...o,vendorId:selected}:o)));
+    setConfirmed(true);
+    setNotifyState("sending");
+    try{
+      const r=await fetch("/api/notify/assignment",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({orderId:order.id})});
+      const j=await r.json().catch(()=>({}));
+      setNotifyState(r.ok?{ok:true,residentReached:Boolean(j.residentReached)}:{ok:false,error:j.error||`Couldn't send (${r.status})`});
+    }catch(e){ setNotifyState({ok:false,error:e.message}); }
+    setTimeout(()=>onBack(),4200);
+  };
   return (
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
@@ -1041,11 +1090,25 @@ function AssignScreen({order,orders,setOrders,onUpdateOrder,onBack,role,setRole}
         {!vq&&vendors.length>shownVendors.length&&<div style={{textAlign:"center",fontSize:11,color:C.faint,padding:"2px 0 4px"}}>Showing {shownVendors.length} of {vendors.length} — search to narrow</div>}
         {selected&&!confirmed&&<button onClick={confirm} style={{width:"100%",background:C.primary,color:"#fff",fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 10px rgba(13,27,51,0.28)",marginTop:6}}>Assign {vendors.find(v=>v.id===selected)?.name}</button>}
         {confirmed&&(
-          <div style={{textAlign:"center",padding:"14px",background:C.done.bg,borderRadius:14,border:`1px solid ${C.done.border}`}}>
-            <div style={{fontSize:14,fontWeight:700,color:C.done.text}}>✓ Vendor assigned</div>
-            <div style={{fontSize:12,color:C.done.text,opacity:.85,marginTop:3}}>
-              {syncs?"Resident notified automatically":"Saved on this device — not yet synced to Buildium"}
+          <div style={{padding:"14px",background:C.done.bg,borderRadius:14,border:`1px solid ${C.done.border}`}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.done.text,textAlign:"center"}}>✓ Vendor assigned</div>
+            <div style={{fontSize:12,color:C.done.text,opacity:.9,marginTop:5,textAlign:"center",lineHeight:1.5}}>
+              {!syncs&&"Saved on this device — not yet synced to Buildium. "}
+              {notifyState==="sending"&&"Sending notifications…"}
+              {notifyState&&notifyState!=="sending"&&notifyState.ok&&(
+                notifyState.residentReached
+                  ? "The resident and you have both been emailed."
+                  : "You've been emailed. The resident has no email on file, so they could not be told — call them."
+              )}
             </div>
+            {notifyState&&notifyState!=="sending"&&!notifyState.ok&&(
+              <div style={{marginTop:8,display:"flex",gap:8,alignItems:"flex-start",padding:"10px 12px",borderRadius:10,background:"#FEF2F2",border:"1px solid #FECACA"}}>
+                <Icon name="warning" size={15} style={{color:"#B91C1C",marginTop:1,flexShrink:0}} />
+                <span style={{fontSize:11.5,color:"#B91C1C",lineHeight:1.45}}>
+                  The assignment saved, but nobody was notified: {notifyState.error}
+                </span>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1054,148 +1117,122 @@ function AssignScreen({order,orders,setOrders,onUpdateOrder,onBack,role,setRole}
 }
 
 // ── MESSAGES ──────────────────────────────────────────────────────────────────
-function MessagesScreen({messages,messagingEnabled=true,onNav,role,setRole}) {
-  const [filter,setFilter]=useState("all");
-  const [activeChat,setActiveChat]=useState(null);
-  const [threads,setThreads]=useState({});
-  const [readNames,setReadNames]=useState([]);
-  const [draft,setDraft]=useState("");
-  const allConvos=[
-    {name:"Daflure HVAC",     last:"On my way to 330 Pine. ETA 20min.",           time:"9:32am",   unread:1,color:"#5B6AE8",init:"D",type:"vendor",   role:"Vendor"             },
-    {name:"HandyPro Services",last:"Completed the exhaust fan repair.",            time:"Yesterday",unread:0,color:"#D46B08",init:"H",type:"vendor",   role:"Vendor"             },
-    {name:"Elite Electric",   last:"Can schedule Lot B lights for Friday.",        time:"Yesterday",unread:2,color:"#389E0D",init:"E",type:"vendor",   role:"Vendor"             },
-    {name:"Locksmith Pro",    last:"Confirmed for 10am tomorrow at 812 Market.",   time:"Yesterday",unread:0,color:"#CF1322",init:"L",type:"vendor",   role:"Vendor"             },
-    {name:"Sarah M.",         last:"Is someone coming today for the AC?",          time:"2h ago",   unread:1,color:"#5B6AE8",init:"S",type:"resident", role:"Resident · Unit 4B" },
-    {name:"James T.",         last:"Thank you, the leak is fixed!",                time:"Jun 8",    unread:0,color:"#531DAB",init:"J",type:"resident", role:"Resident · Unit 1C" },
-    {name:"Linda R.",         last:"The lock still feels loose after repair.",     time:"Jun 9",    unread:1,color:"#0958D9",init:"L",type:"resident", role:"Resident · Unit 8A" },
-    {name:"Tom B.",           last:"Afternoons work best for me this week.",       time:"Jun 7",    unread:0,color:"#389E0D",init:"T",type:"resident", role:"Resident · Unit 2A" },
-    {name:"Robert H.",        last:"What is the status on 330 Pine Ave?",          time:"Jun 8",    unread:1,color:"#065F46",init:"R",type:"owner",    role:"Owner · 330 Pine"   },
-    {name:"Patricia L.",      last:"Approved the carpet replacement invoice.",     time:"Jun 7",    unread:0,color:"#92400E",init:"P",type:"owner",    role:"Owner · 812 Market" },
-    {name:"Jordan K.",        last:"When can I schedule a move-in walkthrough?",   time:"Jun 6",    unread:1,color:"#5B21B6",init:"J",type:"applicant",role:"Applicant"          },
-    {name:"Alex P.",          last:"I submitted my application last Tuesday.",     time:"Jun 5",    unread:0,color:"#1D4ED8",init:"A",type:"applicant",role:"Applicant"          },
-  ];
-  // Threads come from the server. On live Buildium data the server sends an empty
-  // list, because there is no real message backend yet — inventing a thread would
-  // tell a resident a vendor is coming to their unit today. The demo threads below
-  // are only used in mock/demo mode.
-  const demoConvos=role==="resident"
-    ?[{name:"Stephen Fleming Realty",last:"Your HVAC request assigned to Daflure HVAC.",time:"1h ago",unread:1,color:C.primary,init:"F",type:"manager",role:"Property Manager"},{name:"Daflure HVAC",last:"We'll be there between 2–4pm today.",time:"3h ago",unread:0,color:"#5B6AE8",init:"D",type:"vendor",role:"Vendor · HVAC"}]
-    :role==="owner"
-    ?[{name:"Marcus J.",last:"Carpet replacement at 812 Market complete.",time:"Jun 7",unread:1,color:C.primary,init:"M",type:"employee",role:"Employee · Leasing"},{name:"Stephen Fleming Realty",last:"Monthly report for May is ready to review.",time:"Jun 1",unread:0,color:"#065F46",init:"F",type:"manager",role:"Property Manager"},{name:"Denise K.",last:"330 Pine inspection is scheduled for next week.",time:"Jun 3",unread:0,color:"#1B3A6B",init:"D",type:"employee",role:"Employee · Inspections"}]
-    :allConvos;
-  const convos=Array.isArray(messages)?messages:demoConvos;
-  const tabs=role==="employee"?[{key:"all",label:"All"},{key:"vendor",label:"Vendors"},{key:"resident",label:"Residents"},{key:"owner",label:"Owners"},{key:"applicant",label:"Applicants"}]:[{key:"all",label:"All"}];
-  const typeColors={vendor:{bg:"#EEF0FD",text:"#3730A3"},resident:{bg:"#FFF7ED",text:"#92400E"},owner:{bg:"#D1FAE5",text:"#065F46"},applicant:{bg:"#F3EEFE",text:"#5B21B6"},employee:{bg:"#EEF0FD",text:"#3730A3"},manager:{bg:"#D1FAE5",text:"#065F46"}};
-  const REPLIES={vendor:"Got it — we'll confirm a time and update you shortly.",resident:"Thank you! I'll keep an eye out for the update.",owner:"Great — thanks for keeping me posted.",applicant:"Thank you! Please let me know if you need anything else.",employee:"Thanks — I'll follow up on that today.",manager:"Thanks — noted. We'll be in touch."};
-  const unreadOf=c=>readNames.includes(c.name)?0:c.unread;
-  const openChat=c=>{setThreads(prev=>prev[c.name]?prev:{...prev,[c.name]:[{id:1,from:"them",text:c.last,time:c.time}]});setReadNames(prev=>prev.includes(c.name)?prev:[...prev,c.name]);setDraft("");setActiveChat(c);};
-  const sendChat=()=>{
-    const text=draft.trim();
-    if(!text||!activeChat)return;
-    const name=activeChat.name;
-    setThreads(prev=>({...prev,[name]:[...(prev[name]||[]),{id:Date.now(),from:"me",text,time:"Just now"}]}));
-    setDraft("");
-    // Simulated replies only exist in demo mode. Faking an answer from a real
-    // property manager would make someone believe a message was received when
-    // nothing left the browser.
-    if(messagingEnabled){
-      const reply=REPLIES[activeChat.type]||"Thanks — noted.";
-      setTimeout(()=>{setThreads(prev=>({...prev,[name]:[...(prev[name]||[]),{id:Date.now()+1,from:"them",text:reply,time:"Just now"}]}));},1500);
-    }
-  };
-  const filtered=filter==="all"?convos:convos.filter(c=>c.type===filter);
-  const totalUnread=convos.reduce((n,c)=>n+unreadOf(c),0);
+// Real correspondence, not a simulated inbox.
+//
+// The previous version was a dozen invented conversations with canned replies on
+// a timer. Buildium keeps the genuine back-and-forth in each work order's
+// history — every resident request sampled had one — so a "conversation" here is
+// the thread attached to a job. That is also the only shape that makes sense: a
+// message about a leak belongs to the leak.
+//
+// Threads load on demand, one request each, because fetching every thread up
+// front would cost a request per work order.
+function MessagesScreen({orders=[],onNav,role,setRole,seen=[],markSeen=()=>{}}) {
+  const [active,setActive]=useState(null);
+  const [thread,setThread]=useState(null);   // null = loading, [] = none, [...] = messages
+  const [error,setError]=useState("");
 
-  if(activeChat){
-    const c=activeChat;
-    const msgs=threads[c.name]||[];
-    const tc=typeColors[c.type]||{bg:"#EDEBE7",text:C.muted};
+  // Closed jobs rarely need chasing; open ones are what someone came here for.
+  const open=orders.filter(o=>o.status!=="done");
+  const closed=orders.filter(o=>o.status==="done");
+
+  const openThread=async(o)=>{
+    setActive(o); setThread(null); setError(""); markSeen(o.id);
+    try{
+      const r=await fetch(`/api/buildium/orders/${encodeURIComponent(o.id)}/messages`,{cache:"no-store"});
+      const j=await r.json().catch(()=>({}));
+      if(!r.ok) throw new Error(j.error||`Couldn't load that conversation (${r.status})`);
+      setThread(j.messages||[]);
+    }catch(e){ setError(e.message); setThread([]); }
+  };
+
+  if(active){
     return (
-      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
         <AppHeader role={role} setRole={setRole} />
-        <div style={{background:"#fff",padding:"12px 16px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
-          <span onClick={()=>setActiveChat(null)} style={{fontSize:15,color:C.primary,fontWeight:600,cursor:"pointer",padding:"2px 6px 2px 0"}}>←</span>
-          <div style={{width:38,height:38,borderRadius:"50%",background:c.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:"#fff",flexShrink:0}}>{c.init}</div>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:14.5,fontWeight:700,color:C.text,letterSpacing:"-.01em"}}>{c.name}</div>
-            <span style={{fontSize:10,fontWeight:600,padding:"1px 6px",borderRadius:8,background:tc.bg,color:tc.text}}>{c.role}</span>
-          </div>
+        <div style={{background:"#fff",padding:"14px 20px 14px",borderBottom:`1px solid ${C.border}`}}>
+          <span className="fl-tap" onClick={()=>{setActive(null);setThread(null);}} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:6}}>← Messages</span>
+          <div style={{fontSize:16,fontWeight:700,color:C.text,lineHeight:1.3}}>{active.title}</div>
+          <div style={{fontSize:11.5,color:C.faint,marginTop:2}}>{[active.address,active.unit].filter(Boolean).join(" · ")}</div>
         </div>
-        <div style={{flex:1,overflowY:"auto",padding:"14px 16px",display:"flex",flexDirection:"column",gap:8}}>
-          {msgs.map(m=>(
-            <div key={m.id} style={{display:"flex",flexDirection:"column",alignItems:m.from==="me"?"flex-end":"flex-start"}}>
-              <div style={{maxWidth:"82%",padding:"9px 13px",borderRadius:m.from==="me"?"14px 14px 3px 14px":"14px 14px 14px 3px",background:m.from==="me"?C.primary:"#fff",color:m.from==="me"?"#fff":C.text,fontSize:13,lineHeight:1.5,border:m.from==="me"?"none":`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(16,24,40,0.04)"}}>{m.text}</div>
-              <span style={{fontSize:10,color:C.faint,marginTop:3,marginLeft:4,marginRight:4}}>{m.from==="me"?"You":c.name} · {m.time}</span>
+        <div style={{padding:"14px 16px",display:"flex",flexDirection:"column",gap:10}}>
+          {thread===null&&<div style={{fontSize:12.5,color:C.faint,textAlign:"center",padding:"20px 0"}}>Loading the conversation…</div>}
+          {error&&(
+            <div style={{display:"flex",gap:9,alignItems:"flex-start",padding:"11px 13px",borderRadius:12,background:"#FEF2F2",border:"1px solid #FECACA"}}>
+              <Icon name="warning" size={16} style={{color:"#B91C1C",marginTop:1,flexShrink:0}} />
+              <span style={{fontSize:11.5,color:"#B91C1C",lineHeight:1.45}}>{error}</span>
+            </div>
+          )}
+          {thread&&thread.length===0&&!error&&(
+            <div style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:16,padding:"18px",textAlign:"center"}}>
+              <div style={{fontSize:12.5,fontWeight:600,color:C.text,marginBottom:3}}>No messages on this one</div>
+              <div style={{fontSize:11.5,color:C.faint,lineHeight:1.5}}>Nothing has been written against this request yet.</div>
+            </div>
+          )}
+          {(thread||[]).map(m=>(
+            <div key={m.id} style={{alignSelf:m.fromOffice?"flex-start":"flex-end",maxWidth:"86%"}}>
+              <div style={{fontSize:10.5,color:C.faint,marginBottom:3,paddingLeft:m.fromOffice?4:0,textAlign:m.fromOffice?"left":"right"}}>
+                {m.author}{m.at?` · ${String(m.at).slice(0,10)}`:""}
+              </div>
+              <div style={{background:m.system?"#FAF8F4":(m.fromOffice?"#fff":C.primary),color:m.system?C.muted:(m.fromOffice?C.text:"#fff"),border:m.fromOffice?`1px solid ${C.border}`:"none",borderRadius:14,padding:"10px 13px",fontSize:13,lineHeight:1.5,whiteSpace:"pre-wrap",overflowWrap:"anywhere",fontStyle:m.system?"italic":"normal"}}>
+                {m.body}
+              </div>
             </div>
           ))}
-        </div>
-        <div style={{background:"#fff",borderTop:`1px solid ${C.border}`,padding:"10px 12px",display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
-          <input value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat()} placeholder={`Message ${c.name}...`} style={{flex:1,border:`1px solid ${C.border}`,borderRadius:20,padding:"9px 14px",fontSize:13,fontFamily:"inherit",color:C.text,outline:"none",background:"#FAF8F4"}} />
-          <div onClick={sendChat} style={{width:36,height:36,borderRadius:"50%",background:draft.trim()?C.primary:C.border,display:"flex",alignItems:"center",justifyContent:"center",cursor:draft.trim()?"pointer":"default",flexShrink:0,transition:"background .15s"}}>
-            <span style={{fontSize:14,color:"#fff",marginLeft:2}}>➤</span>
+          {/* Replying would have to write back into Buildium, which is switched
+              off. A box that looks like it sends is worse than no box. */}
+          <div style={{marginTop:8,display:"flex",gap:9,alignItems:"flex-start",padding:"11px 13px",borderRadius:12,background:C.pending.bg,border:`1px solid ${C.pending.border}`}}>
+            <Icon name="info" size={16} style={{color:C.pending.text,marginTop:1,flexShrink:0}} />
+            <span style={{fontSize:11.5,color:C.pending.text,lineHeight:1.45}}>
+              This is the history recorded by the office. Replying from the app isn&apos;t switched on yet — call Stephen Fleming Realty to add to it.
+            </span>
           </div>
         </div>
       </div>
     );
   }
 
+  const Row=({o})=>(
+    <div className="fl-rise fl-card" onClick={()=>openThread(o)} style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"12px 14px",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)",display:"flex",gap:11,alignItems:"flex-start"}}>
+      <div style={{width:34,height:34,borderRadius:10,background:C.primaryLight,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:C.primary}}>
+        <Icon name="chat" size={17} />
+      </div>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontSize:13.5,fontWeight:700,color:C.text,lineHeight:1.3}}>{o.title}</div>
+        <div style={{fontSize:11.5,color:C.faint,marginTop:2}}>{[o.address,o.unit].filter(Boolean).join(" · ")}</div>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:5,flexShrink:0}}>
+        <Badge status={o.status} />
+        {!seen.includes(o.id)&&o.status!=="done"&&<span style={{width:9,height:9,borderRadius:"50%",background:"#DC2626"}} />}
+      </div>
+    </div>
+  );
+
   return (
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
-      <div style={{background:"#fff",padding:"14px 20px 12px",borderBottom:`1px solid ${C.border}`}}>
-        <span className="fl-tap" onClick={()=>onNav("home")} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Home</span>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>Messages</div>
-          {totalUnread>0&&<div style={{background:C.primary,color:"#fff",fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:20}}>{totalUnread} unread</div>}
-        </div>
+      <div style={{background:"#fff",padding:"14px 20px 14px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <span className="fl-tap" onClick={()=>onNav("home")} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer"}}>← Home</span>
+        <span style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>Messages</span>
+        <span style={{width:44}} />
       </div>
-      {tabs.length>1&&(
-        <div style={{background:"#fff",borderBottom:`1px solid ${C.border}`,padding:"0 16px"}}>
-          <div style={{display:"flex",gap:0,overflowX:"auto",scrollbarWidth:"none"}}>
-            {tabs.map(t=>{
-              const count=t.key==="all"?convos.reduce((n,c)=>n+unreadOf(c),0):convos.filter(c=>c.type===t.key).reduce((n,c)=>n+unreadOf(c),0);
-              const isActive=filter===t.key;
-              return <div key={t.key} onClick={()=>setFilter(t.key)} style={{padding:"10px 14px 8px",cursor:"pointer",whiteSpace:"nowrap",borderBottom:isActive?`2px solid ${C.primary}`:"2px solid transparent",display:"flex",alignItems:"center",gap:5}}>
-                <span style={{fontSize:12.5,fontWeight:isActive?700:500,color:isActive?C.primary:C.muted}}>{t.label}</span>
-                {count>0&&<span style={{fontSize:9,fontWeight:700,background:isActive?C.primary:C.border,color:isActive?"#fff":C.muted,padding:"1px 5px",borderRadius:10}}>{count}</span>}
-              </div>;
-            })}
+      <div style={{padding:"14px 16px 20px",display:"flex",flexDirection:"column",gap:10}}>
+        {orders.length===0&&(
+          <div style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",textAlign:"center"}}>
+            <div style={{fontSize:13,fontWeight:600,color:C.text,marginBottom:4}}>No conversations yet</div>
+            <div style={{fontSize:11.5,color:C.faint,lineHeight:1.5}}>Messages appear against a maintenance request once there is one.</div>
           </div>
-        </div>
-      )}
-      {filtered.length===0&&(
-        <div style={{textAlign:"center",padding:"44px 26px"}}>
-          <div style={{display:"flex",justifyContent:"center",marginBottom:12,color:C.faint}}><Icon name="chat" size={32} strokeWidth={1.6} /></div>
-          <div style={{fontSize:14.5,fontWeight:700,color:C.text,marginBottom:6}}>No messages yet</div>
-          <div style={{fontSize:12.5,color:C.muted,lineHeight:1.55}}>
-            In-app messaging isn't switched on yet. For anything you need right now,
-            call the Stephen Fleming Realty office and we'll take care of it.
-          </div>
-        </div>
-      )}
-      <div style={{display:"flex",flexDirection:"column"}}>
-        {filtered.map((c,i)=>(
-          <div key={i} onClick={()=>openChat(c)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",borderBottom:`1px solid ${C.border}`,cursor:"pointer",background:unreadOf(c)>0?"#FAFBFF":"#fff"}}>
-            <div style={{position:"relative",flexShrink:0}}>
-              <div style={{width:44,height:44,borderRadius:"50%",background:c.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:700,color:"#fff"}}>{c.init}</div>
-              {unreadOf(c)>0&&<div style={{position:"absolute",top:-1,right:-1,width:14,height:14,borderRadius:"50%",background:C.primary,border:"2px solid #fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:"#fff"}}>{unreadOf(c)}</div>}
-            </div>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
-                <span style={{fontSize:13.5,fontWeight:unreadOf(c)>0?700:600,color:C.text}}>{c.name}</span>
-                <span style={{fontSize:10.5,color:C.faint,flexShrink:0,marginLeft:8}}>{c.time}</span>
-              </div>
-              <div style={{marginBottom:3}}><span style={{fontSize:10,fontWeight:600,padding:"1px 6px",borderRadius:8,background:typeColors[c.type]?.bg||"#EDEBE7",color:typeColors[c.type]?.text||C.muted}}>{c.role}</span></div>
-              <div style={{fontSize:12,color:unreadOf(c)>0?C.text:C.muted,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",fontWeight:unreadOf(c)>0?500:400}}>{c.last}</div>
-            </div>
-          </div>
-        ))}
+        )}
+        {open.length>0&&<div style={{fontSize:10,fontWeight:700,letterSpacing:".14em",textTransform:"uppercase",color:C.faint,padding:"2px 0"}}>Open</div>}
+        {open.map(o=><Row key={o.id} o={o} />)}
+        {closed.length>0&&<div style={{fontSize:10,fontWeight:700,letterSpacing:".14em",textTransform:"uppercase",color:C.faint,padding:"10px 0 2px"}}>Closed</div>}
+        {closed.slice(0,25).map(o=><Row key={o.id} o={o} />)}
       </div>
     </div>
   );
 }
 
-// ── PROFILE ───────────────────────────────────────────────────────────────────
+
 function ProfileScreen({me,role,setRole,onNav,onSignOut,canViewAs}) {
   const p=ROLES[role];
   const displayName = me?.entity?.name || p.name;
@@ -1262,6 +1299,51 @@ function ProfileScreen({me,role,setRole,onNav,onSignOut,canViewAs}) {
 // ── INSPECTION RECORDS ───────────────────────────────────────────────────────
 // Employees manage inspections here; owners get the same list read-only. Opening
 // one loads the full checklist with notes and photo evidence.
+// Emails a finished report to the office group address and the property's owner.
+// Reports honestly who it actually reached, and why an owner was left off when
+// one could not be identified — the alternative is an employee believing the
+// owner got a report that was never addressed to them.
+function EmailReportButton({reportId, property}) {
+  const [state,setState]=useState(null); // null | "sending" | {ok,sentTo,ownerNotes} | {error}
+  const send=async()=>{
+    setState("sending");
+    try{
+      const r=await fetch(`/api/inspections/${encodeURIComponent(reportId)}/email`,{
+        method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({includeOwner:true}),
+      });
+      const j=await r.json().catch(()=>({}));
+      setState(r.ok?{ok:true,sentTo:j.sentTo||[],ownerNotes:j.ownerNotes||[]}:{error:j.error||`Couldn't send (${r.status})`,ownerNotes:j.ownerNotes||[]});
+    }catch(e){ setState({error:e.message}); }
+  };
+  if(state&&state!=="sending"&&state.ok){
+    return (
+      <div style={{padding:"12px 14px",borderRadius:12,background:C.done.bg,border:`1px solid ${C.done.border}`}}>
+        <div style={{fontSize:13,fontWeight:700,color:C.done.text}}>Report sent</div>
+        <div style={{fontSize:11.5,color:C.done.text,opacity:.9,marginTop:3,lineHeight:1.5,overflowWrap:"anywhere"}}>
+          {state.sentTo.length?state.sentTo.join(", "):"No recipients"}
+        </div>
+        {state.ownerNotes.map((n,i)=>(
+          <div key={i} style={{fontSize:11,color:C.pending.text,marginTop:5,lineHeight:1.45}}>{n}</div>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div>
+      <button onClick={send} disabled={state==="sending"}
+        style={{width:"100%",background:state==="sending"?"#E5E1D8":C.primary,color:state==="sending"?C.faint:"#fff",fontSize:13.5,fontWeight:700,padding:"12px",borderRadius:12,border:"none",cursor:state==="sending"?"default":"pointer",fontFamily:"inherit"}}>
+        {state==="sending"?"Sending…":`Email this report${property?` for ${property}`:""}`}
+      </button>
+      {state&&state!=="sending"&&state.error&&(
+        <div style={{marginTop:8,display:"flex",gap:8,alignItems:"flex-start",padding:"10px 12px",borderRadius:10,background:"#FEF2F2",border:"1px solid #FECACA"}}>
+          <Icon name="warning" size={15} style={{color:"#B91C1C",marginTop:1,flexShrink:0}} />
+          <span style={{fontSize:11.5,color:"#B91C1C",lineHeight:1.45}}>{state.error}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function InspectionsScreen({onBack,onNewInspection,role,setRole}) {
   const [list,setList]=useState(null);
   const [error,setError]=useState("");
@@ -1307,6 +1389,10 @@ function InspectionsScreen({onBack,onNewInspection,role,setRole}) {
 
         {d&&(
           <div style={{padding:"14px 16px 20px",display:"flex",flexDirection:"column",gap:12}}>
+            {/* Send the finished report out. Recipients are the office group
+                address and, looked up from Buildium, the owner of the property —
+                so nobody has to remember who owns what. */}
+            {canManage&&<EmailReportButton reportId={open} property={d.property} />}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
               <div style={{padding:"12px",borderRadius:12,background:C.done.bg,border:`1px solid ${C.done.border}`,textAlign:"center"}}>
                 <div style={{fontSize:24,fontWeight:600,color:C.done.text,fontFamily:C.display,lineHeight:1}}>{d.passed}</div>
@@ -2186,6 +2272,293 @@ function ApplicantHome({me,applicationsEnabled=true,role,setRole}) {
   );
 }
 
+// ── OWNER REPORT ──────────────────────────────────────────────────────────────
+// The "Owner report" quick action used to navigate to the Profile screen and do
+// nothing at all, which promised something the app could not deliver. It now
+// sends a real update to whoever Buildium records as the owner of a property.
+function OwnerReportScreen({onBack,role,setRole}) {
+  const [props,setProps]=useState(null);
+  const [error,setError]=useState("");
+  const [pick,setPick]=useState("");
+  const [note,setNote]=useState("");
+  const [state,setState]=useState(null); // null | "sending" | {ok,...} | {error}
+  const [q,setQ]=useState("");
+
+  useEffect(()=>{
+    let alive=true;
+    fetch("/api/reports/owner",{cache:"no-store"}).then(r=>r.json()).then(j=>{
+      if(!alive) return;
+      if(j.error) setError(j.error); else setProps(j);
+    }).catch(()=>alive&&setError("Couldn't load the owner list."));
+    return ()=>{alive=false;};
+  },[]);
+
+  const list=(props?.properties||[]).filter(p=>
+    !q.trim() || `${p.name} ${p.owners.map(o=>o.name).join(" ")}`.toLowerCase().includes(q.trim().toLowerCase())
+  );
+  const chosen=(props?.properties||[]).find(p=>String(p.id)===String(pick));
+
+  const send=async()=>{
+    if(!pick) return;
+    setState("sending");
+    try{
+      const r=await fetch("/api/reports/owner",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({propertyId:pick,note:note.trim()||undefined})});
+      const j=await r.json().catch(()=>({}));
+      setState(r.ok?{ok:true,...j}:{error:j.error||`Couldn't send (${r.status})`});
+    }catch(e){ setState({error:e.message}); }
+  };
+
+  return (
+    <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
+      <AppHeader role={role} setRole={setRole} />
+      <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
+        <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Home</span>
+        <div style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>Owner report</div>
+        <div style={{fontSize:11.5,color:C.faint,marginTop:2}}>
+          {props?`${props.reachable} of ${props.total} properties have an owner we can email`:"Loading owners…"}
+        </div>
+      </div>
+
+      <div style={{padding:"14px 16px 20px",display:"flex",flexDirection:"column",gap:14}}>
+        {error&&(
+          <div style={{display:"flex",gap:9,alignItems:"flex-start",padding:"11px 13px",borderRadius:12,background:"#FEF2F2",border:"1px solid #FECACA"}}>
+            <Icon name="warning" size={16} style={{color:"#B91C1C",marginTop:1,flexShrink:0}} />
+            <span style={{fontSize:11.5,color:"#B91C1C",lineHeight:1.45}}>{error}</span>
+          </div>
+        )}
+
+        {state&&state!=="sending"&&state.ok&&(
+          <div style={{padding:"12px 14px",borderRadius:12,background:C.done.bg,border:`1px solid ${C.done.border}`}}>
+            <div style={{fontSize:13,fontWeight:700,color:C.done.text}}>Sent for {state.property}</div>
+            <div style={{fontSize:11.5,color:C.done.text,opacity:.9,marginTop:3,lineHeight:1.5,overflowWrap:"anywhere"}}>
+              {(state.sentTo||[]).join(", ")}
+            </div>
+          </div>
+        )}
+
+        {props&&!state?.ok&&(
+          <>
+            <div>
+              <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:6}}>Property <span style={{color:C.urgent.text}}>*</span></div>
+              <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search a property or owner…"
+                style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:11,padding:"11px 13px",fontSize:13,fontFamily:"inherit",color:C.text,outline:"none",background:"#fff",boxSizing:"border-box",marginBottom:8}} />
+              <select value={pick} onChange={e=>setPick(e.target.value)}
+                style={{width:"100%",border:`1px solid ${pick?C.primary:C.border}`,borderRadius:11,padding:"12px",fontSize:13,fontFamily:"inherit",color:pick?C.text:C.faint,outline:"none",background:"#fff",appearance:"none"}}>
+                <option value="">Select a property… ({list.length})</option>
+                {list.slice(0,300).map(p=>(
+                  <option key={p.id} value={p.id}>{p.name} — {p.owners.map(o=>o.name).join(", ")}</option>
+                ))}
+              </select>
+              {chosen&&(
+                <div style={{fontSize:11,color:C.faint,marginTop:6,lineHeight:1.45}}>
+                  Goes to <b style={{color:C.text}}>{chosen.owners.map(o=>`${o.name} <${o.email}>`).join(", ")}</b>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:6}}>Add a note (optional)</div>
+              <textarea value={note} onChange={e=>setNote(e.target.value)} rows={3} placeholder="Anything you want to say alongside the figures…"
+                style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:11,padding:"11px 13px",fontSize:13,fontFamily:"inherit",color:C.text,outline:"none",background:"#fff",resize:"none",boxSizing:"border-box"}} />
+            </div>
+
+            <div style={{fontSize:11.5,color:C.faint,lineHeight:1.5}}>
+              The email contains occupancy, rent roll, open work orders and inspections on file for that property — all live figures. Nothing is estimated.
+            </div>
+
+            {state&&state!=="sending"&&state.error&&(
+              <div style={{display:"flex",gap:8,alignItems:"flex-start",padding:"10px 12px",borderRadius:10,background:"#FEF2F2",border:"1px solid #FECACA"}}>
+                <Icon name="warning" size={15} style={{color:"#B91C1C",marginTop:1,flexShrink:0}} />
+                <span style={{fontSize:11.5,color:"#B91C1C",lineHeight:1.45}}>{state.error}</span>
+              </div>
+            )}
+
+            <button onClick={send} disabled={!pick||state==="sending"}
+              style={{width:"100%",background:pick&&state!=="sending"?C.primary:"#E5E1D8",color:pick&&state!=="sending"?"#fff":C.faint,fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:pick&&state!=="sending"?"pointer":"default",fontFamily:"inherit"}}>
+              {state==="sending"?"Sending…":"Send the report"}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── AVAILABLE UNITS ───────────────────────────────────────────────────────────
+// What a resident could move into within the same portfolio.
+//
+// Only units the office has actually priced are listed. 150 units have no active
+// lease, but most are mid-turnover or not being marketed — advertising those
+// would generate enquiries about flats nobody is letting.
+function AvailableScreen({onBack,role,setRole}) {
+  const [list,setList]=useState(null);
+  const [error,setError]=useState("");
+
+  useEffect(()=>{
+    let alive=true;
+    fetch("/api/buildium/vacancies",{cache:"no-store"}).then(r=>r.json()).then(j=>{
+      if(!alive) return;
+      if(j.error) setError(j.error); else setList(j.vacancies||[]);
+    }).catch(()=>alive&&setError("Couldn't load available units."));
+    return ()=>{alive=false;};
+  },[]);
+
+  return (
+    <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
+      <AppHeader role={role} setRole={setRole} />
+      <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
+        <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Home</span>
+        <div style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>Available to rent</div>
+        <div style={{fontSize:11.5,color:C.faint,marginTop:2}}>
+          {list?`${list.length} ${list.length===1?"unit":"units"} currently advertised`:"Loading…"}
+        </div>
+      </div>
+
+      <div style={{padding:"14px 16px 20px",display:"flex",flexDirection:"column",gap:10}}>
+        {error&&(
+          <div style={{display:"flex",gap:9,alignItems:"flex-start",padding:"11px 13px",borderRadius:12,background:"#FEF2F2",border:"1px solid #FECACA"}}>
+            <Icon name="warning" size={16} style={{color:"#B91C1C",marginTop:1,flexShrink:0}} />
+            <span style={{fontSize:11.5,color:"#B91C1C",lineHeight:1.45}}>{error}</span>
+          </div>
+        )}
+        {list&&list.length===0&&!error&&(
+          <div style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",textAlign:"center"}}>
+            <div style={{fontSize:13,fontWeight:600,color:C.text,marginBottom:4}}>Nothing available right now</div>
+            <div style={{fontSize:11.5,color:C.faint,lineHeight:1.5}}>Call the office and we'll let you know as soon as something comes up.</div>
+          </div>
+        )}
+        {(list||[]).map(v=>(
+          <div key={v.id} className="fl-rise fl-card" style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
+            <PropertyPhoto propertyId={v.propertyId} name={v.property} height={132} />
+            <div style={{padding:"12px 14px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+                <div style={{minWidth:0}}>
+                  <div style={{fontSize:13.5,fontWeight:700,color:C.text,lineHeight:1.3}}>{v.property}</div>
+                  <div style={{fontSize:11.5,color:C.faint,marginTop:2}}>{[v.unit?`Unit ${v.unit}`:null,v.beds,v.baths?`${v.baths}`:null].filter(Boolean).join(" · ")}</div>
+                </div>
+                <div style={{textAlign:"right",flexShrink:0}}>
+                  <div style={{fontSize:15,fontWeight:700,color:C.primary,fontFamily:C.display}}>${v.rent.toLocaleString("en-US")}</div>
+                  <div style={{fontSize:10,color:C.faint}}>per month</div>
+                </div>
+              </div>
+              {v.description&&<div style={{fontSize:12,color:C.muted,marginTop:8,lineHeight:1.5}}>{v.description}</div>}
+              <div style={{fontSize:11,color:C.faint,marginTop:8}}>{v.address}</div>
+            </div>
+          </div>
+        ))}
+        {list&&list.length>0&&(
+          <div style={{fontSize:11.5,color:C.faint,lineHeight:1.5,padding:"4px 2px"}}>
+            Interested in one of these? Call the office — moving within the portfolio is usually simpler than starting fresh elsewhere.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+// ── MAP ───────────────────────────────────────────────────────────────────────
+// Where the open work is.
+//
+// Pinning all 306 properties would be an unreadable smear and 306 geocodes, so
+// this places the ones with open jobs, busiest first. Red means something urgent
+// is outstanding there. Anything Google cannot match to an actual building is
+// listed as unplaced rather than pinned approximately.
+function MapScreen({onBack,role,setRole}) {
+  const [data,setData]=useState(null);
+  const [error,setError]=useState("");
+  const [imgFailed,setImgFailed]=useState(false);
+
+  useEffect(()=>{
+    let alive=true;
+    fetch("/api/buildium/map",{cache:"no-store"}).then(r=>r.json()).then(j=>{
+      if(!alive) return;
+      if(j.error) setError(j.error); else setData(j);
+    }).catch(()=>alive&&setError("Couldn't build the map."));
+    return ()=>{alive=false;};
+  },[]);
+
+  return (
+    <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
+      <AppHeader role={role} setRole={setRole} />
+      <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
+        <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Home</span>
+        <div style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>Where the work is</div>
+        <div style={{fontSize:11.5,color:C.faint,marginTop:2}}>
+          {data
+            ? `${data.points.length} placed${data.consideredWithOpenWork>data.capped?` · busiest ${data.capped} of ${data.consideredWithOpenWork} with open work`:""}`
+            : "Locating properties…"}
+        </div>
+      </div>
+
+      <div style={{padding:"14px 16px 20px",display:"flex",flexDirection:"column",gap:12}}>
+        {error&&(
+          <div style={{display:"flex",gap:9,alignItems:"flex-start",padding:"11px 13px",borderRadius:12,background:"#FEF2F2",border:"1px solid #FECACA"}}>
+            <Icon name="warning" size={16} style={{color:"#B91C1C",marginTop:1,flexShrink:0}} />
+            <span style={{fontSize:11.5,color:"#B91C1C",lineHeight:1.45}}>{error}</span>
+          </div>
+        )}
+
+        {data&&data.points.length>0&&!imgFailed&&(
+          <div style={{borderRadius:16,overflow:"hidden",border:`1px solid ${C.border}`,boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)",background:C.sunken}}>
+            {/* Proxied so the Google key stays on the server. */}
+            <img src="/api/buildium/map/image?w=640&h=420" alt="Properties with open work orders"
+              onError={()=>setImgFailed(true)}
+              style={{display:"block",width:"100%",height:"auto"}} />
+          </div>
+        )}
+        {imgFailed&&(
+          <div style={{padding:"12px 14px",borderRadius:12,background:C.pending.bg,border:`1px solid ${C.pending.border}`,fontSize:11.5,color:C.pending.text,lineHeight:1.5}}>
+            The map image couldn&apos;t load, but the list below is still accurate.
+          </div>
+        )}
+
+        {data&&data.points.length>0&&(
+          <div style={{display:"flex",gap:14,alignItems:"center",fontSize:11,color:C.faint,padding:"0 2px"}}>
+            <span style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:9,height:9,borderRadius:"50%",background:"#B91C1C"}} />Something urgent</span>
+            <span style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:9,height:9,borderRadius:"50%",background:C.primary}} />Open work</span>
+          </div>
+        )}
+
+        {(data?.points||[]).map(p=>(
+          <a key={p.id} href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name)}%20${p.lat},${p.lng}`}
+             target="_blank" rel="noopener noreferrer"
+             style={{textDecoration:"none",background:"#fff",borderRadius:14,border:`1px solid ${C.border}`,padding:"11px 13px",display:"flex",alignItems:"center",gap:11,boxShadow:"0 1px 2px rgba(16,24,40,0.04)"}}>
+            <span style={{width:9,height:9,borderRadius:"50%",background:p.urgentOrders>0?"#B91C1C":C.primary,flexShrink:0}} />
+            <span style={{flex:1,minWidth:0}}>
+              <span style={{display:"block",fontSize:13,fontWeight:700,color:C.text}}>{p.name}</span>
+              <span style={{display:"block",fontSize:11.5,color:C.faint,marginTop:1}}>
+                {p.openOrders} open{p.urgentOrders>0?` · ${p.urgentOrders} urgent`:""}
+              </span>
+            </span>
+            <Icon name="caretRight" size={16} style={{color:C.faint}} />
+          </a>
+        ))}
+
+        {data&&data.unplaced.length>0&&(
+          <div style={{padding:"11px 13px",borderRadius:12,background:C.sunken,border:`1px solid ${C.border}`}}>
+            <div style={{fontSize:11,fontWeight:700,letterSpacing:".1em",textTransform:"uppercase",color:C.faint,marginBottom:5}}>Couldn&apos;t be placed exactly</div>
+            <div style={{fontSize:11.5,color:C.muted,lineHeight:1.55}}>
+              {data.unplaced.join(" · ")}
+            </div>
+            <div style={{fontSize:11,color:C.faint,marginTop:6,lineHeight:1.45}}>
+              These are left off rather than pinned to a best guess — a marker on the wrong building is worse than none.
+            </div>
+          </div>
+        )}
+
+        {data&&data.points.length===0&&!error&&(
+          <div style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",textAlign:"center"}}>
+            <div style={{fontSize:13,fontWeight:600,color:C.text,marginBottom:4}}>Nothing to show</div>
+            <div style={{fontSize:11.5,color:C.faint,lineHeight:1.5}}>No property currently has open work that could be placed on a map.</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 // ── ROOT ──────────────────────────────────────────────────────────────────────
 export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs = true, onReload }) {
   const me = initial.me;
@@ -2198,6 +2571,20 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
   const [inspections,setInspections]  = useState(initial.inspections || []);
   // Surfaced when a write is rejected after the UI has already moved on.
   const [notice,setNotice]            = useState("");
+  // Which conversations this person has already opened. Kept on the device
+  // rather than in a table: "have I read this" is per-device by nature, and it
+  // avoids a migration for something this small.
+  const [seen,setSeen]                = useState([]);
+  const SEEN_KEY = `fl_seen_threads_${me?.id || "anon"}`;
+  useEffect(()=>{
+    try { const raw = window.localStorage.getItem(SEEN_KEY); if (raw) setSeen(JSON.parse(raw) || []); } catch {}
+  },[SEEN_KEY]);
+  const markSeen = (id) => setSeen(prev => {
+    if (prev.includes(id)) return prev;
+    const next = [...prev, id];
+    try { window.localStorage.setItem(SEEN_KEY, JSON.stringify(next.slice(-500))); } catch {}
+    return next;
+  });
   useEffect(()=>{ if(!notice) return; const t=setTimeout(()=>setNotice(""),7000); return ()=>clearTimeout(t); },[notice]);
 
   const handleOrder  = (o) => { setSelectedOrder(o); setScreen("detail"); };
@@ -2266,7 +2653,9 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
     : <OwnerHome me={me} inspections={inspections} balances={initial.balances} properties={initial.properties} balancesEnabled={initial.balancesEnabled!==false} role={role} setRole={handleSetRole} />;
 
   const sharedProps = {role, setRole:handleSetRole, canViewAs, me, properties:initial.properties};
-  const navActive = ["detail","assign","inspection","inspections","neworder","templates"].includes(screen) ? "orders" : screen;
+  // Open jobs whose conversation has never been opened on this device.
+  const unreadThreads = orders.filter(o=>o.status!=="done" && !seen.includes(o.id)).length;
+  const navActive = ["detail","assign","inspection","inspections","neworder","templates","ownerreport","available","map"].includes(screen) ? "orders" : screen;
 
   // One place that knows what is real: the live vendor roster, and whether
   // writes/notifications actually reach anywhere (they don't while Buildium is
@@ -2313,13 +2702,16 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
         {screen==="orders"     && <OrdersScreen      orders={orders} onOrder={handleOrder} onNav={handleNav} onNewOrder={()=>setScreen("neworder")} onInspection={()=>setScreen("inspection")} {...sharedProps} />}
         {screen==="detail"     && selectedOrder   && <DetailScreen   order={selectedOrder}  orders={orders} setOrders={setOrders} onUpdateOrder={updateOrderLocal} onBack={()=>setScreen("orders")} onAssign={handleAssign} {...sharedProps} />}
         {screen==="assign"     && assigningOrder  && <AssignScreen   order={assigningOrder} orders={orders} setOrders={setOrders} onUpdateOrder={updateOrderLocal} onBack={()=>setScreen("detail")} {...sharedProps} />}
-        {screen==="messages"   && <MessagesScreen    messages={initial.messages} messagingEnabled={initial.messagingEnabled!==false} onNav={handleNav} {...sharedProps} />}
+        {screen==="messages"   && <MessagesScreen orders={orders} seen={seen} markSeen={markSeen} onNav={handleNav} {...sharedProps} />}
         {screen==="profile"    && <ProfileScreen     me={me} role={role} setRole={handleSetRole} onNav={handleNav} onSignOut={onSignOut} canViewAs={canViewAs} />}
         {screen==="inspections"&& <InspectionsScreen onBack={()=>handleNav("home")} onNewInspection={()=>setScreen("inspection")} {...sharedProps} />}
         {screen==="inspection" && <InspectionScreen  onBack={()=>setScreen("orders")} templates={templates} onManageTemplates={()=>setScreen("templates")} onInspectionDone={handleInspectionDone} {...sharedProps} />}
+        {screen==="map"        && <MapScreen         onBack={()=>handleNav("home")} {...sharedProps} />}
+        {screen==="ownerreport"&& <OwnerReportScreen onBack={()=>handleNav("home")} {...sharedProps} />}
+        {screen==="available"  && <AvailableScreen   onBack={()=>handleNav("home")} {...sharedProps} />}
         {screen==="templates"  && <TemplatesScreen   onBack={()=>setScreen("inspection")} templates={templates} setTemplates={setTemplates} api={api} {...sharedProps} />}
         {screen==="neworder"   && <NewWorkOrderScreen onBack={()=>setScreen("orders")} onCreated={handleCreated} {...sharedProps} />}
-        <NavBar active={navActive} onNav={handleNav} role={role} />
+        <NavBar active={navActive} onNav={handleNav} role={role} unread={unreadThreads} />
       </div>
     </div>
     </LiveCtx.Provider>
