@@ -193,6 +193,7 @@ const AppHeader = ({role,setRole}) => {
     <>
       <div className="fl-safe-top" style={{background:"#fff",padding:"12px 20px 10px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${C.border}`,position:"relative",zIndex:10,flexShrink:0}}>
         <span className="fl-faux-status" style={{fontSize:13,fontWeight:600,color:C.text}}>9:41</span>
+        <img src="/logo.png" alt="Stephen Fleming Realty" style={{height:26,width:"auto",objectFit:"contain",display:"block"}} />
         <div onClick={()=>CAN_SWITCH_ROLES&&setOpen(true)} style={{display:"flex",alignItems:"center",gap:7,background:p.labelBg,border:`1px solid ${p.labelText}30`,padding:"5px 12px 5px 7px",borderRadius:20,cursor:CAN_SWITCH_ROLES?"pointer":"default",userSelect:"none",boxShadow:"0 1px 3px rgba(16,24,40,0.08)"}}>
           <div style={{width:20,height:20,borderRadius:"50%",background:p.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"#fff"}}>{p.init}</div>
           <span style={{fontSize:12,fontWeight:700,color:p.labelText,letterSpacing:".01em"}}>{p.label}</span>

@@ -89,7 +89,11 @@ export default function LoginPage() {
     <div style={{ minHeight: "100vh", background: "#071223", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div className="fl-app" style={{ width: "100%", maxWidth: 400, background: "#fff", borderRadius: 24, overflow: "hidden", boxShadow: "0 30px 80px rgba(0,0,0,0.5)", fontFamily: "var(--font-body), sans-serif" }}>
         <div style={{ background: "linear-gradient(135deg,#0D1B33,#2C4A5E)", padding: "34px 28px 30px", color: "#fff" }}>
-          <div style={{ width: 46, height: 46, borderRadius: 13, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}><Icon name="building" size={24} /></div>
+          {/* The real mark, on white so the navy ram reads against the navy
+              header. Replaces the generic building glyph that stood in for it. */}
+          <div style={{ width: 74, height: 74, borderRadius: 16, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14, padding: 8, boxSizing: "border-box" }}>
+            <img src="/logo.png" alt="Stephen Fleming Realty" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }} />
+          </div>
           <div style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 19, fontWeight: 600, letterSpacing: ".03em", lineHeight: 1.2 }}>STEPHEN FLEMING REALTY</div>
           <div style={{ fontSize: 13, opacity: 0.8, marginTop: 3 }}>Sign in to manage your work orders, lease, and requests</div>
         </div>
