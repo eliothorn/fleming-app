@@ -25,3 +25,9 @@ npm-debug.log*
 
 # paste-into-Vercel helper (contains real keys)
 vercel-env.txt
+
+# added by `vercel link` — the CLI writes a project id and an OIDC token here
+.vercel
+.env*
+# ...but the blank template with the explanations must stay in the repo.
+!.env.local.example
