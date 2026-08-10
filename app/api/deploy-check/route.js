@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth/session";
 import { isSupabaseConfigured, isBuildiumConfigured, isBuildiumLive, isBuildiumWriteEnabled } from "@/lib/env";
 import { sessionStorageMode, demoAccountsAllowed } from "@/lib/auth/supabaseBackend";
+import { emailConfigured } from "@/lib/notify";
+import { mapsConfigured } from "@/lib/geocode";
 
 export async function GET(request) {
   const me = await getServerUser(request);
@@ -57,6 +59,40 @@ export async function GET(request) {
     "Session secret quality",
     true,
     "Tokens are 32 random bytes from crypto.randomBytes.",
+    false
+  );
+
+  // These three were built, verified locally, and then sat dead in production
+  // for days because their keys were only ever put in .env.local. A feature that
+  // fails soft is worse than one that fails loudly — nothing in the UI said the
+  // email had gone nowhere. This is where that gets caught next time.
+  const mail = emailConfigured();
+  add(
+    "Transactional email (Resend)",
+    mail,
+    mail
+      ? `Configured. Sending as noreply@${process.env.RESEND_DOMAIN}.`
+      : "NOT configured — inspection reports, owner reports and vendor-assignment notices silently send nothing. Set RESEND_API_KEY and RESEND_DOMAIN.",
+    false
+  );
+
+  const reportTo = process.env.INSPECTION_REPORT_TO || "";
+  add(
+    "Inspection report recipient",
+    Boolean(reportTo),
+    reportTo
+      ? `Finished reports go to ${reportTo}, plus the property's owner.`
+      : "Not set — an employee must type a recipient on every report. Set INSPECTION_REPORT_TO.",
+    false
+  );
+
+  const maps = mapsConfigured();
+  add(
+    "Map geocoding (Google)",
+    maps,
+    maps
+      ? "Configured. Key is server-side only and never reaches the browser."
+      : "NOT configured — the map screen can place no properties. Set GOOGLE_MAPS_API_KEY.",
     false
   );
 
