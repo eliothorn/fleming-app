@@ -9,6 +9,12 @@ import PhotoCapture, { StoredPhoto } from "@/components/ui/PhotoCapture";
 const LiveCtx = createContext(null);
 const useLive = () => useContext(LiveCtx) || {};
 
+// Who is signed in, for the two places that show their own face — the header
+// badge and the profile card. `avatarVersion` bumps when the picture changes so
+// the <img> re-requests instead of showing the browser's cached old one.
+const MeCtx = createContext(null);
+const useMe = () => useContext(MeCtx) || {};
+
 // Design tokens — Stephen Fleming Realty brand guide. Mirrors globals.css for the
 // inline-styled components ported from the demo.
 //
@@ -72,6 +78,16 @@ const fmtDate = (d) => {
   const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   return `${MON[Number(m[2]) - 1]} ${Number(m[3])}, ${m[1]}`;
 };
+// The office number, defined once so it cannot drift between screens. Rendered
+// as a tel: link — on a phone, "call the office" should actually place the call.
+const OFFICE_PHONE = "717-774-7791";
+const OFFICE_PHONE_TEL = "+17177747791";
+const CallOffice = ({label="call the office"}) => (
+  <a href={`tel:${OFFICE_PHONE_TEL}`} style={{color:"inherit",fontWeight:700,textDecoration:"underline"}}>
+    {label} on {OFFICE_PHONE}
+  </a>
+);
+
 // Money always to the cent — a rent balance shown as "$1,206" reads as an
 // estimate, and people query estimates.
 const money = (n) =>
@@ -94,6 +110,29 @@ const VendorAvatar = ({v, size=20}) => {
     return <img src={v.logo} alt={v.name} onError={()=>setImgErr(true)} style={{width:size,height:size,borderRadius:"50%",objectFit:"contain",background:"#fff",border:"1px solid #E5E1D8",flexShrink:0,padding:2}} />;
   }
   return <div style={{width:size,height:size,borderRadius:"50%",background:v?v.color:"#B0B5C3",display:"flex",alignItems:"center",justifyContent:"center",fontSize:size<=18?7:size<=24?9:11,fontWeight:700,color:"#fff",flexShrink:0,letterSpacing:"-.5px"}}>{v?v.initials:"?"}</div>;
+};
+
+// Someone's own profile picture, falling back to the initials circle that was
+// there before. The storage path is derived from the user id, so "has a picture"
+// is answered by whether the request 404s — there is no flag to keep in step.
+//
+// `roleShown` guards the demo role-switcher: viewing the app as another role
+// should not put your face on their badge.
+const Avatar = ({size=40, initial="?", color=C.primary, fontSize, roleShown, ring}) => {
+  const {userId, role, avatarVersion=0} = useMe();
+  const mine = userId && (!roleShown || roleShown===role);
+  const [failed,setFailed] = useState(false);
+  // A new upload must clear a previous failure, or the fallback would stick.
+  useEffect(()=>{ setFailed(false); }, [avatarVersion, userId]);
+
+  const base = {width:size,height:size,borderRadius:"50%",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",...(ring?{boxShadow:ring}:{})};
+  if (mine && !failed) {
+    return <img
+      src={`/api/profile/avatar?userId=${encodeURIComponent(userId)}&v=${avatarVersion}`}
+      alt="" onError={()=>setFailed(true)}
+      style={{...base,objectFit:"cover",background:color,border:`1.5px solid ${C.border}`}} />;
+  }
+  return <div style={{...base,background:color,color:"#fff",fontWeight:700,fontSize:fontSize??Math.round(size*.38)}}>{initial}</div>;
 };
 
 // The broker's own photo of a building, fetched only once the card scrolls into
@@ -195,7 +234,7 @@ const AppHeader = ({role,setRole}) => {
         <span className="fl-faux-status" style={{fontSize:13,fontWeight:600,color:C.text}}>9:41</span>
         <img src="/logo.png" alt="Stephen Fleming Realty" style={{height:26,width:"auto",objectFit:"contain",display:"block"}} />
         <div onClick={()=>CAN_SWITCH_ROLES&&setOpen(true)} style={{display:"flex",alignItems:"center",gap:7,background:p.labelBg,border:`1px solid ${p.labelText}30`,padding:"5px 12px 5px 7px",borderRadius:20,cursor:CAN_SWITCH_ROLES?"pointer":"default",userSelect:"none",boxShadow:"0 1px 3px rgba(16,24,40,0.08)"}}>
-          <div style={{width:20,height:20,borderRadius:"50%",background:p.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"#fff"}}>{p.init}</div>
+          <Avatar size={20} fontSize={9} initial={p.init} color={p.color} roleShown={role} />
           <span style={{fontSize:12,fontWeight:700,color:p.labelText,letterSpacing:".01em"}}>{p.label}</span>
           {CAN_SWITCH_ROLES && <span style={{fontSize:9,color:p.labelText,opacity:.65}}>▾</span>}
         </div>
@@ -403,9 +442,9 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
         <div style={{fontSize:11,color:C.faint,marginTop:10,lineHeight:1.45}}>
           {balance
             ? (balance.total>0
-                ? `Balance as recorded by the office.${balance.over90>0?" Includes amounts over 90 days old.":""} Contact Stephen Fleming Realty to pay or query it.`
-                : "Nothing outstanding on your account. Contact the office with any billing questions.")
-            : "We couldn't load your balance just now — contact the office for billing questions."}
+                ? <>Balance as recorded by the office.{balance.over90>0?" Includes amounts over 90 days old.":""} To pay or query it, <CallOffice />.</>
+                : <>Nothing outstanding on your account. For billing questions, <CallOffice />.</>)
+            : <>We couldn&apos;t load your balance just now — for billing questions, <CallOffice />.</>}
         </div>
       </div>
 
@@ -450,7 +489,9 @@ function ResidentHome({me,api,orders,onOrder,onCreated,onNav,submissionsReachOff
           <div style={{flex:1}}>
             <div style={{fontSize:14.5,fontWeight:700,color:"#fff",marginBottom:2}}>Report an issue</div>
             <div style={{fontSize:12,color:"rgba(255,255,255,0.75)"}}>
-              {submissionsReachOffice ? "Send a maintenance request to your property manager" : "Log a request here — for anything urgent, call the office"}
+              {/* Plain text, not a tel: link — the whole card is already a tap
+                  target for the request form, and a link inside would fire both. */}
+              {submissionsReachOffice ? "Send a maintenance request to your property manager" : `Log a request here — for anything urgent, call ${OFFICE_PHONE}`}
             </div>
           </div>
           <Icon name="caretRight" size={18} style={{color:"rgba(255,255,255,0.6)"}} />
@@ -517,7 +558,7 @@ function OwnerHome({me,inspections=[],balances=[],properties=[],balancesEnabled=
         <div style={{margin:"0 16px",background:C.pending.bg,border:`1px solid ${C.pending.border}`,borderRadius:16,padding:"13px 15px",display:"flex",gap:10,alignItems:"flex-start"}}>
           <Icon name="info" size={17} style={{color:C.pending.text,marginTop:1,flexShrink:0}} />
           <div style={{fontSize:11.5,color:C.pending.text,lineHeight:1.5}}>
-            Rent balances aren&apos;t connected to the accounting system yet, so none are shown here. Contact the office for a current rent roll.
+            Rent balances aren&apos;t connected to the accounting system yet, so none are shown here. For a current rent roll, <CallOffice />.
           </div>
         </div>
       ) : (
@@ -1185,7 +1226,7 @@ function MessagesScreen({orders=[],onNav,role,setRole,seen=[],markSeen=()=>{}}) 
           <div style={{marginTop:8,display:"flex",gap:9,alignItems:"flex-start",padding:"11px 13px",borderRadius:12,background:C.pending.bg,border:`1px solid ${C.pending.border}`}}>
             <Icon name="info" size={16} style={{color:C.pending.text,marginTop:1,flexShrink:0}} />
             <span style={{fontSize:11.5,color:C.pending.text,lineHeight:1.45}}>
-              This is the history recorded by the office. Replying from the app isn&apos;t switched on yet — call Stephen Fleming Realty to add to it.
+              This is the history recorded by the office. Replying from the app isn&apos;t switched on yet — <CallOffice label="call the office" /> to add to it.
             </span>
           </div>
         </div>
@@ -1234,6 +1275,80 @@ function MessagesScreen({orders=[],onNav,role,setRole,seen=[],markSeen=()=>{}}) 
 }
 
 
+// Tap your picture to change it.
+//
+// The file input deliberately carries NO `capture` attribute. `capture` forces
+// one camera and removes the library option, so "camera or camera roll" is only
+// possible by leaving it off — iOS and Android then show their own sheet with
+// Take Photo and Photo Library both on it.
+function AvatarEditor({initial, color}) {
+  const {userId, avatarVersion, bumpAvatar} = useMe();
+  const inputRef = useRef(null);
+  const [busy,setBusy] = useState(false);
+  const [error,setError] = useState("");
+  const [preview,setPreview] = useState(null); // shown instantly while it uploads
+  const [hasPic,setHasPic] = useState(false);
+
+  // Whether there is a picture to offer removing. A 404 is the normal answer.
+  useEffect(()=>{
+    let alive=true;
+    if(!userId) return;
+    fetch(`/api/profile/avatar?userId=${encodeURIComponent(userId)}&v=${avatarVersion}`)
+      .then(r=>{ if(alive) setHasPic(r.ok); }).catch(()=>{});
+    return ()=>{alive=false;};
+  },[userId,avatarVersion]);
+
+  useEffect(()=>()=>{ if(preview) URL.revokeObjectURL(preview); },[preview]);
+
+  const onFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // so picking the same file twice still fires
+    if(!file) return;
+    setError(""); setPreview(URL.createObjectURL(file)); setBusy(true);
+    try{
+      const body = new FormData(); body.append("file", file);
+      const res = await fetch("/api/profile/avatar",{method:"POST",body});
+      const json = await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(json.error||"Upload failed.");
+      bumpAvatar?.(); setHasPic(true); setPreview(null);
+    }catch(err){ setError(err.message||"Upload failed."); setPreview(null); }
+    setBusy(false);
+  };
+
+  const remove = async () => {
+    setBusy(true); setError("");
+    try{
+      await fetch("/api/profile/avatar",{method:"DELETE"});
+      bumpAvatar?.(); setHasPic(false);
+    }catch(err){ setError("Couldn't remove that."); }
+    setBusy(false);
+  };
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
+      <input ref={inputRef} type="file" accept="image/*" onChange={onFile} style={{display:"none"}} />
+      <div onClick={()=>!busy&&inputRef.current?.click()} style={{position:"relative",cursor:busy?"default":"pointer",marginBottom:10}}>
+        {preview
+          ? <img src={preview} alt="" style={{width:72,height:72,borderRadius:"50%",objectFit:"cover",opacity:.55,boxShadow:`0 4px 16px ${color}44`}} />
+          : <Avatar size={72} fontSize={26} initial={initial} color={color} ring={`0 4px 16px ${color}44`} />}
+        {/* The camera chip is the affordance — a bare circle doesn't read as tappable. */}
+        <div style={{position:"absolute",right:-2,bottom:-2,width:26,height:26,borderRadius:"50%",background:C.primary,border:"2px solid #fff",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 6px rgba(13,27,51,.28)"}}>
+          <Icon name="camera" size={13} style={{color:"#fff"}} />
+        </div>
+      </div>
+      <div style={{display:"flex",gap:14,marginBottom:8}}>
+        <span onClick={()=>!busy&&inputRef.current?.click()} style={{fontSize:11.5,fontWeight:700,color:C.primary,cursor:busy?"default":"pointer"}}>
+          {busy?"Saving…":hasPic?"Change photo":"Add a photo"}
+        </span>
+        {hasPic&&!busy&&(
+          <span onClick={remove} style={{fontSize:11.5,fontWeight:700,color:C.muted,cursor:"pointer"}}>Remove</span>
+        )}
+      </div>
+      {error&&<div style={{fontSize:11,fontWeight:600,color:C.urgent.text,marginBottom:6,textAlign:"center"}}>{error}</div>}
+    </div>
+  );
+}
+
 function ProfileScreen({me,role,setRole,onNav,onSignOut,canViewAs}) {
   const p=ROLES[role];
   const displayName = me?.entity?.name || p.name;
@@ -1247,7 +1362,7 @@ function ProfileScreen({me,role,setRole,onNav,onSignOut,canViewAs}) {
       </div>
       <div style={{margin:"16px 16px 0",background:"#fff",borderRadius:20,border:`1px solid ${C.border}`,overflow:"hidden",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 4px 16px rgba(16,24,40,0.06)"}}>
         <div style={{background:`linear-gradient(135deg,${p.color}22 0%,${p.color}08 100%)`,padding:"24px 20px",display:"flex",flexDirection:"column",alignItems:"center",borderBottom:`1px solid ${C.border}`}}>
-          <div style={{width:72,height:72,borderRadius:"50%",background:p.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,fontWeight:700,color:"#fff",marginBottom:12,boxShadow:`0 4px 16px ${p.color}44`}}>{initial}</div>
+          <AvatarEditor initial={initial} color={p.color} />
           <div style={{fontSize:19,fontWeight:700,color:C.text,marginBottom:4}}>{displayName}</div>
           <div style={{fontSize:12.5,color:C.muted,marginBottom:4}}>{displaySub}</div>
           {me?.email&&<div style={{fontSize:11.5,color:C.faint,marginBottom:10}}>{me.email}</div>}
@@ -1914,7 +2029,7 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
           {isResident
             ? (syncs
                 ? `"${title}" has gone to Stephen Fleming Realty. You'll be notified when a vendor is assigned.`
-                : `"${title}" is saved in your list, but requests don't reach the office through the app yet — please call Stephen Fleming Realty if this is urgent.`)
+                : <>&quot;{title}&quot; is saved in your list, but requests don&apos;t reach the office through the app yet — if this is urgent, <CallOffice label="call Stephen Fleming Realty" />.</>)
             : (syncs
                 ? `${title} has been logged in Buildium and is visible in the orders list.`
                 : `${title} is visible in the orders list on this device only — it has not been logged in Buildium.`)}
@@ -1945,7 +2060,7 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
         {isResident&&!syncs&&(
           <div style={{display:"flex",alignItems:"flex-start",gap:10,padding:"11px 13px",borderRadius:12,background:C.pending.bg,border:`1px solid ${C.pending.border}`}}>
             <Icon name="warning" size={17} style={{color:C.pending.text,marginTop:1,flexShrink:0}} />
-            <span style={{fontSize:11.5,color:C.pending.text,fontWeight:600,lineHeight:1.4}}>Requests don't reach the office through the app yet. This will be saved to your list — please call Stephen Fleming Realty for anything urgent.</span>
+            <span style={{fontSize:11.5,color:C.pending.text,fontWeight:600,lineHeight:1.4}}>Requests don&apos;t reach the office through the app yet. This will be saved to your list — for anything urgent, <CallOffice label="call Stephen Fleming Realty" />.</span>
           </div>
         )}
 
@@ -2425,7 +2540,7 @@ function AvailableScreen({onBack,role,setRole}) {
         {list&&list.length===0&&!error&&(
           <div style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:16,padding:"20px",textAlign:"center"}}>
             <div style={{fontSize:13,fontWeight:600,color:C.text,marginBottom:4}}>Nothing available right now</div>
-            <div style={{fontSize:11.5,color:C.faint,lineHeight:1.5}}>Call the office and we'll let you know as soon as something comes up.</div>
+            <div style={{fontSize:11.5,color:C.faint,lineHeight:1.5}}><CallOffice label="Call the office" /> and we&apos;ll let you know as soon as something comes up.</div>
           </div>
         )}
         {(list||[]).map(v=>(
@@ -2449,7 +2564,7 @@ function AvailableScreen({onBack,role,setRole}) {
         ))}
         {list&&list.length>0&&(
           <div style={{fontSize:11.5,color:C.faint,lineHeight:1.5,padding:"4px 2px"}}>
-            Interested in one of these? Call the office — moving within the portfolio is usually simpler than starting fresh elsewhere.
+            Interested in one of these? <CallOffice label="Call the office" /> — moving within the portfolio is usually simpler than starting fresh elsewhere.
           </div>
         )}
       </div>
@@ -2572,6 +2687,9 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
   const [inspections,setInspections]  = useState(initial.inspections || []);
   // Surfaced when a write is rejected after the UI has already moved on.
   const [notice,setNotice]            = useState("");
+  // Bumped after a new profile picture is saved, so every <Avatar> re-requests
+  // instead of showing the browser's cached copy of the old one.
+  const [avatarVersion,setAvatarVersion] = useState(0);
   // Which conversations this person has already opened. Kept on the device
   // rather than in a table: "have I read this" is per-device by nature, and it
   // avoids a migration for something this small.
@@ -2671,8 +2789,14 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
     vendorVisible: initial.vendorVisible !== false,
   };
 
+  // `role` here is the account's real role, not the demo-switched one — an
+  // employee looking around as a resident should not see their own face on the
+  // resident badge.
+  const meCtx = {userId: me?.id, role: me?.role, avatarVersion, bumpAvatar: ()=>setAvatarVersion(v=>v+1)};
+
   return (
     <LiveCtx.Provider value={live}>
+    <MeCtx.Provider value={meCtx}>
     <div style={{background:"#071223",display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",padding:"0"}}>
       {/* Fills the screen on a real phone; keeps the demo frame on desktop. */}
       <div className="fl-app" style={{width:"min(390px,100vw)",height:"min(844px,100dvh)",background:C.bg,overflow:"hidden",display:"flex",flexDirection:"column",fontFamily:"var(--font-body), -apple-system, sans-serif",WebkitFontSmoothing:"antialiased",MozOsxFontSmoothing:"grayscale",position:"relative"}}>
@@ -2715,6 +2839,7 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
         <NavBar active={navActive} onNav={handleNav} role={role} unread={unreadThreads} />
       </div>
     </div>
+    </MeCtx.Provider>
     </LiveCtx.Provider>
   );
 }
