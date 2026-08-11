@@ -276,12 +276,55 @@ console.log("\nAssigning a contractor");
     `got ${res.payload.EntryAllowed}`);
   if (res.method === "POST") {
     check("a new work order is linked to its task", res.payload.TaskId === withWo.Id);
-  } else {
-    check("an existing work order keeps its line items", Array.isArray(res.payload.LineItems));
-    check("an existing work order keeps its entry notes", "EntryNotes" in res.payload);
-    check("an existing work order keeps its invoice number", "InvoiceNumber" in res.payload);
   }
   check("work-order writes are behind their own switch", res.dryRun === true);
+}
+
+// Reassignment is the destructive half: Buildium replaces the work order, and the
+// docs warn that omitted line items are "removed and replaced". Nine work orders
+// on this account carry real line items — one a $2,850 roof repair — and 2,063
+// carry entry contacts. Both have to survive a change of contractor.
+{
+  const wos = await buildiumRequest("/workorders", { query: { limit: 100, offset: 0, orderby: "Id desc" } });
+  const rich = [];
+  for (let i = 0; i < 24 && rich.length < 2; i++) {
+    const page = i === 0 ? wos : await buildiumRequest("/workorders", { query: { limit: 100, offset: i * 100, orderby: "Id desc" } });
+    if (!Array.isArray(page) || !page.length) break;
+    rich.push(...page.filter((w) => (w.LineItems || []).length > 0 || (w.EntryContacts || []).length > 1));
+  }
+  const wo = rich[0];
+  if (!wo) { console.log("  skip reassignment echo — no work order with line items or contacts found"); }
+  else {
+    const res = await realBuildium.assignVendor(wo.Task.Id, 999999, {}, { preview: true });
+    const p = res.payload;
+    check("reassigning an existing job is a PUT, not a second work order",
+      res.method === "PUT" && res.path === `/workorders/${wo.Id}`, `${res.method} ${res.path}`);
+    check("line items survive the reassignment", eq(p.LineItems, wo.LineItems || []),
+      `sent ${JSON.stringify(p.LineItems)}, record holds ${JSON.stringify(wo.LineItems)}`);
+    check("entry contacts survive", eq(p.EntryContactIds, (wo.EntryContacts || []).map((c) => c.Id)));
+    check("invoice number survives", p.InvoiceNumber === (wo.InvoiceNumber ?? null));
+    check("chargeable-to survives", p.ChargeableTo === (wo.ChargeableTo ?? null));
+    check("entry permission is preserved, not reset to Unknown",
+      p.EntryAllowed === (wo.EntryAllowed || "Unknown"), `sent ${p.EntryAllowed}, record holds ${wo.EntryAllowed}`);
+    check("work details survive", p.WorkDetails === (wo.WorkDetails ?? null));
+    check("the vendor is the only thing that changed", p.VendorId === 999999 && p.VendorId !== wo.VendorId);
+    const want = ["ChargeableTo","EntryAllowed","EntryContactIds","EntryNotes","InvoiceNumber","LineItems","Title","VendorId","VendorNotes","WorkDetails"];
+    check("reassignment sends exactly the documented fields", eq(Object.keys(p).sort(), want), Object.keys(p).sort().join(","));
+  }
+}
+
+// A task with no work order must get one raised, not silently skipped — and the
+// lookup must not be fooled by the display index, which only covers the newest
+// 600 of 2,395.
+{
+  const tasks600 = await buildiumRequest("/tasks", { query: { limit: 100, orderby: "Id asc" } });
+  const old = tasks600.find((t) => t.TaskType === "ResidentRequest");
+  if (old) {
+    const res = await realBuildium.assignVendor(old.Id, 1195848, {}, { preview: true });
+    check("an old task resolves to create-or-update without guessing",
+      (res.method === "POST" && res.payload.TaskId === old.Id) || (res.method === "PUT" && /\/workorders\/\d+$/.test(res.path)),
+      `${res.method} ${res.path}`);
+  }
 }
 
 console.log(`\n${passed} passed, ${failures.length} failed`);
