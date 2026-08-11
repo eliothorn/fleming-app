@@ -102,10 +102,14 @@ async function publicSafety() {
     ["vacancies", "/api/buildium/vacancies", "GET"],
     ["owner reports", "/api/reports/owner", "GET"],
     ["assignment notices", "/api/notify/assignment", "POST"],
+    // The two writes. Anonymous must never reach the broker's account.
+    ["work-order creation", "/api/buildium/orders", "POST"],
   ]) {
     const r = await req(path, method === "POST" ? { method: "POST", body: {} } : {});
     check(`${label} reject anonymous callers`, r.status === 401, `got ${r.status}`);
   }
+  const anonPatch = await req("/api/buildium/orders/WO-1", { method: "PATCH", body: { status: "done" } });
+  check("work-order updates reject anonymous callers", anonPatch.status === 401, `got ${anonPatch.status}`);
 }
 
 // ── Role scoping: what each role's browser is allowed to receive ──────────────
@@ -206,6 +210,48 @@ async function roleScoping() {
   const empImg = await req("/api/buildium/property-image?propertyId=24816", { cookie: cookies.employee });
   check("employee property-image → 200 or 404, not a redirect",
     empImg.status === 200 || empImg.status === 404, `got ${empImg.status}`);
+
+  // Writes. These matter far more now that they reach the broker's real account:
+  // an unauthorised PATCH used to dirty an in-memory mock, and now alters a live
+  // ticket belonging to a real resident.
+  for (const role of ["owner", "vendor", "applicant"]) {
+    const r = await req("/api/buildium/orders", {
+      method: "POST", cookie: cookies[role], body: { title: "smoke test — must be refused" },
+    });
+    check(`${role} POST /api/buildium/orders → 403`, r.status === 403, `got ${r.status}`);
+  }
+  for (const role of ["resident", "owner", "applicant"]) {
+    const r = await req("/api/buildium/orders/WO-1", {
+      method: "PATCH", cookie: cookies[role], body: { status: "done" },
+    });
+    check(`${role} PATCH /api/buildium/orders/[id] → 403`, r.status === 403, `got ${r.status}`);
+  }
+  // A contractor may act on their own jobs and no one else's. Their first order
+  // is theirs by construction (bootstrap already filtered to it); a job belonging
+  // to someone else must be refused rather than silently applied.
+  {
+    const mine = (boot.vendor.orders || [])[0];
+    const theirs = (boot.employee.orders || []).find((o) => o.vendorId != null && o.vendorId !== boot.vendor.me?.entity?.vendorId);
+    if (theirs) {
+      const r = await req(`/api/buildium/orders/${theirs.id}`, {
+        method: "PATCH", cookie: cookies.vendor, body: { status: "done" },
+      });
+      check("vendor cannot modify another contractor's job", r.status === 403, `got ${r.status}`);
+    } else {
+      console.log("  skip vendor cross-job check — no other contractor's job in the sample");
+    }
+    if (mine) {
+      // Reassignment is the office's call. Refused even on their own job — and it
+      // has to be their own, because the ownership check above fires first and
+      // would otherwise pass this test for the wrong reason.
+      const r = await req(`/api/buildium/orders/${mine.id}`, {
+        method: "PATCH", cookie: cookies.vendor, body: { vendorId: 999999 },
+      });
+      check("vendor cannot reassign a job to someone else", r.status === 403, `got ${r.status}`);
+    } else {
+      console.log("  skip vendor reassign check — this contractor has no jobs in the sample");
+    }
+  }
 
   // Inspection reports are evidence: employees manage, owners read, residents nothing.
   const matrix = [

@@ -843,7 +843,7 @@ function VendorThread({vendor, role}) {
 
 // ── DETAIL ────────────────────────────────────────────────────────────────────
 function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role,setRole}) {
-  const {vendors=[],syncs=true,notificationsEnabled=true,vendorVisible=true}=useLive();
+  const {vendors=[],syncs=true,notificationsEnabled=true,vendorVisible=true,assignsInBuildium=true}=useLive();
   const [notified,setNotified]=useState(false);
   const [ownerNotified,setOwnerNotified]=useState(false);
   const [completionNotified,setCompletionNotified]=useState(false);
@@ -880,14 +880,17 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
         <div style={{fontSize:12.5,color:C.muted}}>{[order.address,order.unit].filter(Boolean).join(" · ")||"Property not linked"}</div>
       </div>
       <div style={{padding:"14px 16px",display:"flex",flexDirection:"column",gap:10}}>
-        {/* Buildium writes aren't implemented, so anything changed here lives on
-            this device only. Saying so beats letting an employee believe the
-            office record was updated. */}
-        {!syncs&&role!=="resident"&&(
+        {/* What actually reaches Buildium depends on two separate switches, so
+            this says which. An employee who believes the office record was
+            updated when it wasn't is the failure this whole app is built to
+            avoid — and "some of it saved" is a state worth naming, not hiding. */}
+        {(!syncs||!assignsInBuildium)&&role!=="resident"&&(
           <div style={{display:"flex",gap:10,alignItems:"flex-start",background:C.pending.bg,border:`1px solid ${C.pending.border}`,borderRadius:14,padding:"11px 13px"}}>
             <Icon name="warning" size={17} style={{color:C.pending.text,marginTop:1}} />
             <div style={{fontSize:11.5,color:C.pending.text,lineHeight:1.5}}>
-              <b>Viewing live Buildium data.</b> Changes you make here (assigning, closing, notes) stay on this device — they don't write back to Buildium yet.
+              {!syncs
+                ? <><b>Viewing live Buildium data.</b> Changes you make here (assigning, closing, notes) stay on this device — they don&apos;t write back to Buildium yet.</>
+                : <><b>Status changes and notes save to Buildium.</b> Assigning a contractor doesn&apos;t yet — record that in Buildium as well.</>}
             </div>
           </div>
         )}
@@ -1072,7 +1075,12 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
 
 // ── ASSIGN VENDOR ─────────────────────────────────────────────────────────────
 function AssignScreen({order,orders,setOrders,onUpdateOrder,onBack,role,setRole}) {
-  const {vendors=[],syncs=true}=useLive();
+  // assignsInBuildium is deliberately NOT the same flag as `syncs`. Submitting a
+  // request writes a task; assigning a contractor writes a work order, which is
+  // the one thing Buildium can email an outsider about, so it has its own switch.
+  // Reading `syncs` here would have claimed the contractor was booked in Buildium
+  // the moment request-writes went on, which is a different switch entirely.
+  const {vendors=[],assignsInBuildium=true}=useLive();
   const [selected,setSelected]=useState(order.vendorId);
   const [confirmed,setConfirmed]=useState(false);
   const [vq,setVq]=useState("");
@@ -1086,8 +1094,22 @@ function AssignScreen({order,orders,setOrders,onUpdateOrder,onBack,role,setRole}
   // the employee, and the screen reports what really went out — including when
   // the resident has no address on file, which is true of 91 of them.
   const [notifyState,setNotifyState]=useState(null); // null | "sending" | {ok,residentReached,error}
+  const [saveError,setSaveError]=useState("");
+  const [saving,setSaving]=useState(false);
   const confirm=async()=>{
-    (onUpdateOrder?onUpdateOrder(order.id,{vendorId:selected}):setOrders(prev=>prev.map(o=>o.id===order.id?{...o,vendorId:selected}:o)));
+    if(saving) return;
+    setSaveError("");
+    // Wait for the server before saying "assigned" and before emailing anyone.
+    // Announcing it first and checking after is how a resident gets told a
+    // contractor is coming for a job nobody was actually given.
+    if(onUpdateOrder){
+      setSaving(true);
+      const res=await onUpdateOrder(order.id,{vendorId:selected});
+      setSaving(false);
+      if(res&&res.ok===false){ setSaveError(res.error||"That assignment wasn't saved."); return; }
+    } else {
+      setOrders(prev=>prev.map(o=>o.id===order.id?{...o,vendorId:selected}:o));
+    }
     setConfirmed(true);
     setNotifyState("sending");
     try{
@@ -1130,12 +1152,22 @@ function AssignScreen({order,orders,setOrders,onUpdateOrder,onBack,role,setRole}
         ))}
         {shownVendors.length===0&&<div style={{textAlign:"center",padding:"26px 16px",fontSize:12.5,color:C.muted}}>No vendors match “{vq.trim()}”.</div>}
         {!vq&&vendors.length>shownVendors.length&&<div style={{textAlign:"center",fontSize:11,color:C.faint,padding:"2px 0 4px"}}>Showing {shownVendors.length} of {vendors.length} — search to narrow</div>}
-        {selected&&!confirmed&&<button onClick={confirm} style={{width:"100%",background:C.primary,color:"#fff",fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 10px rgba(13,27,51,0.28)",marginTop:6}}>Assign {vendors.find(v=>v.id===selected)?.name}</button>}
+        {selected&&!confirmed&&(
+          <button onClick={confirm} disabled={saving} style={{width:"100%",background:saving?"#E5E1D8":C.primary,color:saving?C.faint:"#fff",fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:saving?"default":"pointer",fontFamily:"inherit",boxShadow:saving?"none":"0 2px 10px rgba(13,27,51,0.28)",marginTop:6}}>
+            {saving?"Assigning…":`Assign ${vendors.find(v=>v.id===selected)?.name}`}
+          </button>
+        )}
+        {saveError&&!confirmed&&(
+          <div style={{display:"flex",gap:8,alignItems:"flex-start",padding:"11px 13px",borderRadius:12,background:"#FEF2F2",border:"1px solid #FECACA"}}>
+            <Icon name="warning" size={16} style={{color:"#B91C1C",marginTop:1,flexShrink:0}} />
+            <span style={{fontSize:11.5,color:"#B91C1C",lineHeight:1.45}}>Not assigned. {saveError}</span>
+          </div>
+        )}
         {confirmed&&(
           <div style={{padding:"14px",background:C.done.bg,borderRadius:14,border:`1px solid ${C.done.border}`}}>
             <div style={{fontSize:14,fontWeight:700,color:C.done.text,textAlign:"center"}}>✓ Vendor assigned</div>
             <div style={{fontSize:12,color:C.done.text,opacity:.9,marginTop:5,textAlign:"center",lineHeight:1.5}}>
-              {!syncs&&"Saved on this device — not yet synced to Buildium. "}
+              {!assignsInBuildium&&"Recorded in this app and emailed out — but not written into Buildium, so add it there too. "}
               {notifyState==="sending"&&"Sending notifications…"}
               {notifyState&&notifyState!=="sending"&&notifyState.ok&&(
                 notifyState.residentReached
@@ -2787,6 +2819,10 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
     notificationsEnabled: initial.messagingEnabled !== false,
     // Whether this role is told which contractor is on a job.
     vendorVisible: initial.vendorVisible !== false,
+    // Whether assigning a contractor is written into Buildium, or is only a note
+    // in this app. A separate switch from `syncs` because raising a work order is
+    // the one write that can email someone outside the office.
+    assignsInBuildium: initial.assignmentsReachBuildium !== false,
   };
 
   // `role` here is the account's real role, not the demo-switched one — an

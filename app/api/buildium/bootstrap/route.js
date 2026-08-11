@@ -6,7 +6,7 @@ import { getServerUser } from "@/lib/auth/session";
 import { buildium } from "@/lib/buildium";
 import { listInspections as listDurableInspections } from "@/lib/inspections";
 import { listTemplates as listDurableTemplates } from "@/lib/templates";
-import { isBuildiumLive, submissionsReachOffice } from "@/lib/env";
+import { isBuildiumLive, submissionsReachOffice, assignmentsReachBuildium } from "@/lib/env";
 
 // A cold staff load still pages a lot of throttled Buildium requests (measured at
 // ~16s before role-scoping the fetches below). The default serverless timeout is
@@ -112,5 +112,9 @@ export async function GET(request) {
     // Whether a submitted request genuinely lands in Buildium. Drives the copy so
     // the app never claims maintenance was notified when it wasn't.
     submissionsReachOffice: submissionsReachOffice(),
+    // Whether assigning a contractor reaches Buildium, or is only a note inside
+    // this app. Separate from the flag above because raising a work order is the
+    // one write that can email someone outside the office.
+    assignmentsReachBuildium: assignmentsReachBuildium(),
   });
 }

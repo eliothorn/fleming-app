@@ -2,7 +2,7 @@
 // Visit /api/deploy-check to see what still blocks a production launch.
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth/session";
-import { isSupabaseConfigured, isBuildiumConfigured, isBuildiumLive, isBuildiumWriteEnabled } from "@/lib/env";
+import { isSupabaseConfigured, isBuildiumConfigured, isBuildiumLive, isBuildiumWriteEnabled, isBuildiumWorkOrderWriteEnabled } from "@/lib/env";
 import { sessionStorageMode, demoAccountsAllowed } from "@/lib/auth/supabaseBackend";
 import { emailConfigured } from "@/lib/notify";
 import { mapsConfigured } from "@/lib/geocode";
@@ -36,6 +36,32 @@ export async function GET(request) {
     isBuildiumWriteEnabled()
       ? "ENABLED — the app can create/update real tickets."
       : "Disabled. Residents' requests do NOT reach the office; the UI says so.",
+    false
+  );
+
+  // Two switches, because the blast radius differs. Task writes stay between the
+  // office and the resident; raising a work order is the one write Buildium can
+  // email a contractor about, so it is enabled separately and deliberately.
+  add(
+    "Buildium work-order writes",
+    true,
+    isBuildiumWorkOrderWriteEnabled()
+      ? "ENABLED — assigning a contractor raises a real work order in Buildium, which can notify them."
+      : "Disabled. Assigning a contractor is recorded in this app and emailed, but is NOT written into Buildium; the Assign screen says so.",
+    false
+  );
+
+  // Whether this deployment points at the isolated sandbox or the broker's real
+  // account. Getting this backwards is the single most expensive mistake
+  // available here, so it is stated outright rather than inferred.
+  const base = process.env.BUILDIUM_BASE_URL || "";
+  const sandbox = /apisandbox\.buildium\.com/i.test(base);
+  add(
+    "Buildium environment",
+    true,
+    sandbox
+      ? "SANDBOX (apisandbox.buildium.com) — isolated copy, and Buildium sends no email from it."
+      : `PRODUCTION (${base || "unset"}) — this is the broker's real account.`,
     false
   );
 

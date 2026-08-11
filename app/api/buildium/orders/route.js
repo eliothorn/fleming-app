@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth/session";
 import { buildium } from "@/lib/buildium";
+import { isBuildiumLive } from "@/lib/env";
+import { isCurrentTenancy } from "@/lib/buildium/real";
 
 // Create a work order. Residents may submit their own; employees may log any.
 export async function POST(request) {
@@ -11,6 +13,12 @@ export async function POST(request) {
   }
 
   const input = await request.json().catch(() => ({}));
+  // Nothing the browser sends decides where a ticket lands or what state it is
+  // created in. Status in particular is derived server-side from the urgency
+  // chip, so a crafted body cannot file an already-closed request.
+  delete input.categoryId;
+  delete input.subCategoryId;
+
   // Residents can only file against their own unit — identity comes from the
   // session, never from the request body.
   if (me.role === "resident") {
@@ -27,6 +35,21 @@ export async function POST(request) {
     const id = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
     input.leaseId = id(input.leaseId);
     input.residentId = id(input.residentId);
+
+    // And the pair must actually be a current tenancy. Buildium will happily
+    // accept two ids that exist separately, which would file this resident's
+    // complaint against a different resident's lease.
+    if (isBuildiumLive() && input.leaseId != null && input.residentId != null) {
+      let ok = false;
+      try { ok = await isCurrentTenancy(input.leaseId, input.residentId); }
+      catch { return NextResponse.json({ error: "Couldn't confirm that unit's current tenant. Try again." }, { status: 502 }); }
+      if (!ok) {
+        return NextResponse.json(
+          { error: "That unit and resident don't match a current tenancy. Re-pick the unit and try again." },
+          { status: 409 }
+        );
+      }
+    }
   }
 
   try {
