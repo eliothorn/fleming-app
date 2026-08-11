@@ -3,6 +3,7 @@ import { getServerUser } from "@/lib/auth/session";
 import { buildium } from "@/lib/buildium";
 import { isBuildiumLive } from "@/lib/env";
 import { vendorForTask } from "@/lib/buildium/real";
+import { setWriteActor } from "@/lib/buildium/writeLog";
 
 // Update a work order: assign a vendor, mark vendor-complete, close out, etc.
 export async function PATCH(request, { params }) {
@@ -38,13 +39,16 @@ export async function PATCH(request, { params }) {
   }
 
   try {
+    setWriteActor({ email: me.email, role: me.role });
     const order = await buildium().updateOrder(params.id, patch);
     if (!order) return NextResponse.json({ error: "Work order not found." }, { status: 404 });
     return NextResponse.json({ order });
   } catch (e) {
     // These are answers, not faults: the caller gets told what to do instead.
-    const expected = ["BUILDIUM_ASSIGNEE_REQUIRED", "BUILDIUM_UNSUPPORTED_TASK_TYPE", "BUILDIUM_BAD_ID"];
+    const expected = ["BUILDIUM_ASSIGNEE_REQUIRED", "BUILDIUM_UNSUPPORTED_TASK_TYPE", "BUILDIUM_BAD_ID", "BUILDIUM_WRITES_HALTED"];
     const status = expected.includes(e?.code) ? 409 : 502;
     return NextResponse.json({ error: e?.message || "Could not update the work order." }, { status });
+  } finally {
+    setWriteActor(null);
   }
 }

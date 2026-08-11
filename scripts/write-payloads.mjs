@@ -36,6 +36,11 @@ process.env.BUILDIUM_WRITE_WORKORDERS = "";
 
 const { realBuildium, buildiumRequest } = await import("../lib/buildium/real.js");
 
+// One real task, fetched up front, so the gate tests below have something to
+// aim an update at.
+const tasksForGate = (await buildiumRequest("/tasks", { query: { limit: 20, orderby: "Id desc" } }))
+  .filter((t) => t.TaskType === "ResidentRequest");
+
 let passed = 0;
 const failures = [];
 function check(name, ok, detail = "") {
@@ -43,6 +48,57 @@ function check(name, ok, detail = "") {
   else { failures.push(name); console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ""}`); }
 }
 const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+// ── The gates ─────────────────────────────────────────────────────────────────
+// These encode a real near-miss. writesEnabled() read BUILDIUM_WRITES on its own
+// without consulting isBuildiumLive(), and the diagnostic route imports this
+// client directly — bypassing the write gate in lib/buildium/index.js. Setting
+// BUILDIUM_WRITES=true would therefore have turned a URL documented as read-only
+// into a live PUT on an arbitrary real resident's ticket.
+console.log("\nGates");
+{
+  const { writesEnabled, workOrderWritesEnabled } = await import("../lib/buildium/real.js");
+  const saved = {
+    w: process.env.BUILDIUM_WRITES,
+    wo: process.env.BUILDIUM_WRITE_WORKORDERS,
+    live: process.env.BUILDIUM_LIVE,
+  };
+
+  process.env.BUILDIUM_WRITES = "true"; process.env.BUILDIUM_LIVE = "";
+  check("writes stay off while Buildium is not live", writesEnabled() === false);
+
+  process.env.BUILDIUM_LIVE = "true"; process.env.BUILDIUM_WRITE_WORKORDERS = "true"; process.env.BUILDIUM_WRITES = "";
+  check("work-order writes stay off without BUILDIUM_WRITES", workOrderWritesEnabled() === false);
+
+  process.env.BUILDIUM_WRITES = "true";
+  check("both switches on together do enable", writesEnabled() && workOrderWritesEnabled());
+
+  // The regression test for the diagnostic: even with every switch on, an
+  // explicit preview must not send. This is why preview is a separate argument
+  // and not a field on the payload — no request body can reach it.
+  const c = await realBuildium.createOrder(
+    { title: "p", category: "General", leaseId: 1, residentId: 2 }, { preview: true });
+  check("preview refuses to send a create even with writes fully on", c.dryRun === true);
+
+  const t = tasksForGate[0];
+  const u = await realBuildium.updateOrder(`WO-${t.Id}`, { status: "done" }, { preview: true });
+  check("preview refuses to send an update even with writes fully on", u.dryRun === true,
+    JSON.stringify(u).slice(0, 140));
+
+  process.env.BUILDIUM_WRITES = saved.w || "";
+  process.env.BUILDIUM_WRITE_WORKORDERS = saved.wo || "";
+  process.env.BUILDIUM_LIVE = saved.live || "";
+  check("writes are off again after the gate tests", writesEnabled() === false);
+}
+
+// The facade must divert writes to the mock store while the switch is off, so a
+// live write is never one forgotten import away.
+{
+  const { buildium } = await import("../lib/buildium/index.js");
+  const r = await buildium().createOrder({ id: "WO-gate", title: "gate", leaseId: 1, residentId: 2 });
+  check("with writes off, buildium() writes to the mock store, not Buildium",
+    r?.dryRun !== true && r?.id != null, JSON.stringify(r).slice(0, 120));
+}
 
 // ── Create ────────────────────────────────────────────────────────────────────
 console.log("\nCreating a resident request");
@@ -84,11 +140,32 @@ console.log("\nCreating a resident request");
   })).payload;
   check("a submitted 'done' status cannot create a closed ticket", p.TaskStatus === "New", `got ${p.TaskStatus}`);
 }
+for (const status of ["urgent", "pending", "scheduled", "review", "done"]) {
+  const p = (await realBuildium.createOrder({
+    title: "y", category: "General", status, leaseId: 1, residentId: 2,
+  })).payload;
+  // Nobody has picked up a request filed one second ago, whichever chip was
+  // tapped. Urgency belongs on Priority.
+  check(`'${status}' creates as New`, p.TaskStatus === "New", `got ${p.TaskStatus}`);
+}
+
+// Exact key sets. "Contains" would let a future field through that Buildium
+// rejects, or that leaks app-only state like vendorCompleted or photoAdded.
 {
   const p = (await realBuildium.createOrder({
-    title: "y", category: "General", status: "scheduled", leaseId: 1, residentId: 2,
+    title: "t", notes: "n", category: "HVAC", status: "pending", leaseId: 1, residentId: 2,
   })).payload;
-  check("'scheduled' is still allowed to create as InProgress", p.TaskStatus === "InProgress");
+  const want = ["CategoryId","Description","Priority","RequestedByEntityId","SubCategoryId","TaskStatus","Title","UnitAgreementId"];
+  check("create sends exactly the documented fields", eq(Object.keys(p).sort(), want), Object.keys(p).sort().join(","));
+  check("ids are numbers, not strings",
+    typeof p.UnitAgreementId === "number" && typeof p.RequestedByEntityId === "number");
+}
+
+// Every chip the form offers must resolve to a real category on this account.
+for (const label of ["HVAC","Plumbing","Electrical","Security","General","Inspection","Move-out","Landscaping","something new"]) {
+  const p = (await realBuildium.createOrder({ title: "c", category: label, leaseId: 1, residentId: 2 })).payload;
+  check(`category "${label}" resolves to a live Buildium category`,
+    p.CategoryId === 1684 && [1,3,4,5,7,8].includes(p.SubCategoryId), `${p.CategoryId}/${p.SubCategoryId}`);
 }
 {
   const long = "z".repeat(400);
@@ -144,6 +221,12 @@ for (const [label, task] of cases) {
   const required = ["Title", "TaskStatus", "Priority", "CategoryId", "SubCategoryId", "AssignedToUserId", "DueDate"];
   const missing = required.filter((k) => !(k in p));
   check(`${label}: no updatable field is omitted`, missing.length === 0, `missing ${missing.join(", ")}`);
+  // Description is not in Buildium's update schema at all, so it cannot be sent —
+  // and therefore cannot be blanked. Sending it would be rejected.
+  check(`${label}: does not try to send Description`, !("Description" in p));
+  check(`${label}: unassigned reads as null, never 0`, p.AssignedToUserId !== 0);
+  check(`${label}: due date is YYYY-MM-DD or null`,
+    p.DueDate === null || /^\d{4}-\d{2}-\d{2}$/.test(p.DueDate), String(p.DueDate));
 
   if (task.TaskType === "RentalOwnerRequest" || task.TaskType === "Todo") {
     check(`${label}: keeps the property/unit link`,

@@ -823,7 +823,11 @@ function VendorThread({vendor, role}) {
           </div>
         ))}
       </div>
-      {role==="employee" && (
+      {/* The composer is demo-only. There is no vendor messaging backend, so in
+          live mode a typed message would appear as a sent bubble and reach
+          nobody — and the "isn't connected" notice above vanishes as soon as the
+          first one is added. A box that looks like it sends is worse than no box. */}
+      {role==="employee" && (notificationsEnabled ? (
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           <input
             value={input}
@@ -836,7 +840,11 @@ function VendorThread({vendor, role}) {
             <span style={{fontSize:14,color:"#fff",marginLeft:2}}>➤</span>
           </div>
         </div>
-      )}
+      ) : (
+        <div style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>
+          Messaging a contractor from the app isn&apos;t connected. {vendor.phone?<>Call {vendor.name} on <a href={`tel:${String(vendor.phone).replace(/[^\d+]/g,"")}`} style={{color:"inherit",fontWeight:700}}>{vendor.phone}</a>.</>:<>No number on file for {vendor.name}.</>}
+        </div>
+      ))}
     </div>
   );
 }
@@ -848,12 +856,18 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
   const [ownerNotified,setOwnerNotified]=useState(false);
   const [completionNotified,setCompletionNotified]=useState(false);
   const [schedulingRequested,setSchedulingRequested]=useState(false);
-  const vendor=vendors.find(v=>v.id===order.vendorId);
   // Always read the live row, not the object captured when the card was tapped,
   // so status changes made on this screen are reflected everywhere.
   const cur=orders.find(o=>o.id===order.id)||order;
+  // From `cur`, not the captured `order`: assigning a contractor and coming back
+  // here otherwise still showed the previous one, which is exactly the moment
+  // somebody assigns a second time.
+  const vendor=vendors.find(v=>v.id===cur.vendorId);
   const apply=(patch)=> onUpdateOrder ? onUpdateOrder(order.id,patch) : setOrders(prev=>prev.map(o=>o.id===order.id?{...o,...patch}:o));
-  const markDone=()=>{apply({status:"done"});setOwnerNotified(true);setCompletionNotified(true);};
+  // Closing a job does not notify anybody — there is no mechanism that does. In
+  // demo mode the timeline shows the steps a finished system would have; in live
+  // mode they are not shown at all, rather than ticked by a flag nothing backs.
+  const markDone=()=>{apply({status:"done"});if(notificationsEnabled){setOwnerNotified(true);setCompletionNotified(true);}};
   const [showComplete,setShowComplete]=useState(false);
   const [photoAdded,setPhotoAdded]=useState(null); // storage path once uploaded
   const [completionNote,setCompletionNote]=useState("");
@@ -861,7 +875,7 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
     apply({status:"review",vendorCompleted:true,completionNote,photoAdded});
     setShowComplete(false);
   };
-  const employeeClose=()=>{apply({status:"done"});setOwnerNotified(true);setCompletionNotified(true);};
+  const employeeClose=()=>{apply({status:"done"});if(notificationsEnabled){setOwnerNotified(true);setCompletionNotified(true);}};
   return (
     <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
       <AppHeader role={role} setRole={setRole} />
@@ -967,17 +981,27 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
         )}
         <div style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
           <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:10}}>Timeline</div>
+          {/* Every step here has to correspond to something the system actually
+              knows happened. Three of them used to be ticked by local state that
+              no email was ever sent behind, and "Work completed by vendor" was
+              ticked by any close at all — so an employee closing a job nobody
+              had attended produced a record saying a contractor had completed
+              the work. The notification steps now appear only where a
+              notification mechanism exists at all. */}
           {[
             {label:"Reported",done:true,time:order.reported},
             {label:"Work order created",done:true,time:order.reported},
             // Omitted rather than shown unticked for roles that aren't told who
             // is on the job — an unticked step reads as "nobody assigned yet".
             vendorVisible&&{label:"Vendor assigned",done:!!vendor,time:vendor?"Assigned":null},
-            {label:"Resident notified",done:notified,time:notified?"Just now":null},
-            {label:"Work completed by vendor",done:cur?.vendorCompleted||cur?.status==="done",time:cur?.vendorCompleted?"With photo":null},
-            {label:"Closed by employee",done:cur?.status==="done",time:null},
-            {label:"Resident notified of completion",done:completionNotified,time:completionNotified?"Just now":null},
-            {label:"Owner notified",done:ownerNotified,time:ownerNotified?"Just now":null},
+            notificationsEnabled&&{label:"Resident notified",done:notified,time:notified?"Just now":null},
+            // Only the vendor's own completion submission proves this.
+            {label:"Work completed by vendor",done:!!cur?.vendorCompleted,time:cur?.vendorCompleted?(cur?.photoAdded?"With photo":"Submitted"):null},
+            // Buildium folds cancelled in with completed and closed, so this
+            // cannot claim who closed it or why.
+            {label:"Closed",done:cur?.status==="done",time:null},
+            notificationsEnabled&&{label:"Resident notified of completion",done:completionNotified,time:completionNotified?"Just now":null},
+            notificationsEnabled&&{label:"Owner notified",done:ownerNotified,time:ownerNotified?"Just now":null},
           ].filter(Boolean).map((step,i,arr)=>(
             <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:i<arr.length-1?10:0}}>
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}}>
@@ -1003,19 +1027,16 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
           </div>
         )}
 
-        {/* VENDOR view: contact office about scheduling */}
+        {/* VENDOR view: sort out a time with the office.
+            This was a button that set a local flag and then told a real
+            contractor "Stephen Fleming Realty will reach out to coordinate a
+            time." Nothing was sent and nobody was going to reach out. There is
+            no scheduling channel to build on here, so it does the one thing that
+            genuinely works from a phone. */}
         {role==="vendor"&&cur?.status!=="done"&&(
-          schedulingRequested?(
-            <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",background:C.scheduled.bg,borderRadius:14,border:`1px solid ${C.scheduled.border}`}}>
-              <Icon name="calendar" size={18} style={{color:C.scheduled.text}} />
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:700,color:C.scheduled.text}}>Scheduling request sent</div>
-                <div style={{fontSize:11.5,color:C.scheduled.text,opacity:.85,marginTop:2}}>Stephen Fleming Realty will reach out to coordinate a time.</div>
-              </div>
-            </div>
-          ):(
-            <button onClick={()=>setSchedulingRequested(true)} style={{width:"100%",background:"#fff",color:C.primary,fontSize:13.5,fontWeight:700,padding:"13px",borderRadius:14,border:`1.5px solid ${C.primary}`,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><Icon name="calendar" size={17} />Contact Fleming about scheduling</button>
-          )
+          <a href={`tel:${OFFICE_PHONE_TEL}`} style={{width:"100%",background:"#fff",color:C.primary,fontSize:13.5,fontWeight:700,padding:"13px",borderRadius:14,border:`1.5px solid ${C.primary}`,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8,textDecoration:"none",boxSizing:"border-box"}}>
+            <Icon name="calendar" size={17} />Call the office to schedule · {OFFICE_PHONE}
+          </a>
         )}
 
         {/* VENDOR view: complete the job */}
@@ -1046,7 +1067,7 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
 
         {/* EMPLOYEE view: close out after vendor completed */}
         {role==="employee"&&cur?.status==="review"&&(
-          <button onClick={employeeClose} style={{width:"100%",background:C.done.bg,color:C.done.text,fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:`1px solid ${C.done.border}`,cursor:"pointer",fontFamily:"inherit"}}>✓ Approve & close — notify owner</button>
+          <button onClick={employeeClose} style={{width:"100%",background:C.done.bg,color:C.done.text,fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:`1px solid ${C.done.border}`,cursor:"pointer",fontFamily:"inherit"}}>{notificationsEnabled?"✓ Approve & close — notify owner":"✓ Approve & close"}</button>
         )}
 
         {/* EMPLOYEE view: manual close if no vendor flow */}
@@ -1064,8 +1085,14 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
 
         {cur?.status==="done"&&(
           <div style={{textAlign:"center",padding:"12px",background:C.done.bg,borderRadius:14,border:`1px solid ${C.done.border}`}}>
-            <div style={{fontSize:14,fontWeight:700,color:C.done.text}}>✓ Completed & closed</div>
-            <div style={{fontSize:11.5,color:C.done.text,marginTop:3,opacity:.8}}>Resident &amp; owner have been notified</div>
+            {/* Buildium's Completed, Closed and Cancelled all arrive here, so
+                this can only say the job is no longer open. And nothing notifies
+                anyone on close — that line was asserting an email that has never
+                existed. */}
+            <div style={{fontSize:14,fontWeight:700,color:C.done.text}}>✓ Closed</div>
+            <div style={{fontSize:11.5,color:C.done.text,marginTop:3,opacity:.8}}>
+              {notificationsEnabled?"Resident & owner have been notified":"No longer open. Nobody is emailed automatically on close."}
+            </div>
           </div>
         )}
       </div>
@@ -1113,7 +1140,9 @@ function AssignScreen({order,orders,setOrders,onUpdateOrder,onBack,role,setRole}
     setConfirmed(true);
     setNotifyState("sending");
     try{
-      const r=await fetch("/api/notify/assignment",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({orderId:order.id})});
+      // Say who was actually picked. Left to itself the route reads the vendor on
+      // Buildium's existing work order, which is the previous contractor.
+      const r=await fetch("/api/notify/assignment",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({orderId:order.id,vendorId:selected})});
       const j=await r.json().catch(()=>({}));
       setNotifyState(r.ok?{ok:true,residentReached:Boolean(j.residentReached)}:{ok:false,error:j.error||`Couldn't send (${r.status})`});
     }catch(e){ setNotifyState({ok:false,error:e.message}); }
@@ -1713,16 +1742,16 @@ function InspectionScreen({onBack,templates=[],properties=[],onManageTemplates,o
         <div style={{color:C.done.text}}><Icon name="checkCircle" size={52} strokeWidth={1.5} /></div>
         <div style={{fontSize:18,fontWeight:700,color:C.text,textAlign:"center"}}>Inspection submitted</div>
         <div style={{fontSize:13.5,color:C.muted,textAlign:"center",lineHeight:1.6,maxWidth:260}}>
-          Report saved. {fails > 0 ? `${fails} issue${fails>1?"s":""} flagged — work orders will be created automatically.` : "No issues found."}
+          Report saved. {fails > 0 ? `${fails} issue${fails>1?"s":""} flagged.` : "No issues found."}
         </div>
         {fails > 0 && (
           <div style={{background:C.urgent.bg,border:`1px solid ${C.urgent.border}`,borderRadius:12,padding:"12px 16px",width:"100%",textAlign:"center"}}>
             <div style={{fontSize:13,fontWeight:700,color:C.urgent.text}}>{fails} item{fails>1?"s":""} need attention</div>
-            <div style={{fontSize:11.5,color:C.urgent.text,opacity:.8,marginTop:3}}>Work orders created & vendors notified</div>
+            <div style={{fontSize:11.5,color:C.urgent.text,opacity:.8,marginTop:3}}>Raise a work order for each of these — the report doesn&apos;t create them.</div>
           </div>
         )}
         <div style={{background:C.done.bg,border:`1px solid ${C.done.border}`,borderRadius:12,padding:"12px 16px",width:"100%",textAlign:"center"}}>
-          <div style={{fontSize:13,fontWeight:700,color:C.done.text}}>✓ Owner notified</div>
+          <div style={{fontSize:13,fontWeight:700,color:C.done.text}}>Ready to send to the owner</div>
           <div style={{fontSize:11.5,color:C.done.text,opacity:.85,marginTop:3}}>Next inspection scheduled for {nextDate}</div>
         </div>
         <button onClick={onBack} style={{width:"100%",background:C.primary,color:"#fff",fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 2px 10px rgba(13,27,51,0.28)",marginTop:8}}>Back to orders</button>
@@ -1831,7 +1860,7 @@ function InspectionScreen({onBack,templates=[],properties=[],onManageTemplates,o
         {/* Schedule next inspection — required before completion */}
         <div style={{background:"#fff",borderRadius:12,border:`1px solid ${nextDate?C.primary:C.border}`,padding:"13px 14px",boxShadow:"0 1px 2px rgba(16,24,40,0.04)"}}>
           <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:4}}>Schedule next inspection <span style={{color:C.urgent.text}}>*</span></div>
-          <div style={{fontSize:11.5,color:C.muted,marginBottom:8,lineHeight:1.4}}>Required before completing. The owner is notified of this date automatically.</div>
+          <div style={{fontSize:11.5,color:C.muted,marginBottom:8,lineHeight:1.4}}>Required before completing. It appears on the report you email to the owner.</div>
           {/* Was a fixed list of four dates that would quietly go stale. */}
           <input type="date" value={nextDate} onChange={e=>setNextDate(e.target.value)}
             style={{width:"100%",border:`1px solid ${nextDate?C.primary:C.border}`,borderRadius:10,padding:"11px 12px",fontSize:13,fontFamily:"inherit",color:nextDate?C.text:C.faint,outline:"none",background:"#fff",boxSizing:"border-box"}} />
@@ -1988,7 +2017,7 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
   const [unitsError,setUnitsError] = useState("");
 
   const categories = ["HVAC","Plumbing","Electrical","Security","General","Inspection","Move-out","Landscaping"];
-  const urgencies  = [{key:"urgent",label:"Urgent — same day",color:C.urgent},{key:"pending",label:"Standard — within 3 days",color:C.pending},{key:"scheduled",label:"Scheduled — pick a date",color:C.scheduled}];
+  const urgencies  = [{key:"urgent",label:"Urgent — same day",color:C.urgent},{key:"pending",label:"Standard — within 3 days",color:C.pending},{key:"scheduled",label:"Can wait — schedule it",color:C.scheduled}];
   // Real portfolios have hundreds of properties; a 3-item hardcoded list made it
   // impossible to file a work order against any actual address.
   const addresses = (properties?.length

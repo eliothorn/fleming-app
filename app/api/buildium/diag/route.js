@@ -148,7 +148,15 @@ export async function GET(request) {
       }
     }
 
-    // Build (not send) the payloads. With writes disabled these return previews.
+    // Build (not send) the payloads.
+    //
+    // {preview:true} is what makes that true, and it is passed as a separate
+    // argument that no request body can reach. This used to rely on writes being
+    // disabled — which meant the moment BUILDIUM_WRITES was switched on, loading
+    // a URL documented as read-only would PUT a real resident's ticket, chosen
+    // arbitrarily from an unsorted page, to Completed. It also imports the client
+    // directly, so the write gate in lib/buildium/index.js never applied here.
+    const PREVIEW = { preview: true };
     try {
       out.dryRunCreate = await realBuildium.createOrder({
         title: "DIAGNOSTIC — not sent",
@@ -156,12 +164,12 @@ export async function GET(request) {
         status: "pending",
         leaseId: 999999,
         residentId: 888888,
-      });
+      }, PREVIEW);
     } catch (e) { out.dryRunCreate = { error: String(e.message || e) }; }
 
     if (rr?.Id != null) {
       try {
-        out.dryRunUpdate = await realBuildium.updateOrder(`WO-${rr.Id}`, { status: "done" });
+        out.dryRunUpdate = await realBuildium.updateOrder(`WO-${rr.Id}`, { status: "done" }, PREVIEW);
       } catch (e) { out.dryRunUpdate = { error: String(e.message || e) }; }
     }
     return NextResponse.json(out);

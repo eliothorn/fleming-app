@@ -23,7 +23,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "Email isn't configured, so nobody was notified." }, { status: 503 });
   }
 
-  const { orderId } = await request.json().catch(() => ({}));
+  const { orderId, vendorId } = await request.json().catch(() => ({}));
   if (!orderId) return NextResponse.json({ error: "No work order given." }, { status: 400 });
 
   const b = buildium();
@@ -31,10 +31,22 @@ export async function POST(request) {
   const order = orders.find((o) => String(o.id) === String(orderId));
   if (!order) return NextResponse.json({ error: "That work order isn't in view." }, { status: 404 });
 
+  // Which contractor to name.
+  //
+  // This used to read order.vendorId, which comes from Buildium's own work-order
+  // record — i.e. whoever was on the job BEFORE this assignment. Reassigning from
+  // one firm to another therefore emailed the resident the name of the outgoing
+  // contractor, and a job with nobody on it yet returned 409 even though the
+  // employee had just assigned someone. The caller now says who they picked, and
+  // it is checked against the live roster so an arbitrary id cannot be named.
   const vendors = await b.listVendors();
-  const vendor = vendors.find((v) => v.id === order.vendorId);
+  const picked = Number(vendorId);
+  const vendor = vendors.find((v) => v.id === (Number.isFinite(picked) && picked > 0 ? picked : order.vendorId));
   if (!vendor) {
-    return NextResponse.json({ error: "No contractor is assigned to that job yet." }, { status: 409 });
+    return NextResponse.json(
+      { error: vendorId ? "That contractor isn't in the roster." : "No contractor is assigned to that job yet." },
+      { status: 409 }
+    );
   }
 
   const where = [order.address, order.unit].filter(Boolean).join(" · ") || "your property";

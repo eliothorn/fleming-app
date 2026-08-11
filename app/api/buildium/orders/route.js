@@ -3,6 +3,7 @@ import { getServerUser } from "@/lib/auth/session";
 import { buildium } from "@/lib/buildium";
 import { isBuildiumLive } from "@/lib/env";
 import { isCurrentTenancy } from "@/lib/buildium/real";
+import { setWriteActor } from "@/lib/buildium/writeLog";
 
 // Create a work order. Residents may submit their own; employees may log any.
 export async function POST(request) {
@@ -14,10 +15,13 @@ export async function POST(request) {
 
   const input = await request.json().catch(() => ({}));
   // Nothing the browser sends decides where a ticket lands or what state it is
-  // created in. Status in particular is derived server-side from the urgency
-  // chip, so a crafted body cannot file an already-closed request.
+  // created in. Category ids are derived from the chip label server-side, and
+  // status is whitelisted to the three urgency keys the form actually offers —
+  // it used to be passed through and relied on a clamp two files away, which is
+  // one refactor from being a way to file an already-closed request.
   delete input.categoryId;
   delete input.subCategoryId;
+  if (!["urgent", "pending", "scheduled"].includes(input.status)) input.status = "pending";
 
   // Residents can only file against their own unit — identity comes from the
   // session, never from the request body.
@@ -53,12 +57,16 @@ export async function POST(request) {
   }
 
   try {
+    setWriteActor({ email: me.email, role: me.role });
     const order = await buildium().createOrder(input);
     return NextResponse.json({ order });
   } catch (e) {
     // A resident whose account isn't linked to a lease can't have a ticket filed
     // for them — say so plainly instead of failing silently.
-    const status = e?.code === "BUILDIUM_IDENTITY_REQUIRED" ? 409 : 502;
+    const expected = ["BUILDIUM_IDENTITY_REQUIRED", "BUILDIUM_WRITES_HALTED"];
+    const status = expected.includes(e?.code) ? 409 : 502;
     return NextResponse.json({ error: e?.message || "Could not create the work order." }, { status });
+  } finally {
+    setWriteActor(null);
   }
 }
