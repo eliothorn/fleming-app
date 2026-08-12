@@ -1338,13 +1338,20 @@ function MessagesScreen({orders=[],onNav,role,setRole,seen=[],markSeen=()=>{}}) 
 
 // Tap your picture to change it.
 //
-// The file input deliberately carries NO `capture` attribute. `capture` forces
-// one camera and removes the library option, so "camera or camera roll" is only
-// possible by leaving it off — iOS and Android then show their own sheet with
-// Take Photo and Photo Library both on it.
+// Two inputs, not one. A single input with no `capture` attribute does make iOS
+// and Android offer their own Take Photo / Photo Library sheet — but that sheet
+// is the operating system's, it is worded differently on every device, and in a
+// home-screen web app it is not guaranteed to appear at all. Naming both actions
+// in the app means the camera is never a thing you have to know is hidden behind
+// a picker.
+//
+// The camera input uses capture="user" — the front camera, which is the one a
+// person takes their own picture with. Desktop ignores `capture` and opens a file
+// picker either way.
 function AvatarEditor({initial, color}) {
   const {userId, avatarVersion, bumpAvatar} = useMe();
-  const inputRef = useRef(null);
+  const libraryRef = useRef(null);
+  const cameraRef = useRef(null);
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState("");
   const [preview,setPreview] = useState(null); // shown instantly while it uploads
@@ -1385,10 +1392,23 @@ function AvatarEditor({initial, color}) {
     setBusy(false);
   };
 
+  const pick = (ref) => { if(!busy) ref.current?.click(); };
+  const btn = (primary) => ({
+    display:"inline-flex",alignItems:"center",gap:6,
+    fontSize:11.5,fontWeight:700,fontFamily:"inherit",
+    padding:"8px 13px",borderRadius:20,minHeight:34,
+    border:primary?"none":`1px solid ${C.border}`,
+    background:primary?C.primary:"#fff",
+    color:primary?"#fff":C.primary,
+    cursor:busy?"default":"pointer",opacity:busy?.6:1,
+  });
+
   return (
     <div style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
-      <input ref={inputRef} type="file" accept="image/*" onChange={onFile} style={{display:"none"}} />
-      <div onClick={()=>!busy&&inputRef.current?.click()} style={{position:"relative",cursor:busy?"default":"pointer",marginBottom:10}}>
+      <input ref={libraryRef} type="file" accept="image/*" onChange={onFile} style={{display:"none"}} />
+      <input ref={cameraRef} type="file" accept="image/*" capture="user" onChange={onFile} style={{display:"none"}} />
+
+      <div onClick={()=>pick(libraryRef)} style={{position:"relative",cursor:busy?"default":"pointer",marginBottom:11}}>
         {preview
           ? <img src={preview} alt="" style={{width:72,height:72,borderRadius:"50%",objectFit:"cover",opacity:.55,boxShadow:`0 4px 16px ${color}44`}} />
           : <Avatar size={72} fontSize={26} initial={initial} color={color} ring={`0 4px 16px ${color}44`} />}
@@ -1397,20 +1417,103 @@ function AvatarEditor({initial, color}) {
           <Icon name="camera" size={13} style={{color:"#fff"}} />
         </div>
       </div>
-      <div style={{display:"flex",gap:14,marginBottom:8}}>
-        <span onClick={()=>!busy&&inputRef.current?.click()} style={{fontSize:11.5,fontWeight:700,color:C.primary,cursor:busy?"default":"pointer"}}>
-          {busy?"Saving…":hasPic?"Change photo":"Add a photo"}
-        </span>
-        {hasPic&&!busy&&(
-          <span onClick={remove} style={{fontSize:11.5,fontWeight:700,color:C.muted,cursor:"pointer"}}>Remove</span>
-        )}
-      </div>
-      {error&&<div style={{fontSize:11,fontWeight:600,color:C.urgent.text,marginBottom:6,textAlign:"center"}}>{error}</div>}
+
+      {busy ? (
+        <div style={{fontSize:11.5,fontWeight:700,color:C.muted,marginBottom:8,minHeight:34,display:"flex",alignItems:"center"}}>Saving…</div>
+      ) : (
+        <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap",justifyContent:"center"}}>
+          <button onClick={()=>pick(cameraRef)} style={btn(true)}>
+            <Icon name="camera" size={13} style={{color:"#fff"}} />Take a photo
+          </button>
+          <button onClick={()=>pick(libraryRef)} style={btn(false)}>
+            {hasPic?"Choose another":"Choose a photo"}
+          </button>
+          {hasPic&&(
+            <button onClick={remove} style={{...btn(false),color:C.muted,border:"none",background:"transparent"}}>Remove</button>
+          )}
+        </div>
+      )}
+
+      {error&&<div style={{fontSize:11,fontWeight:600,color:C.urgent.text,marginBottom:6,textAlign:"center",maxWidth:260,lineHeight:1.45}}>{error}</div>}
     </div>
   );
 }
 
-function ProfileScreen({me,role,setRole,onNav,onSignOut,canViewAs}) {
+// What the owner is actually owed.
+//
+// Assembled from Buildium's own cash accounts rather than named after Buildium's
+// "available balance" column, because that column's exact definition hasn't been
+// confirmed against this account — so the block says what each number IS and
+// where it comes from, and leaves the office as the authority. A money figure a
+// person can't reconcile is worse than no figure.
+function OwnerBalanceBlock({balance}) {
+  const [open,setOpen]=useState(false);
+  if(!balance) {
+    return (
+      <div style={{margin:"12px 16px 0",padding:"14px 16px",background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,boxShadow:C.shadowSm}}>
+        <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:6}}>Your balance</div>
+        <div style={{fontSize:12.5,color:C.muted,lineHeight:1.55}}>
+          We couldn&apos;t load your balance just now. For an up-to-date figure, <CallOffice />.
+        </div>
+      </div>
+    );
+  }
+  const {held=0,reserve=0,available=0,asOf,properties=0,accounts=[],reserveCountedOn=0}=balance;
+  const negative = available < 0;
+  return (
+    <div style={{margin:"12px 16px 0",background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,overflow:"hidden",boxShadow:C.shadowSm}}>
+      <div style={{padding:"16px 16px 14px",background:negative?C.pending.bg:C.goldSoft,borderBottom:`1px solid ${C.border}`}}>
+        <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:negative?C.pending.text:C.goldDeep,marginBottom:6}}>
+          Available to draw
+        </div>
+        <div style={{fontSize:30,fontWeight:600,fontFamily:C.display,color:negative?C.pending.text:C.text,lineHeight:1.05,letterSpacing:"-.01em"}}>
+          {money(available)}
+        </div>
+        <div style={{fontSize:11.5,color:negative?C.pending.text:C.muted,marginTop:6,lineHeight:1.5}}>
+          {negative
+            ? "This account is below the reserve the office holds back, so there is nothing to draw at the moment."
+            : `Across ${properties===1?"your property":`your ${properties} properties`}, as of ${fmtDate(asOf)}.`}
+        </div>
+      </div>
+
+      <div style={{padding:"12px 16px"}}>
+        <BalanceRow label="Held on your behalf" value={money(held)} />
+        {/* Named, not hidden: 122 of the 306 properties carry a reserve, and an
+            owner who sees only the net figure has no way to explain the gap. */}
+        <BalanceRow label={`Less reserve${reserveCountedOn?` · ${reserveCountedOn===1?"1 property":`${reserveCountedOn} properties`}`:""}`} value={reserve?`− ${money(reserve)}`:money(0)} muted />
+        <div style={{height:1,background:C.border,margin:"10px 0"}} />
+        <BalanceRow label="Available" value={money(available)} bold />
+
+        {accounts.length>0&&(
+          <>
+            <div onClick={()=>setOpen(o=>!o)} style={{marginTop:10,fontSize:11.5,fontWeight:700,color:C.primary,cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>
+              {open?"Hide":"Where this comes from"}<span style={{fontSize:9,opacity:.7}}>{open?"▲":"▼"}</span>
+            </div>
+            {open&&(
+              <div style={{marginTop:8,padding:"10px 12px",background:C.sunken,borderRadius:10,border:`1px solid ${C.border}`}}>
+                {accounts.map((a,i)=>(
+                  <BalanceRow key={i} label={a.name} value={money(a.balance)} small />
+                ))}
+                <div style={{fontSize:10.5,color:C.faint,lineHeight:1.5,marginTop:8}}>
+                  Cash actually in hand, not rent that has been billed. The office&apos;s
+                  own statement is the final word — if this looks wrong, <CallOffice />.
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+const BalanceRow = ({label,value,bold,muted,small}) => (
+  <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:12,padding:small?"3px 0":"4px 0"}}>
+    <span style={{fontSize:small?11.5:12.5,color:muted?C.faint:C.muted,minWidth:0,overflowWrap:"anywhere"}}>{label}</span>
+    <span style={{fontSize:small?11.5:13,fontWeight:bold?700:600,color:bold?C.text:muted?C.faint:C.text,whiteSpace:"nowrap",fontVariantNumeric:"tabular-nums"}}>{value}</span>
+  </div>
+);
+
+function ProfileScreen({me,role,setRole,onNav,onSignOut,canViewAs,ownerBalance}) {
   const p=ROLES[role];
   const displayName = me?.entity?.name || p.name;
   const displaySub = me?.entity?.sub || (me?.entity?.unit ? `${me.entity.unit}${me.entity.address&&me.entity.address!=="—"?` · ${me.entity.address}`:""}` : p.sub);
@@ -1439,6 +1542,10 @@ function ProfileScreen({me,role,setRole,onNav,onSignOut,canViewAs}) {
           </div>
         </div>
       </div>
+      {/* An owner's money, directly under their name. This screen was previously
+          the one place with nothing on it worth opening — the Owner report
+          button led here and found a role description. */}
+      {role==="owner" && <OwnerBalanceBlock balance={ownerBalance} />}
       {canViewAs && (
         <div style={{margin:"12px 16px 0"}}>
           <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:8,paddingLeft:2}}>Demo · view as another role</div>
@@ -2893,7 +3000,7 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
         {screen==="detail"     && selectedOrder   && <DetailScreen   order={selectedOrder}  orders={orders} setOrders={setOrders} onUpdateOrder={updateOrderLocal} onBack={()=>setScreen("orders")} onAssign={handleAssign} {...sharedProps} />}
         {screen==="assign"     && assigningOrder  && <AssignScreen   order={assigningOrder} orders={orders} setOrders={setOrders} onUpdateOrder={updateOrderLocal} onBack={()=>setScreen("detail")} {...sharedProps} />}
         {screen==="messages"   && <MessagesScreen orders={orders} seen={seen} markSeen={markSeen} onNav={handleNav} {...sharedProps} />}
-        {screen==="profile"    && <ProfileScreen     me={me} role={role} setRole={handleSetRole} onNav={handleNav} onSignOut={onSignOut} canViewAs={canViewAs} />}
+        {screen==="profile"    && <ProfileScreen     me={me} role={role} setRole={handleSetRole} onNav={handleNav} onSignOut={onSignOut} canViewAs={canViewAs} ownerBalance={initial.myOwnerBalance||null} />}
         {screen==="inspections"&& <InspectionsScreen onBack={()=>handleNav("home")} onNewInspection={()=>setScreen("inspection")} {...sharedProps} />}
         {screen==="inspection" && <InspectionScreen  onBack={()=>setScreen("orders")} templates={templates} onManageTemplates={()=>setScreen("templates")} onInspectionDone={handleInspectionDone} {...sharedProps} />}
         {screen==="map"        && <MapScreen         onBack={()=>handleNav("home")} {...sharedProps} />}
