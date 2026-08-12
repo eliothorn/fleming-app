@@ -1573,8 +1573,84 @@ function ProfileScreen({me,role,setRole,onNav,onSignOut,canViewAs,ownerBalance})
         <div style={{width:36,height:36,borderRadius:10,background:C.primaryLight,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="building" size={18} style={{color:C.primary}} /></div>
         <div><div style={{fontSize:13,fontWeight:700,color:C.text}}>Stephen Fleming Realty</div><div style={{fontSize:11.5,color:C.faint}}>325 units · Camp Hill, PA</div></div>
       </div>
-      <div style={{margin:"12px 16px 20px"}}>
+      <div style={{margin:"12px 16px 0"}}>
         <button onClick={onSignOut} style={{width:"100%",background:"#fff",color:C.urgent.text,fontSize:13.5,fontWeight:700,padding:"13px",borderRadius:14,border:`1px solid ${C.urgent.border}`,cursor:"pointer",fontFamily:"inherit"}}>Sign out</button>
+      </div>
+      <DeleteAccount onDone={onSignOut} />
+    </div>
+  );
+}
+
+// Closing your account for good.
+//
+// Apple requires this to be doable inside the app rather than by emailing
+// someone (App Review 5.1.1(v)), and it has to be findable — but it is also the
+// one irreversible button on the screen, so it opens an explanation first.
+//
+// The explanation matters more than the confirmation does. Deleting a sign-in
+// and ending a tenancy are completely different things, and a resident who
+// believed this cancelled their lease — or worse, believed it and was wrong —
+// would have been failed by the app.
+function DeleteAccount({onDone}) {
+  const [open,setOpen]=useState(false);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState("");
+
+  const go = async () => {
+    if(busy) return;
+    setBusy(true); setError("");
+    const {deleteAccount} = await import("@/lib/auth/client");
+    const res = await deleteAccount();
+    setBusy(false);
+    if(res?.error){ setError(res.error); return; }
+    onDone?.();
+  };
+
+  if(!open){
+    return (
+      <div style={{margin:"14px 16px 24px",display:"flex",gap:16,justifyContent:"center",alignItems:"center"}}>
+        {/* Apple wants the policy reachable from inside the app, not only from
+            the store listing. */}
+        <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{fontSize:12,color:C.faint,textDecoration:"underline",textUnderlineOffset:3}}>
+          Privacy policy
+        </a>
+        <span style={{color:C.border}}>·</span>
+        <span onClick={()=>setOpen(true)} style={{fontSize:12,color:C.faint,cursor:"pointer",textDecoration:"underline",textUnderlineOffset:3}}>
+          Delete my account
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{margin:"14px 16px 24px",padding:"16px",background:"#fff",borderRadius:16,border:`1px solid ${C.urgent.border}`,boxShadow:C.shadowSm}}>
+      <div style={{fontSize:14,fontWeight:700,color:C.urgent.text,marginBottom:8}}>Delete your account?</div>
+      <div style={{fontSize:12.5,color:C.body,lineHeight:1.6,marginBottom:10}}>
+        This removes your sign-in for this app, along with your profile picture. You can sign up again at any time with the same email.
+      </div>
+      <div style={{padding:"11px 13px",borderRadius:12,background:C.sunken,border:`1px solid ${C.border}`,marginBottom:12}}>
+        <div style={{fontSize:11.5,color:C.text,fontWeight:700,marginBottom:4}}>What this does not do</div>
+        <div style={{fontSize:11.5,color:C.muted,lineHeight:1.55}}>
+          It does not end your tenancy, cancel any maintenance request, or remove you
+          from Stephen Fleming Realty&apos;s records. Those live with the office, not in
+          this app. To change anything there, <CallOffice />.
+        </div>
+      </div>
+      {error&&(
+        <div style={{display:"flex",gap:8,alignItems:"flex-start",padding:"10px 12px",borderRadius:10,background:"#FEF2F2",border:"1px solid #FECACA",marginBottom:10}}>
+          <Icon name="warning" size={15} style={{color:"#B91C1C",marginTop:1,flexShrink:0}} />
+          <span style={{fontSize:11.5,color:"#B91C1C",lineHeight:1.45}}>{error}</span>
+        </div>
+      )}
+      <div style={{display:"flex",gap:8}}>
+        <button onClick={()=>{setOpen(false);setError("");}} disabled={busy}
+          style={{flex:1,background:"#fff",color:C.primary,fontSize:13,fontWeight:700,padding:"12px",borderRadius:12,border:`1px solid ${C.border}`,cursor:busy?"default":"pointer",fontFamily:"inherit"}}>
+          Keep my account
+        </button>
+        <button onClick={go} disabled={busy}
+          style={{flex:1,background:busy?"#E5E1D8":C.urgent.text,color:busy?C.faint:"#fff",fontSize:13,fontWeight:700,padding:"12px",borderRadius:12,border:"none",cursor:busy?"default":"pointer",fontFamily:"inherit"}}>
+          {busy?"Deleting…":"Delete for good"}
+        </button>
       </div>
     </div>
   );

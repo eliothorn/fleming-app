@@ -208,6 +208,14 @@ export default function LoginPage() {
               <div style={{ fontSize: 10.5, color: "#B45309", marginTop: 8 }}>Password for all demo accounts: <b>demo1234</b>.</div>
             </div>
           )}
+
+          {/* Reachable before signing in, which is where an app store reviewer
+              and anyone deciding whether to sign up will look for it. */}
+          <div style={{ textAlign: "center", marginTop: 18 }}>
+            <a href="/privacy" style={{ fontSize: 11.5, color: C.faint, textDecoration: "underline", textUnderlineOffset: 3 }}>
+              Privacy policy
+            </a>
+          </div>
         </div>
       </div>
     </div>
