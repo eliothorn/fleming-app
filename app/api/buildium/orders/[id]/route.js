@@ -4,6 +4,7 @@ import { buildium } from "@/lib/buildium";
 import { isBuildiumLive } from "@/lib/env";
 import { vendorForTask } from "@/lib/buildium/real";
 import { setWriteActor } from "@/lib/buildium/writeLog";
+import { sendPush, userIdForTenant } from "@/lib/push";
 
 // Update a work order: assign a vendor, mark vendor-complete, close out, etc.
 export async function PATCH(request, { params }) {
@@ -42,6 +43,24 @@ export async function PATCH(request, { params }) {
     setWriteActor({ email: me.email, role: me.role });
     const order = await buildium().updateOrder(params.id, patch);
     if (!order) return NextResponse.json({ error: "Work order not found." }, { status: 404 });
+
+    // Tell the resident their job is finished. Only on the transition to done,
+    // and only when someone other than them closed it — which is always, since
+    // residents cannot reach this route at all.
+    if (patch.status === "done" && order.residentId != null) {
+      try {
+        const uid = await userIdForTenant(order.residentId);
+        if (uid) {
+          await sendPush(uid, {
+            title: "Your request is closed",
+            body: order.title ? `${order.title} has been marked complete.` : "Your maintenance request has been marked complete.",
+            url: "/app",
+            tag: `order-${order.id}`,
+          });
+        }
+      } catch { /* the update already succeeded; the push is a courtesy */ }
+    }
+
     return NextResponse.json({ order });
   } catch (e) {
     // These are answers, not faults: the caller gets told what to do instead.

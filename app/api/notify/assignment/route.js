@@ -11,6 +11,7 @@ import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth/session";
 import { buildium } from "@/lib/buildium";
 import { sendEmail, wrap, row, emailConfigured } from "@/lib/notify";
+import { sendPush, userIdForTenant } from "@/lib/push";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -93,11 +94,28 @@ export async function POST(request) {
     results.push({ who: "employee", email: me.email, ...r });
   }
 
+  // And a push, if the resident has the app installed and has switched them on.
+  // Email stays the primary channel — most residents have never signed in — so a
+  // push is an extra, never a replacement, and its failure changes nothing.
+  let pushed = { sent: 0 };
+  try {
+    const uid = await userIdForTenant(order.residentId);
+    if (uid) {
+      pushed = await sendPush(uid, {
+        title: "A contractor is coming",
+        body: `${vendor.name} has been assigned to your request: ${order.title}`,
+        url: "/app",
+        tag: `order-${order.id}`,
+      });
+    }
+  } catch { /* never let a notification break the notification route */ }
+
   const notified = results.filter((r) => r.ok).map((r) => r.who);
   return NextResponse.json({
     ok: notified.length > 0,
     notified,
     results,
     residentReached: Boolean(contact?.email && results.find((r) => r.who === "resident")?.ok),
+    pushedToDevices: pushed.sent || 0,
   });
 }

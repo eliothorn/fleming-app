@@ -1513,6 +1513,87 @@ const BalanceRow = ({label,value,bold,muted,small}) => (
   </div>
 );
 
+// Turning notifications on.
+//
+// The hard case is iPhone: web push exists only from iOS 16.4 and only inside an
+// app added to the Home Screen. In a Safari tab the button would appear to work
+// and then never deliver anything, so an uninstalled iPhone is told to install
+// first instead of being shown a toggle that lies.
+function NotificationSetting() {
+  const [state,setState]=useState(null);   // null while we work out what this device can do
+  const [devices,setDevices]=useState(0);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState("");
+
+  useEffect(()=>{
+    let alive=true;
+    (async()=>{
+      const {pushState}=await import("@/lib/pushClient");
+      if(!alive) return;
+      setState(pushState());
+      try{
+        const r=await fetch("/api/push/subscribe");
+        const j=await r.json().catch(()=>({}));
+        if(alive&&r.ok) setDevices(j.devices||0);
+      }catch{}
+    })();
+    return ()=>{alive=false;};
+  },[]);
+
+  const toggle=async()=>{
+    if(busy) return;
+    setBusy(true); setError("");
+    const mod=await import("@/lib/pushClient");
+    const res = devices>0 ? await mod.disablePush() : await mod.enablePush();
+    if(res?.error) setError(res.error);
+    else setDevices(devices>0 ? 0 : (res.devices||1));
+    setState(mod.pushState());
+    setBusy(false);
+  };
+
+  if(state===null) return null;
+
+  const on = devices>0 && state==="on";
+  const blocked = state==="blocked";
+  const needsInstall = state==="needs-install";
+  const unsupported = state==="unsupported";
+
+  return (
+    <div style={{margin:"12px 16px 0",padding:"14px 16px",background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,boxShadow:C.shadowSm}}>
+      <div style={{display:"flex",alignItems:"center",gap:12}}>
+        <div style={{width:36,height:36,borderRadius:10,background:on?C.done.bg:C.primaryLight,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+          <Icon name="bell" size={18} style={{color:on?C.done.text:C.primary}} />
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:13,fontWeight:700,color:C.text}}>Notifications</div>
+          <div style={{fontSize:11.5,color:C.faint,lineHeight:1.45,marginTop:1}}>
+            {on ? (devices>1?`On for ${devices} devices`:"On for this device")
+               : needsInstall ? "Add the app to your home screen first"
+               : blocked ? "Blocked in your phone's settings"
+               : unsupported ? "Not available on this device"
+               : "Off"}
+          </div>
+        </div>
+        {!needsInstall&&!unsupported&&!blocked&&(
+          <button onClick={toggle} disabled={busy}
+            style={{background:on?"#fff":C.primary,color:on?C.muted:"#fff",border:on?`1px solid ${C.border}`:"none",
+                    fontSize:12,fontWeight:700,padding:"8px 14px",borderRadius:20,cursor:busy?"default":"pointer",
+                    fontFamily:"inherit",minHeight:34,whiteSpace:"nowrap",opacity:busy?.6:1}}>
+            {busy?"…":on?"Turn off":"Turn on"}
+          </button>
+        )}
+      </div>
+      {needsInstall&&(
+        <div style={{fontSize:11.5,color:C.muted,lineHeight:1.55,marginTop:10,paddingTop:10,borderTop:`1px solid ${C.border}`}}>
+          Tap the share button in Safari, then <b>Add to Home Screen</b>. Open the app
+          from there and this will switch on.
+        </div>
+      )}
+      {error&&<div style={{fontSize:11.5,color:C.urgent.text,lineHeight:1.5,marginTop:9}}>{error}</div>}
+    </div>
+  );
+}
+
 function ProfileScreen({me,role,setRole,onNav,onSignOut,canViewAs,ownerBalance}) {
   const p=ROLES[role];
   const displayName = me?.entity?.name || p.name;
@@ -1545,6 +1626,7 @@ function ProfileScreen({me,role,setRole,onNav,onSignOut,canViewAs,ownerBalance})
       {/* An owner's money, directly under their name. This screen was previously
           the one place with nothing on it worth opening — the Owner report
           button led here and found a role description. */}
+      <NotificationSetting />
       {role==="owner" && <OwnerBalanceBlock balance={ownerBalance} />}
       {canViewAs && (
         <div style={{margin:"12px 16px 0"}}>
