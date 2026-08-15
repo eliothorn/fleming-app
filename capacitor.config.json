@@ -1,0 +1,28 @@
+{
+  "appId": "com.dangelore.flemingrealty",
+  "appName": "Stephen Fleming Realty",
+  "webDir": "public",
+  "server": {
+    "url": "https://www.flemingrealty.org",
+    "cleartext": false,
+    "allowNavigation": [
+      "www.flemingrealty.org",
+      "flemingrealty.org",
+      "wzjmeopvvfnimvcrtall.supabase.co"
+    ]
+  },
+  "ios": {
+    "contentInset": "always",
+    "backgroundColor": "#0D1B33",
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "android": {
+    "backgroundColor": "#0D1B33",
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    }
+  }
+}

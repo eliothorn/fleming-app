@@ -5,7 +5,7 @@
 // device against another.
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth/session";
-import { saveSubscription, removeSubscription, countSubscriptions, pushConfigured } from "@/lib/push";
+import { saveSubscription, saveNativeToken, removeSubscription, countSubscriptions, pushConfigured } from "@/lib/push";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +26,11 @@ export async function POST(request) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const res = await saveSubscription(me.id, body.subscription, request.headers.get("user-agent"));
+  // Two shapes: a web push subscription from a browser, or an APNs/FCM token
+  // from the App Store build.
+  const res = body.nativeToken
+    ? await saveNativeToken(me.id, body.nativeToken, body.platform)
+    : await saveSubscription(me.id, body.subscription, request.headers.get("user-agent"));
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: 400 });
 
   return NextResponse.json({ ok: true, devices: await countSubscriptions(me.id) });

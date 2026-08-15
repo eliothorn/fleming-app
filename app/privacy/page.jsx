@@ -141,7 +141,7 @@ export default function Privacy() {
         </div>
 
         <div style={{ fontSize: 12.5, color: C.muted, lineHeight: 1.6, textAlign: "center", margin: "18px 6px 0" }}>
-          Stephen Fleming Realty · Camp Hill, Pennsylvania
+          Stephen Fleming Realty · Mechanicsburg, Pennsylvania
         </div>
       </div>
     </main>

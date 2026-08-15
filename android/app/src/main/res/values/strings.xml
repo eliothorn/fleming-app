@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Stephen Fleming Realty</string>
+    <string name="title_activity_main">Stephen Fleming Realty</string>
+    <string name="package_name">com.dangelore.flemingrealty</string>
+    <string name="custom_url_scheme">com.dangelore.flemingrealty</string>
+</resources>

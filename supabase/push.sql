@@ -28,3 +28,20 @@ create table if not exists public.push_subscriptions (
 create index if not exists push_subscriptions_user_idx on public.push_subscriptions (user_id);
 
 alter table public.push_subscriptions enable row level security;
+
+-- ── Native app tokens (added when the Capacitor wrapper was built) ───────────
+-- Web push does not work inside an iOS WebView: Apple implements it only for
+-- Safari and home-screen web apps. So the App Store build registers with APNs
+-- (iOS) or FCM (Android) instead and stores that token here, in the same table,
+-- because "which devices does this person have" is one question.
+--
+-- A native row has a token in `endpoint` and no p256dh/auth, hence the relaxed
+-- constraints below.
+alter table public.push_subscriptions
+  add column if not exists kind text not null default 'web'
+    check (kind in ('web', 'ios', 'android'));
+
+alter table public.push_subscriptions alter column p256dh drop not null;
+alter table public.push_subscriptions alter column auth   drop not null;
+
+create index if not exists push_subscriptions_kind_idx on public.push_subscriptions (kind);

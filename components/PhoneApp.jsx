@@ -1553,7 +1553,7 @@ function NotificationSetting() {
 
   if(state===null) return null;
 
-  const on = devices>0 && state==="on";
+  const on = devices>0 && (state==="on"||state==="native");
   const blocked = state==="blocked";
   const needsInstall = state==="needs-install";
   const unsupported = state==="unsupported";
@@ -1568,13 +1568,14 @@ function NotificationSetting() {
           <div style={{fontSize:13,fontWeight:700,color:C.text}}>Notifications</div>
           <div style={{fontSize:11.5,color:C.faint,lineHeight:1.45,marginTop:1}}>
             {on ? (devices>1?`On for ${devices} devices`:"On for this device")
+               : state==="native" ? "Off"
                : needsInstall ? "Add the app to your home screen first"
                : blocked ? "Blocked in your phone's settings"
                : unsupported ? "Not available on this device"
                : "Off"}
           </div>
         </div>
-        {!needsInstall&&!unsupported&&!blocked&&(
+        {(state==="native"||(!needsInstall&&!unsupported&&!blocked))&&(
           <button onClick={toggle} disabled={busy}
             style={{background:on?"#fff":C.primary,color:on?C.muted:"#fff",border:on?`1px solid ${C.border}`:"none",
                     fontSize:12,fontWeight:700,padding:"8px 14px",borderRadius:20,cursor:busy?"default":"pointer",
@@ -1653,7 +1654,7 @@ function ProfileScreen({me,role,setRole,onNav,onSignOut,canViewAs,ownerBalance})
       )}
       <div style={{margin:"12px 16px 0",padding:"14px 16px",background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:12,boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
         <div style={{width:36,height:36,borderRadius:10,background:C.primaryLight,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Icon name="building" size={18} style={{color:C.primary}} /></div>
-        <div><div style={{fontSize:13,fontWeight:700,color:C.text}}>Stephen Fleming Realty</div><div style={{fontSize:11.5,color:C.faint}}>325 units · Camp Hill, PA</div></div>
+        <div><div style={{fontSize:13,fontWeight:700,color:C.text}}>Stephen Fleming Realty</div><div style={{fontSize:11.5,color:C.faint}}>678 units · Mechanicsburg, PA</div></div>
       </div>
       <div style={{margin:"12px 16px 0"}}>
         <button onClick={onSignOut} style={{width:"100%",background:"#fff",color:C.urgent.text,fontSize:13.5,fontWeight:700,padding:"13px",borderRadius:14,border:`1px solid ${C.urgent.border}`,cursor:"pointer",fontFamily:"inherit"}}>Sign out</button>
