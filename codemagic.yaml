@@ -1,0 +1,141 @@
+# Codemagic build for the iOS app (Stephen Fleming Realty).
+#
+# Why this exists: the app is a Capacitor shell around flemingrealty.org, and
+# Xcode only runs on macOS. This builds and signs it on Codemagic's Mac
+# machines so it can be released from a Windows laptop.
+#
+# BEFORE THE FIRST RUN, three things have to exist on Apple's side:
+#   1. The bundle id com.dangelore.flemingrealty registered, with the Push
+#      Notifications capability switched on. Without that capability the
+#      aps-environment entitlement fails to validate and the build is rejected.
+#   2. The app record created in App Store Connect against that bundle id.
+#   3. An App Store Connect API key, added to Codemagic under
+#      Teams > Integrations > App Store Connect, named exactly as
+#      `integrations.app_store_connect` below.
+#
+# This project uses Swift Package Manager, NOT CocoaPods. There is no Podfile
+# and no .xcworkspace, so the build targets App.xcodeproj directly. Do not add
+# a `pod install` step.
+
+workflows:
+  ios-testflight:
+    name: iOS - build and send to TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    integrations:
+      # Must match the App Store Connect key name configured in Codemagic.
+      app_store_connect: FlemingASC
+
+    environment:
+      node: 20
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.dangelore.flemingrealty
+      vars:
+        XCODE_PROJECT: "ios/App/App.xcodeproj"
+        XCODE_SCHEME: "App"
+
+    triggering:
+      # Manual to start with. Once a release is out, switch this on so pushes
+      # to main ship a build automatically.
+      events: []
+      branch_patterns:
+        - pattern: main
+          include: true
+
+    scripts:
+      - name: Install npm dependencies
+        script: npm ci
+
+      - name: Sync the Capacitor iOS project
+        # Copies webDir (public/) into the native shell and resolves plugins.
+        # The app loads flemingrealty.org at runtime, so there is deliberately
+        # no `next build` here - the web app is already deployed on Vercel.
+        script: npx cap sync ios
+
+      - name: Set the build number
+        # Every upload to App Store Connect needs a build number higher than
+        # the last one. Codemagic's counter supplies that.
+        script: |
+          cd ios/App
+          agvtool new-version -all "$BUILD_NUMBER"
+
+      - name: Fetch signing certificates and profiles
+        script: xcode-project use-profiles
+
+      - name: Build the ipa
+        script: |
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        # Left off on purpose. Get it working in TestFlight and on a real
+        # phone first; flip this to true only when you actually want Apple's
+        # review to start.
+        submit_to_app_store: false
+
+      email:
+        recipients:
+          - elihorn@udel.edu
+        notify:
+          success: true
+          failure: true
+
+  android-play:
+    name: Android - build a signed bundle for Google Play
+    instance_type: linux_x2
+    max_build_duration: 45
+
+    environment:
+      node: 20
+      java: 17
+      # Upload the Play upload keystore in Codemagic under
+      # Teams > Code signing identities > Android, with this reference name.
+      # Codemagic then mounts it and sets CM_KEYSTORE_PATH and friends, which
+      # android/app/build.gradle reads. No keystore, no signed build.
+      android_signing:
+        - fleming_upload_keystore
+
+    triggering:
+      events: []
+      branch_patterns:
+        - pattern: main
+          include: true
+
+    scripts:
+      - name: Install npm dependencies
+        script: npm ci
+
+      - name: Sync the Capacitor Android project
+        script: npx cap sync android
+
+      - name: Build the release bundle
+        # -PversionCode feeds build.gradle so every upload outranks the last.
+        script: |
+          cd android
+          chmod +x gradlew
+          ./gradlew bundleRelease -PversionCode="$BUILD_NUMBER"
+
+    artifacts:
+      - android/app/build/outputs/**/*.aab
+
+    publishing:
+      # Google Play publishing is deliberately not wired yet: it needs the
+      # $25 Play developer account and a service-account JSON from it. Until
+      # then the .aab lands in Codemagic's artifacts and is uploaded by hand.
+      email:
+        recipients:
+          - elihorn@udel.edu
+        notify:
+          success: true
+          failure: true
