@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { isNative } from "@/lib/native";
 
 // Registers the service worker and offers "add to home screen".
 // Residents and vendors won't find an install option on their own, so the app
@@ -12,6 +13,12 @@ export default function PwaSetup() {
   const [hidden, setHidden] = useState(true);
 
   useEffect(() => {
+    // Inside the App Store / Play build there is nothing to install: the user
+    // is already in the app. Until now this only stayed hidden because
+    // WKWebView's user-agent happens not to contain "Safari", which is luck,
+    // not a guard.
+    if (isNative()) return;
+
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }

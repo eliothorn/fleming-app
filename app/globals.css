@@ -122,7 +122,13 @@ button { font-family: inherit; }
 
 /* Desktop keeps the phone-frame presentation; a real phone gets the full screen. */
 .fl-app { border-radius: 44px; box-shadow: 0 0 0 10px #1C1C1E, 0 0 0 12px #3A3A3C, 0 40px 100px rgba(0,0,0,.8); }
-@media (max-width: 460px) { .fl-app { border-radius: 0; box-shadow: none; } }
+/* The frame is inline-sized to min(390px,100vw) x min(844px,100dvh), which is
+   the desktop mock-up's size. On any phone wider than 390 CSS px, which is
+   every Plus and Pro Max iPhone, that left the app letterboxed inside a dark
+   border. !important because the size is an inline style. */
+@media (max-width: 460px) {
+  .fl-app { border-radius: 0; box-shadow: none; width: 100vw !important; height: 100dvh !important; }
+}
 
 /* Tap targets: guideline minimum is 44x44 with >=8px separation. */
 .fl-tap {
