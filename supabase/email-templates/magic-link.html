@@ -13,6 +13,13 @@
   to it. Supabase does not expand {{ .SiteURL }} reliably inside an href, so it
   is written out literally on purpose.
 
+  The same email also carries {{ .Token }}, the one-time code. Inside the App
+  Store / Play app the link cannot help: it opens in Safari or Chrome, whose
+  cookie jar is not the app's, so the app stays signed out. Typing the code into
+  the app completes sign-in without ever leaving it. The code is the same
+  credential as the link (one use, same expiry), just in a form a person can
+  carry across from their mail app.
+
   Styling is inlined because email clients discard <style> blocks. Colours are
   the Fleming brand: navy #0D1B33, gold #C8A15A, sand #F2F0EB.
 -->
@@ -47,11 +54,20 @@
         </tr>
 
         <tr>
-          <td style="padding:8px 32px 26px;">
+          <td style="padding:18px 32px 6px;">
+            <div style="font-size:13px;line-height:1.6;color:#4A6A80;">
+              Using the Stephen Fleming Realty app? Enter this code instead:
+            </div>
+            <div style="margin-top:10px;background:#F2F0EB;border:1px solid #E5E1D8;border-radius:12px;padding:14px 16px;text-align:center;font-size:26px;font-weight:700;letter-spacing:.22em;color:#0D1B33;font-family:'SF Mono',Menlo,Consolas,monospace;">{{ .Token }}</div>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:14px 32px 26px;">
             <div style="font-size:12.5px;line-height:1.6;color:#8A93A5;">
-              This link expires in about an hour and can only be used once.
+              The link and the code expire in about an hour and can only be used once.
               If you didn't ask to sign in, you can ignore this email — nobody can
-              get into your account without this link.
+              get into your account without them.
             </div>
           </td>
         </tr>

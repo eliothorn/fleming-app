@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/ui/Icon";
-import { signIn, signUp, sendMagicLink, signInWithGoogle, getEnabledProviders, liveMode } from "@/lib/auth/client";
+import { signIn, signUp, sendMagicLink, verifyCode, signInWithGoogle, getEnabledProviders, liveMode } from "@/lib/auth/client";
 
 const C = {
   primary: "#0D1B33", primaryLight: "#E7E9ED", border: "#E5E1D8",
@@ -27,6 +27,7 @@ export default function LoginPage() {
   const [usePassword, setUsePassword] = useState(!liveMode); // staff/dev path
   const [mode, setMode] = useState("login");                 // password mode only
   const [sent, setSent] = useState(false);
+  const [code, setCode] = useState("");                      // the one-time code from the email
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   // Only offer Google once Supabase actually has the provider enabled —
@@ -58,7 +59,23 @@ export default function LoginPage() {
     const res = await sendMagicLink(email);
     setBusy(false);
     if (res.error) { setError(res.error); return; }
+    setCode("");
     setSent(true);
+  };
+
+  // Same email, other credential. Inside the native app the link opens in the
+  // phone's browser rather than the app, so the code is how people get in.
+  const withCode = async () => {
+    if (busy) return;
+    setError("");
+    const digits = code.replace(/\D/g, "");
+    if (digits.length < 6) { setError("Enter the code from the email."); return; }
+    setBusy(true);
+    const res = await verifyCode(email.trim(), digits);
+    setBusy(false);
+    if (res.error) { setError(res.error); return; }
+    router.push("/app");
+    router.refresh();
   };
 
   const google = async () => {
@@ -107,12 +124,31 @@ export default function LoginPage() {
               </div>
               <div style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 19, fontWeight: 600, color: C.text, marginBottom: 6 }}>Check your email</div>
               <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.55 }}>
-                We sent a sign-in link to <b style={{ color: C.text }}>{email.trim()}</b>. Tap it on this device and you're in — no password needed.
+                We sent a sign-in link and a code to <b style={{ color: C.text }}>{email.trim()}</b>. Tap the link, or type the code here.
               </div>
-              <div style={{ fontSize: 11.5, color: C.faint, marginTop: 12, lineHeight: 1.5 }}>
-                The link expires in about an hour. Check spam if it hasn't arrived in a minute.
+
+              {/* The code. In the App Store / Play app the link opens in the
+                  phone's browser and leaves the app signed out; the code is the
+                  path that works everywhere, so it gets the same prominence. */}
+              <div style={{ textAlign: "left", marginTop: 18 }}>
+                <label style={{ display: "block", fontSize: 11.5, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: C.muted, marginBottom: 6 }}>Code from the email</label>
+                <input
+                  type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" maxLength={12}
+                  value={code} onChange={(e) => setCode(e.target.value.replace(/[^\d\s]/g, ""))}
+                  onKeyDown={(e) => e.key === "Enter" && withCode()}
+                  placeholder="12345678"
+                  style={{ ...inputStyle, textAlign: "center", fontSize: 22, letterSpacing: ".18em", fontFamily: "'SF Mono', Menlo, Consolas, monospace" }}
+                />
+                {error && (
+                  <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", color: "#B91C1C", fontSize: 12.5, fontWeight: 600, padding: "10px 12px", borderRadius: 10, marginTop: 10 }}>{error}</div>
+                )}
+                <button onClick={withCode} disabled={busy} style={{ ...primaryBtn(busy), marginTop: 10 }}>{busy ? "Checking…" : "Sign in with the code"}</button>
               </div>
-              <button onClick={() => { setSent(false); setError(""); }} style={{ ...ghostBtn, marginTop: 16 }}>Use a different email</button>
+
+              <div style={{ fontSize: 11.5, color: C.faint, marginTop: 14, lineHeight: 1.5 }}>
+                Both expire in about an hour. Check spam if nothing has arrived in a minute.
+              </div>
+              <button onClick={() => { setSent(false); setError(""); setCode(""); }} style={{ ...ghostBtn, marginTop: 12 }}>Use a different email</button>
             </div>
           ) : (
             <>
