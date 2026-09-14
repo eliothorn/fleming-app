@@ -913,6 +913,17 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
           {/* Real Buildium descriptions are long free text with newlines. */}
           <div style={{fontSize:13,color:C.text,lineHeight:1.5,whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{cur?.notes||order.notes||"No description provided."}</div>
         </div>
+        {/* The resident's pictures of the problem. Stored by us, not Buildium,
+            and merged onto the order server-side; only roles allowed to see
+            them can resolve the paths. */}
+        {(cur?.photos||order.photos||[]).length>0&&(
+          <div style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
+            <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:8}}>Photos of the problem</div>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {(cur?.photos||order.photos).map((path)=><StoredPhoto key={path} path={path} />)}
+            </div>
+          </div>
+        )}
         {order.residentName&&(
           <div style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
             <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:8}}>Resident</div>
@@ -2270,6 +2281,8 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
   const [category,setCategory] = useState("");
   const [urgency,setUrgency]   = useState("");
   const [notes,setNotes]       = useState("");
+  const [photo,setPhoto]       = useState(null); // storage path once uploaded
+  const [warning,setWarning]   = useState("");
   const [submitted,setSubmitted] = useState(false);
   const [saving,setSaving]       = useState(false);
   const [failed,setFailed]       = useState("");
@@ -2326,6 +2339,8 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
       category,
       residentName: isResident ? (me?.entity?.name || me?.email || null) : (tenancy?.tenantName || null),
       notes: notes.trim() || "New work order submitted via app.",
+      // Already uploaded by PhotoCapture; the route links the path to the ticket.
+      photo,
       // Buildium files a maintenance request against a lease and the tenant
       // raising it. A resident's pair is taken from their session server-side;
       // staff send the pair they selected, which the route re-validates.
@@ -2340,8 +2355,10 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
       setFailed(res.error || "We couldn't send that request. Please try again.");
       return;
     }
+    setWarning(res?.warning || "");
     setSubmitted(true);
-    setTimeout(()=>onBack(), 1600);
+    // Give a warning time to be read; a clean success can move on quickly.
+    setTimeout(()=>onBack(), res?.warning ? 4500 : 1600);
   };
 
   if (submitted) return (
@@ -2361,6 +2378,9 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
                 ? `${title} has been logged in Buildium and is visible in the orders list.`
                 : `${title} is visible in the orders list on this device only — it has not been logged in Buildium.`)}
         </div>
+        {warning&&(
+          <div style={{background:C.urgent.bg,border:`1px solid ${C.urgent.border}`,borderRadius:12,padding:"12px 16px",fontSize:12.5,color:C.urgent.text,textAlign:"center",lineHeight:1.5}}>{warning}</div>
+        )}
       </div>
     </div>
   );
@@ -2493,6 +2513,13 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
         </div>
 
         {/* Notes */}
+        {/* The photo of the problem. Optional, but it is the single most useful
+            thing a resident can add, and the App Store build's camera is here. */}
+        <div>
+          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:6}}>Photo <span style={{fontWeight:500,textTransform:"none",letterSpacing:0}}>(optional)</span></div>
+          <PhotoCapture kind="request" label="Add a photo of the problem" value={photo} onChange={setPhoto} disabled={saving} />
+        </div>
+
         <div>
           <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:6}}>Additional notes</div>
           <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Any extra context for the vendor..." rows={3} style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 14px",fontSize:13,fontFamily:"inherit",color:C.text,outline:"none",background:"#fff",resize:"none",boxSizing:"border-box"}} />
@@ -3050,10 +3077,10 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
     setOrders([o, ...previous]);
     if (!api?.createOrder) return {ok:true};
     try {
-      const saved = await api.createOrder(o);
+      const {order: saved, warning} = await api.createOrder(o);
       // Keep what the server actually stored — its id is the real one.
       setOrders([saved || o, ...previous]);
-      return {ok:true};
+      return {ok:true, warning: warning || null};
     } catch (e) {
       setOrders(previous);
       return {ok:false, error:e.message};

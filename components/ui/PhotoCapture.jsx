@@ -17,6 +17,30 @@ const C = {
   done: "#15803D", doneBg: "#EFF6F0", doneBorder: "#C8E0CD",
 };
 
+// Shrink on the phone before uploading. A modern phone photo is 3-8MB and
+// Vercel refuses request bodies over 4.5MB, so without this most residents'
+// photos failed with a bare "Upload failed". 1600px on the long edge at JPEG
+// 0.82 is 200-600KB, plenty for a picture of a leak, and re-encoding through
+// a canvas also turns iPhone HEIC into JPEG, which every viewer can show.
+// If the browser cannot decode the file, the original is sent unchanged.
+const MAX_EDGE = 1600;
+async function shrink(file) {
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const w = Math.round(bitmap.width * scale), h = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, w, h);
+    bitmap.close?.();
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.82));
+    if (!blob) return file;
+    return new File([blob], (file.name || "photo").replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
 export default function PhotoCapture({ value, onChange, kind = "photo", label = "Add photo", tone = "neutral", disabled }) {
   const inputRef = useRef(null);
   const [busy, setBusy] = useState(false);
@@ -51,7 +75,7 @@ export default function PhotoCapture({ value, onChange, kind = "photo", label = 
     setBusy(true);
     try {
       const body = new FormData();
-      body.append("file", file);
+      body.append("file", await shrink(file));
       body.append("kind", kind);
       const res = await fetch("/api/photos", { method: "POST", body });
       const json = await res.json().catch(() => ({}));

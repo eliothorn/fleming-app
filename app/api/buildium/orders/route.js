@@ -4,6 +4,7 @@ import { buildium } from "@/lib/buildium";
 import { isBuildiumLive } from "@/lib/env";
 import { isCurrentTenancy } from "@/lib/buildium/real";
 import { setWriteActor } from "@/lib/buildium/writeLog";
+import { addAttachment, taskIdOf } from "@/lib/orderAttachments";
 
 // Create a work order. Residents may submit their own; employees may log any.
 export async function POST(request) {
@@ -56,10 +57,30 @@ export async function POST(request) {
     }
   }
 
+  // The photo was already uploaded by PhotoCapture; only its storage path
+  // travels here. It must be one this account uploaded under the request
+  // kind, so nobody can attach somebody else's inspection photo to a ticket.
+  const photo = typeof input.photo === "string" && input.photo.startsWith(`request/${me.id}/`) ? input.photo : null;
+  delete input.photo;
+
   try {
     setWriteActor({ email: me.email, role: me.role });
     const order = await buildium().createOrder(input);
-    return NextResponse.json({ order });
+
+    // Buildium holds the ticket; the photo of the problem lives with us. If
+    // this insert fails the ticket still exists, so say exactly that rather
+    // than pretending the whole thing failed or that the photo is there.
+    let photoSaved = !photo;
+    if (photo) {
+      const taskId = taskIdOf(order?.id);
+      try { await addAttachment({ taskId, kind: "request", path: photo, me }); photoSaved = true; }
+      catch { photoSaved = false; }
+    }
+    return NextResponse.json({
+      order: photoSaved && photo ? { ...order, photos: [photo] } : order,
+      photoSaved,
+      ...(photoSaved ? {} : { warning: "Your request was filed, but the photo didn't attach. The office can still see the request." }),
+    });
   } catch (e) {
     // A resident whose account isn't linked to a lease can't have a ticket filed
     // for them — say so plainly instead of failing silently.

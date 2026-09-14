@@ -5,6 +5,7 @@ import { isBuildiumLive } from "@/lib/env";
 import { vendorForTask } from "@/lib/buildium/real";
 import { setWriteActor } from "@/lib/buildium/writeLog";
 import { sendPush, userIdForTenant } from "@/lib/push";
+import { addAttachment, attachmentsFor, mergeAttachments, taskIdOf } from "@/lib/orderAttachments";
 
 // Update a work order: assign a vendor, mark vendor-complete, close out, etc.
 export async function PATCH(request, { params }) {
@@ -39,10 +40,30 @@ export async function PATCH(request, { params }) {
     }
   }
 
+  // A contractor's proof of completion. The photo path must be one this
+  // account uploaded under the completion kind.
+  const completionPhoto = typeof patch.photoAdded === "string" && patch.photoAdded.startsWith(`completion/${me.id}/`) ? patch.photoAdded : null;
+  const completing = Boolean(patch.vendorCompleted) || Boolean(completionPhoto) || Boolean(patch.completionNote);
+
   try {
     setWriteActor({ email: me.email, role: me.role });
-    const order = await buildium().updateOrder(params.id, patch);
+    let order = await buildium().updateOrder(params.id, patch);
     if (!order) return NextResponse.json({ error: "Work order not found." }, { status: 404 });
+
+    // Buildium records the status change but not the photo or the note; those
+    // used to be dropped on the floor here, so the office never saw the proof
+    // and the contractor saw "Mark work complete" again after a reload.
+    let completionSaved = true;
+    if (completing) {
+      try {
+        await addAttachment({ taskId: taskIdOf(params.id), kind: "completion", path: completionPhoto, note: patch.completionNote, me });
+      } catch { completionSaved = false; }
+    }
+    // Hand back the order the way the UI will see it on the next load.
+    try { order = mergeAttachments([order], await attachmentsFor([order.id]))[0]; } catch { /* keep the bare order */ }
+    if (!completionSaved) {
+      return NextResponse.json({ order, warning: "The job was marked complete, but the photo and note didn't save. Please try submitting them again." });
+    }
 
     // Tell the resident their job is finished. Only on the transition to done,
     // and only when someone other than them closed it — which is always, since

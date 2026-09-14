@@ -8,6 +8,7 @@ import { listInspections as listDurableInspections } from "@/lib/inspections";
 import { listTemplates as listDurableTemplates } from "@/lib/templates";
 import { isBuildiumLive, submissionsReachOffice, assignmentsReachBuildium } from "@/lib/env";
 import { ownerScope, inScope, nameInScope } from "@/lib/ownerScope";
+import { attachmentsFor, mergeAttachments } from "@/lib/orderAttachments";
 
 // A cold staff load still pages a lot of throttled Buildium requests (measured at
 // ~16s before role-scoping the fetches below). The default serverless timeout is
@@ -93,6 +94,16 @@ export async function GET(request) {
     else orders = [];
   }
   else orders = [];
+
+  // Photos and completion notes live with us, not in Buildium. Fetched only
+  // for the orders this caller is actually receiving, after role scoping, so
+  // the query never touches another person's tickets. If the table is
+  // unreachable the orders still load, just without their pictures, and the
+  // failure is logged rather than hidden.
+  if (orders.length) {
+    try { orders = mergeAttachments(orders, await attachmentsFor(orders.map((o) => o.id))); }
+    catch (e) { console.error("[bootstrap] order attachments unavailable:", e?.message || e); }
+  }
 
   // The roster only exists to put a name to an assignment, so an owner gets
   // the contractors on their own jobs rather than every vendor on the books.

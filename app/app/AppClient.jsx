@@ -53,7 +53,8 @@ export default function AppClient() {
   // Backend-persisting actions. Components update their own local state for snappy
   // UX and call these to write through to the API (mock Buildium now, real later).
   const api = {
-    createOrder: (input) => send("/api/buildium/orders", "POST", input).then((r) => r.order),
+    // The route can succeed at the ticket and fail at the photo; both come back.
+    createOrder: (input) => send("/api/buildium/orders", "POST", input).then((r) => ({ order: r.order, warning: r.warning || null })),
     updateOrder: (id, patch) => send(`/api/buildium/orders/${id}`, "PATCH", patch).then((r) => r.order),
     addInspection: (input) => send("/api/inspections", "POST", input).then((r) => r.inspection),
     createTemplate: (input) => send("/api/buildium/templates", "POST", input).then((r) => r.template),

@@ -116,31 +116,25 @@ during US business hours.
 > Sign in with the email and password below (the "Sign in with a password
 > instead" link under the email field).
 >
+> Sign in: enter the email below and tap "Email me a sign-in link", then type
+> the 8-digit code from that email into the app (or use the password path
+> under "Sign in with a password instead").
+>
 > To exercise the native features:
-> 1. Home > Report an issue: file a maintenance request. It is created in the
->    company's live system.
+> 1. Home > Report an issue > Add a photo of the problem. This opens the
+>    device camera, or the photo library. The request is created in the
+>    company's live system with the photo attached.
 > 2. Profile > Notifications > Turn on, and allow notifications when prompted.
 > 3. Profile > Delete my account demonstrates in-app account deletion.
 >
 > The app loads its interface from our server so that residents, owners and
-> staff always see the same live data as the office. Push notifications, the
-> camera (used by staff for inspection photos and by contractors for proof of
-> completed work) and the home-screen presence are native.
+> staff always see the same live data as the office. The camera and photo
+> library, push notifications and the home-screen presence are native.
 
-**Before submitting, decide one of these** (see the audit of 2026-09-14):
-
-- **Build resident photo attach** (recommended). Today only staff and
-  contractors can use the camera; a resident review account cannot, so the
-  reviewer never sees the feature that justifies the app under Guideline 4.2.
-  Adding a photo to "Report an issue" is the single strongest thing that can be
-  done for the review, and residents want it anyway.
-- Or provide a **second review login** with the contractor role on a
-  placeholder vendor, and add "Sign in as the contractor account to see the
-  camera on Complete job" to the notes above.
-
-Also note: native push is not yet *delivered* on iOS or Android (the sender
-does not exist yet; see the audit), so step 2 proves the permission prompt,
-not a received notification. Do not promise a notification arrives.
+Note: native push is not yet *delivered* on iOS or Android (the sender does
+not exist yet; see the audit of 2026-09-14), so step 2 proves the permission
+prompt, not a received notification. Do not promise a notification arrives
+until that is built.
 
 ## 5. Screenshots
 
