@@ -24,6 +24,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Take a photo of a maintenance issue so it can be attached to your work order.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Save a photo you took of a maintenance issue to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Attach a photo from your library to a maintenance request or inspection.</string>
 	<key>LSRequiresIPhoneOS</key>
@@ -58,15 +60,6 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>

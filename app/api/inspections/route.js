@@ -1,8 +1,10 @@
 // Inspection records. Employees create and read; owners read only — they see
-// completed inspections but do not manage them.
+// completed inspections for their own properties and nothing else.
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth/session";
+import { buildium } from "@/lib/buildium";
 import { listInspections, createInspection } from "@/lib/inspections";
+import { ownerScope, nameInScope } from "@/lib/ownerScope";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +14,12 @@ export async function GET(request) {
   if (!["employee", "owner"].includes(me.role)) {
     return NextResponse.json({ error: "Not permitted." }, { status: 403 });
   }
-  return NextResponse.json({ inspections: await listInspections() });
+  let inspections = await listInspections();
+  // Inspections are stored by property name, so an owner's list is narrowed
+  // by the names of the properties they own. The property list is cached.
+  const scope = await ownerScope(me, me.role === "owner" ? await buildium().listProperties() : []);
+  if (scope) inspections = inspections.filter((i) => nameInScope(scope, i.property));
+  return NextResponse.json({ inspections });
 }
 
 export async function POST(request) {

@@ -63,9 +63,16 @@ export async function POST(request) {
 export async function GET(request) {
   const me = await getServerUser(request);
   if (!me) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  // Stored photos are inspection and completion pictures of the inside of
+  // people's homes. Only the roles that can be shown them may sign a URL; an
+  // account anyone can create on the public site (a pending resident) is not
+  // one of them, and a matched resident has no photo surface yet either.
+  if (!["employee", "owner", "vendor"].includes(me.role) || !me.matched) {
+    return NextResponse.json({ error: "Not permitted." }, { status: 403 });
+  }
 
   const path = new URL(request.url).searchParams.get("path");
-  if (!path) return NextResponse.json({ error: "Missing path." }, { status: 400 });
+  if (!path || path.includes("..")) return NextResponse.json({ error: "Missing path." }, { status: 400 });
 
   const { data, error } = await getAdminSupabase()
     .storage.from(BUCKET)

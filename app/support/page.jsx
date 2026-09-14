@@ -84,8 +84,8 @@ export default function Support() {
 
           <Section title="Using the app">
             <Q q="How do I report a maintenance problem?">
-              Tap <strong>Report an issue</strong>, describe the problem, and add a photo if you can. It goes straight to the office
-              and you'll see its status update as it's scheduled and completed.
+              Tap <strong>Report an issue</strong>, pick the category and how urgent it is, and describe the problem. It goes
+              straight to the office and you'll see its status update as it's scheduled and completed.
             </Q>
             <Q q="Is this the same as calling the office?">
               Yes. Requests made in the app land in the same system the office uses, so nothing gets lost between the two.

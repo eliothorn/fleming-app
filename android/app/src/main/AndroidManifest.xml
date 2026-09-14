@@ -44,8 +44,6 @@
     <!-- Attaching an existing photo. READ_MEDIA_IMAGES is the Android 13+ form;
          the older permission is kept for devices below that, capped so it is not
          requested where it no longer applies. -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <!-- Android 13+ requires this to be asked for at runtime before a
          notification can be shown at all. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

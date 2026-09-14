@@ -117,15 +117,30 @@ during US business hours.
 > instead" link under the email field).
 >
 > To exercise the native features:
-> 1. Home > Report an issue > add a photo. This opens the device camera and
->    photo library.
-> 2. Allow notifications when prompted; a status change on the request sends a
->    push notification to the device.
+> 1. Home > Report an issue: file a maintenance request. It is created in the
+>    company's live system.
+> 2. Profile > Notifications > Turn on, and allow notifications when prompted.
 > 3. Profile > Delete my account demonstrates in-app account deletion.
 >
 > The app loads its interface from our server so that residents, owners and
-> staff always see the same live data as the office. The camera, photo
-> library, push notifications and the home-screen presence are native.
+> staff always see the same live data as the office. Push notifications, the
+> camera (used by staff for inspection photos and by contractors for proof of
+> completed work) and the home-screen presence are native.
+
+**Before submitting, decide one of these** (see the audit of 2026-09-14):
+
+- **Build resident photo attach** (recommended). Today only staff and
+  contractors can use the camera; a resident review account cannot, so the
+  reviewer never sees the feature that justifies the app under Guideline 4.2.
+  Adding a photo to "Report an issue" is the single strongest thing that can be
+  done for the review, and residents want it anyway.
+- Or provide a **second review login** with the contractor role on a
+  placeholder vendor, and add "Sign in as the contractor account to see the
+  camera on Complete job" to the notes above.
+
+Also note: native push is not yet *delivered* on iOS or Android (the sender
+does not exist yet; see the audit), so step 2 proves the permission prompt,
+not a received notification. Do not promise a notification arrives.
 
 ## 5. Screenshots
 

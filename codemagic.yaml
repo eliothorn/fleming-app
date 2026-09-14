@@ -98,7 +98,7 @@ workflows:
 
     environment:
       node: 20
-      java: 17
+      java: 21
       # Upload the Play upload keystore in Codemagic under
       # Teams > Code signing identities > Android, with this reference name.
       # Codemagic then mounts it and sets CM_KEYSTORE_PATH and friends, which

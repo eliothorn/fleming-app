@@ -7,6 +7,7 @@ import { buildium } from "@/lib/buildium";
 import { listInspections as listDurableInspections } from "@/lib/inspections";
 import { listTemplates as listDurableTemplates } from "@/lib/templates";
 import { isBuildiumLive, submissionsReachOffice, assignmentsReachBuildium } from "@/lib/env";
+import { ownerScope, inScope, nameInScope } from "@/lib/ownerScope";
 
 // A cold staff load still pages a lot of throttled Buildium requests (measured at
 // ~16s before role-scoping the fetches below). The default serverless timeout is
@@ -68,27 +69,42 @@ export async function GET(request) {
       : null,
   ]);
 
+  // An owner sees their own properties only. Until this existed, an owner with
+  // one duplex was handed the whole brokerage: every property's rent roll,
+  // every resident's tickets and every inspection's interior photos.
+  const own = await ownerScope(me, properties);
+  const scopedProperties = own ? properties.filter((p) => inScope(own, p.id)) : properties;
+  const scopedInspections = own ? inspections.filter((i) => nameInScope(own, i.property)) : inspections;
+
   let orders;
-  if (staff || owner) orders = allOrders;
+  if (staff) orders = allOrders;
+  else if (owner) orders = own ? allOrders.filter((o) => inScope(own, o.propertyId)) : allOrders;
   else if (me.role === "vendor") orders = allOrders.filter((o) => o.vendorId === me.entity?.vendorId);
   else if (me.role === "resident") {
-    // Prefer the stable Buildium tenant id; fall back to name only for records that
-    // carry no id (e.g. mock data), since name matching breaks on middle initials.
+    // Prefer the stable Buildium tenant id. Name matching exists only for the
+    // mock data, whose records carry no id. In live mode a resident with no
+    // tenant id sees nothing: the name is free text chosen at signup, so
+    // matching on it would let anyone read a real tenant's requests by typing
+    // that tenant's name.
     const myId = me.entity?.tenantId;
     const myName = me.entity?.name;
-    orders = allOrders.filter((o) =>
-      (myId != null && o.residentId != null)
-        ? o.residentId === myId
-        : Boolean(myName) && o.residentName === myName
-    );
+    if (myId != null) orders = allOrders.filter((o) => o.residentId === myId);
+    else if (!isBuildiumLive() && myName) orders = allOrders.filter((o) => o.residentName === myName);
+    else orders = [];
   }
   else orders = [];
+
+  // The roster only exists to put a name to an assignment, so an owner gets
+  // the contractors on their own jobs rather than every vendor on the books.
+  const scopedVendors = own
+    ? vendors.filter((v) => orders.some((o) => o.vendorId === v.id))
+    : vendors;
 
   return NextResponse.json({
     me,
     orders,
-    vendors,
-    properties: staff || owner ? properties : [],
+    vendors: scopedVendors,
+    properties: staff || owner ? scopedProperties : [],
     // Resident balances are still the seeded mock set — Buildium's lease ledger
     // is not mapped. Serving them in live mode puts invented people with
     // invented debts ("Derek W. owes $1,200") in front of an owner as though it
@@ -110,7 +126,7 @@ export async function GET(request) {
     // backend, so in live mode it must not be presented as somebody's real
     // application.
     applicationsEnabled: !isBuildiumLive(),
-    inspections: staff || owner ? inspections : [],
+    inspections: staff || owner ? scopedInspections : [],
     templates: staff ? templates : [],
     // The seeded message threads are demo fiction. Serving them alongside real
     // Buildium data would tell a real resident a vendor is arriving at their unit.
