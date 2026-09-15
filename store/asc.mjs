@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // App Store Connect, filled from the repo instead of by hand.
 //
+//   node store/asc.mjs bundle        register the App ID with Push Notifications (no developer.apple.com needed)
 //   node store/asc.mjs status        what exists on Apple's side for this app
 //   node store/asc.mjs metadata      name, subtitle, categories, description, keywords, URLs
 //   node store/asc.mjs screenshots   upload store/screenshots/* to the 6.7" and 6.5" slots
@@ -17,6 +18,8 @@
 //   ASC_REVIEW_PHONE  who they may phone, with country code, e.g. +17175551234
 //   ASC_DEMO_EMAIL / ASC_DEMO_PASSWORD   the review account (see LISTING.md section 6)
 //
+// The App ID (bundle id + capabilities) is registered by `bundle`, so the
+// developer.apple.com portal never has to be opened.
 // The app record itself cannot be created by the API; that is the one thing
 // that has to be clicked in App Store Connect first. App Privacy (the data-
 // collection questionnaire) is also UI-only; LISTING.md section 3 has the
@@ -132,7 +135,24 @@ async function appInfo(appId) {
 }
 
 // ── Commands ─────────────────────────────────────────────────────────────────
+async function bundle() {
+  let b = (await asc("GET", `/bundleIds?filter[identifier]=${BUNDLE_ID}`)).data?.find((x) => x.attributes.identifier === BUNDLE_ID);
+  if (b) console.log(`App ID ${BUNDLE_ID} already registered (${b.id})`);
+  else {
+    b = (await asc("POST", "/bundleIds", { data: { type: "bundleIds", attributes: { identifier: BUNDLE_ID, name: "Stephen Fleming Realty", platform: "IOS" } } })).data;
+    console.log(`registered App ID ${BUNDLE_ID} (${b.id})`);
+  }
+  const caps = (await asc("GET", `/bundleIds/${b.id}/bundleIdCapabilities`)).data || [];
+  if (caps.some((c) => c.attributes.capabilityType === "PUSH_NOTIFICATIONS")) console.log("  Push Notifications: already on");
+  else {
+    await asc("POST", "/bundleIdCapabilities", { data: { type: "bundleIdCapabilities", attributes: { capabilityType: "PUSH_NOTIFICATIONS" }, relationships: { bundleId: rel("bundleIds", b.id) } } });
+    console.log("  Push Notifications: enabled");
+  }
+}
+
 async function status() {
+  const bid = (await asc("GET", `/bundleIds?filter[identifier]=${BUNDLE_ID}`)).data?.find((x) => x.attributes.identifier === BUNDLE_ID);
+  console.log(bid ? `App ID ${BUNDLE_ID}: registered` : `App ID ${BUNDLE_ID}: not registered (run: node store/asc.mjs bundle)`);
   const a = await app();
   console.log(`app: ${a.attributes.name} (${a.id}) sku=${a.attributes.sku}`);
   const vs = await asc("GET", `/apps/${a.id}/appStoreVersions?filter[platform]=IOS`);
@@ -243,6 +263,6 @@ async function submit() {
 }
 
 const cmd = process.argv[2];
-const run = { status, metadata, screenshots, review, build, submit, all: async () => { await metadata(); await screenshots(); await review(); await build().catch((e) => console.log("  (build not attached: " + e.message + ")")); } }[cmd];
-if (!run) { console.error("usage: node store/asc.mjs status|metadata|screenshots|review|build|submit|all"); process.exit(2); }
+const run = { bundle, status, metadata, screenshots, review, build, submit, all: async () => { await metadata(); await screenshots(); await review(); await build().catch((e) => console.log("  (build not attached: " + e.message + ")")); } }[cmd];
+if (!run) { console.error("usage: node store/asc.mjs bundle|status|metadata|screenshots|review|build|submit|all"); process.exit(2); }
 run().catch((e) => { console.error("FAILED:", e.message); process.exit(1); });
