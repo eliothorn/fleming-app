@@ -48,7 +48,7 @@ const COPY = {
   primaryCategory: "BUSINESS",
   secondaryCategory: "PRODUCTIVITY",
   promotionalText: "Report a problem, add a photo, and watch it get fixed. For residents, owners and contractors of Stephen Fleming Realty.",
-  keywords: "rental,tenant,landlord,maintenance,repair,work order,property management,lease,apartment,mechanicsburg",
+  keywords: "rental,tenant,landlord,maintenance,repair,work order,property manager,apartment,mechanicsburg",
   whatsNew: "First release.",
   description: `The Stephen Fleming Realty app puts your rental in your pocket.
 
@@ -179,10 +179,24 @@ async function metadata() {
   // Version copy.
   const v = await version(a.id);
   const l = await versionLocalization(v.id);
-  await asc("PATCH", `/appStoreVersionLocalizations/${l.id}`, { data: { type: "appStoreVersionLocalizations", id: l.id, attributes: {
+  const copy = {
     description: COPY.description, keywords: COPY.keywords, promotionalText: COPY.promotionalText,
-    supportUrl: COPY.supportUrl, marketingUrl: COPY.marketingUrl, whatsNew: COPY.whatsNew } } });
-  console.log("  description / keywords / promotional text / URLs / what's new set");
+    supportUrl: COPY.supportUrl, marketingUrl: COPY.marketingUrl, whatsNew: COPY.whatsNew,
+  };
+  const patchCopy = (attrs) =>
+    asc("PATCH", `/appStoreVersionLocalizations/${l.id}`, { data: { type: "appStoreVersionLocalizations", id: l.id, attributes: attrs } });
+  try {
+    await patchCopy(copy);
+    console.log("  description / keywords / promotional text / URLs / what's new set");
+  } catch (e) {
+    // "What's New" describes what changed since the last release, so Apple
+    // rejects it on a first version that has never shipped. Everything else
+    // in the same PATCH is still wanted.
+    if (!/whatsNew/.test(e.message)) throw e;
+    const { whatsNew, ...rest } = copy;
+    await patchCopy(rest);
+    console.log("  description / keywords / promotional text / URLs set (what's new is not accepted on a first release)");
+  }
   await asc("PATCH", `/appStoreVersions/${v.id}`, { data: { type: "appStoreVersions", id: v.id, attributes: { copyright: `© ${new Date().getFullYear()} D'Angelo Realty Group, Inc.` } } });
   console.log("  copyright set");
 }

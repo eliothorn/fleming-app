@@ -71,7 +71,7 @@ Worth telling Steve before he sees it.
 **Keywords** (100, comma-separated, no spaces after commas):
 
 ```
-rental,tenant,landlord,maintenance,repair,work order,property management,lease,apartment,mechanicsburg
+rental,tenant,landlord,maintenance,repair,work order,property manager,apartment,mechanicsburg
 ```
 
 **What's New** (first release):

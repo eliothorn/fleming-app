@@ -42,3 +42,7 @@ vercel-env.txt
 /android/app/build
 /android/build
 /android/local.properties
+
+# App Store Connect API private key: never commit this
+*.p8
+AuthKey.p8
