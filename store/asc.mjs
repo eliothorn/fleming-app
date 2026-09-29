@@ -254,12 +254,36 @@ async function review() {
   else await asc("POST", "/appStoreReviewDetails", { data: { type: "appStoreReviewDetails", attributes: attrs, relationships: { appStoreVersion: rel("appStoreVersions", v.id) } } });
   console.log("  review contact, demo account and notes set");
   // Age rating: nothing objectionable, every answer "none".
-  const ar = await asc("GET", `/appStoreVersions/${v.id}/ageRatingDeclaration`);
-  const none = ["alcoholTobaccoOrDrugUseOrReferences", "contests", "gamblingSimulated", "horrorOrFearThemes", "matureOrSuggestiveThemes", "medicalOrTreatmentInformation", "profanityOrCrudeHumor", "sexualContentGraphicAndNudity", "sexualContentOrNudity", "violenceCartoonOrFantasy", "violenceRealistic", "violenceRealisticProlongedGraphicOrSadistic"];
-  const decl = Object.fromEntries(none.map((k) => [k, "NONE"]));
-  Object.assign(decl, { gambling: false, unrestrictedWebAccess: false, kidsAgeBand: null });
-  await asc("PATCH", `/ageRatingDeclarations/${ar.data.id}`, { data: { type: "ageRatingDeclarations", id: ar.data.id, attributes: decl } });
-  console.log("  age rating declared (4+)");
+  // Age rating hangs off the app info, not the version, and Apple will not let
+  // it be created — only updated. The attribute list changes over time and
+  // mixes enums with booleans, so rather than hard-code a schema that rots,
+  // read back whatever Apple currently declares and answer every question with
+  // its safest value. Nothing in this app is objectionable, so that is also the
+  // truthful answer; the result is 4+.
+  const infoForAge = await appInfo(a.id);
+  const incl = await asc("GET", `/appInfos/${infoForAge.id}?include=ageRatingDeclaration`);
+  const ard = (incl.included || []).find((x) => x.type === "ageRatingDeclarations");
+  if (!ard) console.log("  age rating: no declaration to update (complete it in App Store Connect)");
+  else {
+    const BOOL = new Set();
+    const build = () => Object.fromEntries(Object.keys(ard.attributes)
+      .filter((k) => !/^kidsAgeBand$|RatingOverride|gracRating|developerAgeRatingInfoUrl/.test(k))
+      .map((k) => [k, BOOL.has(k) ? false : "NONE"]));
+    let done = false;
+    for (let i = 0; i < 40 && !done; i++) {
+      try {
+        await asc("PATCH", `/ageRatingDeclarations/${ard.id}`, { data: { type: "ageRatingDeclarations", id: ard.id, attributes: build() } });
+        done = true;
+      } catch (e) {
+        // "Expected a BOOLEAN but got STRING" names one attribute at a time.
+        const bad = /attribute '([A-Za-z]+)'/.exec(e.message);
+        if (!bad || !/BOOLEAN/.test(e.message) || BOOL.has(bad[1])) throw e;
+        BOOL.add(bad[1]);
+      }
+    }
+    const after = await appInfo(a.id);
+    console.log(`  age rating set: ${after.attributes.appStoreAgeRating || "saved"}`);
+  }
 }
 
 async function build() {
