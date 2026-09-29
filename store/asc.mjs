@@ -207,14 +207,21 @@ async function screenshots() {
   const l = await versionLocalization(v.id);
   const sets = { "iphone-6.7": "APP_IPHONE_67", "iphone-6.5": "APP_IPHONE_65" };
   for (const [dir, displayType] of Object.entries(sets)) {
-    const folder = path.join(ROOT, "store", "screenshots", dir);
+    // The designed plates, not the raw captures those plates are built from.
+    const folder = path.join(ROOT, "store", "previews", dir);
     const files = fs.readdirSync(folder).filter((f) => f.endsWith(".png")).sort();
     const existing = await asc("GET", `/appStoreVersionLocalizations/${l.id}/appScreenshotSets`);
     let set = existing.data.find((s) => s.attributes.screenshotDisplayType === displayType);
     if (!set) set = (await asc("POST", "/appScreenshotSets", { data: { type: "appScreenshotSets", attributes: { screenshotDisplayType: displayType }, relationships: { appStoreVersionLocalization: rel("appStoreVersionLocalizations", l.id) } } })).data;
-    const already = (await asc("GET", `/appScreenshotSets/${set.id}/appScreenshots`)).data.map((s) => s.attributes.fileName);
+    // This replaces the set rather than adding to it. Skipping by file name was
+    // wrong once the plates took the same names as the captures they replaced:
+    // nothing uploaded and the old grabs stayed live.
+    const already = (await asc("GET", `/appScreenshotSets/${set.id}/appScreenshots`)).data;
+    for (const s of already) {
+      await asc("DELETE", `/appScreenshots/${s.id}`);
+      console.log(`  ${displayType} ${s.attributes.fileName}: removed`);
+    }
     for (const f of files) {
-      if (already.includes(f)) { console.log(`  ${displayType} ${f}: already there`); continue; }
       const bytes = fs.readFileSync(path.join(folder, f));
       const reserve = (await asc("POST", "/appScreenshots", { data: { type: "appScreenshots", attributes: { fileName: f, fileSize: bytes.length }, relationships: { appScreenshotSet: rel("appScreenshotSets", set.id) } } })).data;
       for (const op of reserve.attributes.uploadOperations) {
