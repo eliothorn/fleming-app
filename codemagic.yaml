@@ -9,9 +9,16 @@
 #      Notifications capability switched on. Without that capability the
 #      aps-environment entitlement fails to validate and the build is rejected.
 #   2. The app record created in App Store Connect against that bundle id.
-#   3. An App Store Connect API key, added to Codemagic under
-#      Teams > Integrations > App Store Connect, named exactly as
-#      `integrations.app_store_connect` below.
+#   3. An App Store Connect API key. Codemagic's `integrations` block needs
+#      a TEAM to hold that key and this is a personal account, so the key is
+#      supplied as four variables in the `appstore` environment group:
+#        APP_STORE_CONNECT_ISSUER_ID       the UUID on the API keys page
+#        APP_STORE_CONNECT_KEY_IDENTIFIER  the 10-character Key ID
+#        APP_STORE_CONNECT_PRIVATE_KEY     the whole AuthKey_*.p8, BEGIN to END
+#        CERTIFICATE_PRIVATE_KEY           an RSA key Codemagic uses to request
+#                                          the distribution certificate
+#      Add them under App settings > Environment variables, group `appstore`,
+#      each one marked Secure.
 #
 # This project uses Swift Package Manager, NOT CocoaPods. There is no Podfile
 # and no .xcworkspace, so the build targets App.xcodeproj directly. Do not add
@@ -23,17 +30,13 @@ workflows:
     instance_type: mac_mini_m2
     max_build_duration: 60
 
-    integrations:
-      # Must match the App Store Connect key name configured in Codemagic.
-      app_store_connect: FlemingASC
-
     environment:
       node: 20
       xcode: latest
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.dangelore.flemingrealty
+      groups:
+        - appstore
       vars:
+        BUNDLE_ID: "com.dangelore.flemingrealty"
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
 
@@ -63,7 +66,17 @@ workflows:
           agvtool new-version -all "$BUILD_NUMBER"
 
       - name: Fetch signing certificates and profiles
-        script: xcode-project use-profiles
+        # Without a team integration Codemagic does not set signing up for us,
+        # so this is the explicit version: make a keychain, have App Store
+        # Connect issue (or reuse) a distribution certificate and an App Store
+        # profile for the bundle id, install them, and point Xcode at them.
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
 
       - name: Build the ipa
         script: |
@@ -77,7 +90,10 @@ workflows:
 
     publishing:
       app_store_connect:
-        auth: integration
+        # The same four variables authenticate the upload.
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
         # Left off on purpose. Get it working in TestFlight and on a real
         # phone first; flip this to true only when you actually want Apple's
@@ -99,8 +115,10 @@ workflows:
     environment:
       node: 20
       java: 21
-      # Upload the Play upload keystore in Codemagic under
+      # Needs the Play upload keystore in Codemagic under
       # Teams > Code signing identities > Android, with this reference name.
+      # That is a team feature; on a personal account this workflow cannot
+      # run until the $25 Play account exists and a team is created.
       # Codemagic then mounts it and sets CM_KEYSTORE_PATH and friends, which
       # android/app/build.gradle reads. No keystore, no signed build.
       android_signing:
