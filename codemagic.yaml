@@ -17,7 +17,7 @@
 #        APP_STORE_CONNECT_PRIVATE_KEY     the whole AuthKey_*.p8, BEGIN to END
 #        CERTIFICATE_PRIVATE_KEY           an RSA key Codemagic uses to request
 #                                          the distribution certificate
-#      Add them under App settings > Environment variables, group `appstore`,
+#      Add them under App settings > Environment variables, group `Appstore`,
 #      each one marked Secure.
 #
 # This project uses Swift Package Manager, NOT CocoaPods. There is no Podfile
@@ -34,7 +34,7 @@ workflows:
       node: 20
       xcode: latest
       groups:
-        - appstore
+        - Appstore
       vars:
         BUNDLE_ID: "com.dangelore.flemingrealty"
         XCODE_PROJECT: "ios/App/App.xcodeproj"
