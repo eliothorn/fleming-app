@@ -27,7 +27,7 @@ export async function POST(request) {
   const { orderId, vendorId } = await request.json().catch(() => ({}));
   if (!orderId) return NextResponse.json({ error: "No work order given." }, { status: 400 });
 
-  const b = buildium();
+  const b = buildium(me);
   const orders = await b.listOrders({ withVendors: true });
   const order = orders.find((o) => String(o.id) === String(orderId));
   if (!order) return NextResponse.json({ error: "That work order isn't in view." }, { status: 404 });

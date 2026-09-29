@@ -27,10 +27,10 @@ export async function GET(request) {
   if (me.role !== "employee") return NextResponse.json({ error: "Employees only." }, { status: 403 });
 
   try {
-    const props = await buildium().listProperties();
+    const props = await buildium(me).listProperties();
     const withOwners = [];
     for (const p of props) {
-      const owners = await buildium().ownersFor(p.id);
+      const owners = await buildium(me).ownersFor(p.id);
       if (owners.length) withOwners.push({ id: p.id, name: p.name, owners });
     }
     return NextResponse.json({
@@ -54,7 +54,7 @@ export async function POST(request) {
   const { propertyId, note } = await request.json().catch(() => ({}));
   if (propertyId == null) return NextResponse.json({ error: "Choose a property first." }, { status: 400 });
 
-  const b = buildium();
+  const b = buildium(me);
   const props = await b.listProperties();
   const property = props.find((p) => String(p.id) === String(propertyId));
   if (!property) return NextResponse.json({ error: "That property isn't in view." }, { status: 404 });

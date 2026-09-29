@@ -65,7 +65,7 @@ export async function POST(request) {
 
   try {
     setWriteActor({ email: me.email, role: me.role });
-    const order = await buildium().createOrder(input);
+    const order = await buildium(me).createOrder(input);
 
     // Buildium holds the ticket; the photo of the problem lives with us. If
     // this insert fails the ticket still exists, so say exactly that rather

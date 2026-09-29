@@ -17,7 +17,7 @@ export async function GET(request, { params }) {
   }
   const inspection = await getInspection(params.id);
   if (!inspection) return NextResponse.json({ error: "Inspection not found." }, { status: 404 });
-  const scope = await ownerScope(me, me.role === "owner" ? await buildium().listProperties() : []);
+  const scope = await ownerScope(me, me.role === "owner" ? await buildium(me).listProperties() : []);
   if (scope && !nameInScope(scope, inspection.property)) {
     return NextResponse.json({ error: "Inspection not found." }, { status: 404 });
   }

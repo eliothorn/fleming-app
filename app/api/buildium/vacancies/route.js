@@ -16,7 +16,7 @@ export async function GET(request) {
   if (!me) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   try {
-    return NextResponse.json({ vacancies: (await buildium().listVacancies()) || [] });
+    return NextResponse.json({ vacancies: (await buildium(me).listVacancies()) || [] });
   } catch (e) {
     return NextResponse.json(
       { error: e?.message || "Could not load available units." },

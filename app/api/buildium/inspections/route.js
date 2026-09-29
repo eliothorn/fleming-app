@@ -9,6 +9,6 @@ export async function POST(request) {
   if (me.role !== "employee") return NextResponse.json({ error: "Employees only." }, { status: 403 });
 
   const input = await request.json().catch(() => ({}));
-  const record = buildium().addInspection({ ...input, by: me.entity?.name || "Employee" });
+  const record = buildium(me).addInspection({ ...input, by: me.entity?.name || "Employee" });
   return NextResponse.json({ inspection: record });
 }

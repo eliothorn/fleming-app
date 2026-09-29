@@ -40,7 +40,7 @@ export async function GET(request) {
   // /diag?residentmatch=1
   if (params.get("residentmatch")) {
     const { buildium } = await import("@/lib/buildium");
-    const orders = await buildium().listOrders();
+    const orders = await buildium(me).listOrders();
     const tenants = [];
     for (let i = 0; i < 25; i++) {
       const page = await buildiumRequest("/leases/tenants", { query: { limit: 100, offset: i * 100 } });
@@ -83,7 +83,7 @@ export async function GET(request) {
   // /diag?residentsim=1
   if (params.get("residentsim")) {
     const { buildium } = await import("@/lib/buildium");
-    const orders = await buildium().listOrders();
+    const orders = await buildium(me).listOrders();
     const tenants = [];
     for (let i = 0; i < 25; i++) {
       const page = await buildiumRequest("/leases/tenants", { query: { limit: 100, offset: i * 100 } });

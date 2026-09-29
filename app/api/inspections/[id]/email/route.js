@@ -45,10 +45,10 @@ export async function POST(request, { params }) {
   const ownerNotes = [];
   if (body.includeOwner !== false) {
     try {
-      const props = await buildium().listProperties();
+      const props = await buildium(me).listProperties();
       const match = props.find((p) => p.name && report.property && p.name.trim().toLowerCase() === String(report.property).trim().toLowerCase());
       if (match) {
-        const owners = await buildium().ownersFor(match.id);
+        const owners = await buildium(me).ownersFor(match.id);
         owners.forEach((o) => { recipients.push(o.email); ownerNotes.push(`${o.name} <${o.email}>`); });
         if (!owners.length) ownerNotes.push("No owner with an email is linked to this property in Buildium.");
       } else {

@@ -30,7 +30,7 @@ export async function GET(request) {
   }
 
   try {
-    const props = await buildium().listProperties();
+    const props = await buildium(me).listProperties();
     const busy = props
       .filter((p) => (p.openOrders || 0) > 0)
       .sort((a, b) => (b.urgentOrders || 0) - (a.urgentOrders || 0) || (b.openOrders || 0) - (a.openOrders || 0))

@@ -28,7 +28,7 @@ export async function GET(request) {
   }
 
   try {
-    return NextResponse.json({ units: (await buildium().listOccupancy(propertyId)) || [] });
+    return NextResponse.json({ units: (await buildium(me).listOccupancy(propertyId)) || [] });
   } catch (e) {
     return NextResponse.json(
       { error: e?.message || "Could not load the units for that property." },

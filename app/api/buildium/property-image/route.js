@@ -31,7 +31,7 @@ export async function GET(request) {
   if (!propertyId) return NextResponse.json({ error: "A property is required." }, { status: 400 });
 
   try {
-    const url = await buildium().propertyImageUrl(propertyId);
+    const url = await buildium(me).propertyImageUrl(propertyId);
     if (!url) return new NextResponse(null, { status: 404 });
 
     const upstream = await fetch(url, { cache: "no-store" });

@@ -17,7 +17,7 @@ export async function GET(request) {
   let inspections = await listInspections();
   // Inspections are stored by property name, so an owner's list is narrowed
   // by the names of the properties they own. The property list is cached.
-  const scope = await ownerScope(me, me.role === "owner" ? await buildium().listProperties() : []);
+  const scope = await ownerScope(me, me.role === "owner" ? await buildium(me).listProperties() : []);
   if (scope) inspections = inspections.filter((i) => nameInScope(scope, i.property));
   return NextResponse.json({ inspections });
 }

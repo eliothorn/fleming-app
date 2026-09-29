@@ -47,7 +47,7 @@ export async function PATCH(request, { params }) {
 
   try {
     setWriteActor({ email: me.email, role: me.role });
-    let order = await buildium().updateOrder(params.id, patch);
+    let order = await buildium(me).updateOrder(params.id, patch);
     if (!order) return NextResponse.json({ error: "Work order not found." }, { status: 404 });
 
     // Buildium records the status change but not the photo or the note; those

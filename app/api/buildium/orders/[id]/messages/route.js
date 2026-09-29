@@ -22,7 +22,7 @@ export async function GET(request, { params }) {
   const orderId = String(params.id || "");
   if (!orderId) return NextResponse.json({ error: "No work order given." }, { status: 400 });
 
-  const b = buildium();
+  const b = buildium(me);
   const staff = me.role === "employee";
   const owner = me.role === "owner";
   const seesVendors = staff || owner || me.role === "vendor";

@@ -20,7 +20,12 @@ export async function GET(request) {
   const me = await getServerUser(request);
   if (!me) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-  const b = buildium();
+  const b = buildium(me);
+  // The review account reads the fictional store, so every downstream
+  // decision that keyed off live mode has to key off this instead, or it
+  // would hide the seeded balances and messages that make the demo look
+  // like a working app.
+  const live = isBuildiumLive() && !me.demo;
   const staff = me.role === "employee";
   const owner = me.role === "owner";
   const portfolio = staff || owner; // who is allowed to see properties/balances/inspections
@@ -44,7 +49,7 @@ export async function GET(request) {
   // thing the app does — purely to have it discarded a few lines below. Measured
   // cold, that was the difference between ~16s and a fraction of it.
   //
-  // Inspections come from the durable store, not the mock one behind buildium():
+  // Inspections come from the durable store, not the mock one behind buildium(me):
   // the mock returns two invented reports ("812 Market St, by Marcus J.") that
   // an owner would read as a real record of their own property.
   const [allOrders, vendors, properties, balances, inspections, templates, myBalance, myOwnerBalance] = await Promise.all([
@@ -53,7 +58,7 @@ export async function GET(request) {
     // aren't shown assignments don't need it either.
     seesVendors ? b.listVendors() : [],
     portfolio ? b.listProperties() : [],
-    portfolio && !isBuildiumLive() ? b.listBalances() : [],
+    portfolio && !live ? b.listBalances() : [],
     portfolio ? listDurableInspections() : [],
     staff ? listDurableTemplates() : [],
     // A resident's own balance. Their unit and address are already in the
@@ -90,7 +95,7 @@ export async function GET(request) {
     const myId = me.entity?.tenantId;
     const myName = me.entity?.name;
     if (myId != null) orders = allOrders.filter((o) => o.residentId === myId);
-    else if (!isBuildiumLive() && myName) orders = allOrders.filter((o) => o.residentName === myName);
+    else if (!live && myName) orders = allOrders.filter((o) => o.residentName === myName);
     else orders = [];
   }
   else orders = [];
@@ -120,8 +125,8 @@ export async function GET(request) {
     // is not mapped. Serving them in live mode puts invented people with
     // invented debts ("Derek W. owes $1,200") in front of an owner as though it
     // were their rent roll, so live mode gets nothing and the UI says so.
-    balances: (staff || owner) && !isBuildiumLive() ? balances : [],
-    balancesEnabled: !isBuildiumLive(),
+    balances: (staff || owner) && !live ? balances : [],
+    balancesEnabled: !live,
     // The signed-in resident's own balance, from Buildium's outstanding-balance
     // ledger. null means we couldn't determine it — which the UI must say,
     // rather than showing $0.00 to somebody who is in arrears.
@@ -136,14 +141,14 @@ export async function GET(request) {
     // number, property, rent and progress timeline. There is no application
     // backend, so in live mode it must not be presented as somebody's real
     // application.
-    applicationsEnabled: !isBuildiumLive(),
+    applicationsEnabled: !live,
     inspections: staff || owner ? scopedInspections : [],
     templates: staff ? templates : [],
     // The seeded message threads are demo fiction. Serving them alongside real
     // Buildium data would tell a real resident a vendor is arriving at their unit.
     // There is no message backend yet, so live mode gets an honest empty inbox.
-    messages: isBuildiumLive() ? [] : b.messagesFor(me.role),
-    messagingEnabled: !isBuildiumLive(),
+    messages: live ? [] : b.messagesFor(me.role),
+    messagingEnabled: !live,
     // Whether a submitted request genuinely lands in Buildium. Drives the copy so
     // the app never claims maintenance was notified when it wasn't.
     submissionsReachOffice: submissionsReachOffice(),

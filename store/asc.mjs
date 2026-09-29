@@ -71,7 +71,9 @@ Sign-in is by email. There is no password to remember. Use the email address the
 This app is for tenants, owners, contractors and staff of Stephen Fleming Realty (D'Angelo Realty Group, Inc.), Mechanicsburg, PA.`,
   reviewNotes: `This app is for tenants, owners, contractors and staff of a property management company in Pennsylvania. Real accounts are matched to the company's records by email address, which is why a review account is provided rather than open sign-up.
 
-Sign in: enter the email below and tap "Email me a sign-in link", then type the 8-digit code from that email into the app, or use the password path under "Sign in with a password instead".
+Sign in: on the sign-in screen tap "Sign in with a password instead", then use the email and password below. (The email-link option above it is for real residents and needs a mailbox you will not have.)
+
+This account is a demonstration resident. It is flagged in our database to read fictional data instead of the company's live records, so nothing you see belongs to a real person.
 
 To exercise the native features:
 1. Home > Report an issue > Add a photo of the problem. This opens the device camera or the photo library. The request is created in the company's live system with the photo attached.
