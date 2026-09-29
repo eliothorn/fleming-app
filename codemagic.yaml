@@ -31,7 +31,8 @@ workflows:
     max_build_duration: 60
 
     environment:
-      node: 20
+      # Capacitor 8's CLI refuses to run on anything below 22.
+      node: 22
       xcode: latest
       groups:
         - Appstore
@@ -113,7 +114,7 @@ workflows:
     max_build_duration: 45
 
     environment:
-      node: 20
+      node: 22
       java: 21
       # Needs the Play upload keystore in Codemagic under
       # Teams > Code signing identities > Android, with this reference name.
