@@ -1578,7 +1578,12 @@ function NotificationSetting() {
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:13,fontWeight:700,color:C.text}}>Notifications</div>
           <div style={{fontSize:11.5,color:C.faint,lineHeight:1.45,marginTop:1}}>
-            {on ? (devices>1?`On for ${devices} devices`:"On for this device")
+            {/* In the App Store build the device token is stored but nothing
+                delivers to it yet: lib/push.js sends over web-push only and
+                counts native devices as nativePending. Say what actually
+                happened, which is that permission was granted. */}
+            {on ? (state==="native" ? "Allowed on this device"
+                                    : devices>1?`On for ${devices} devices`:"On for this device")
                : state==="native" ? "Off"
                : needsInstall ? "Add the app to your home screen first"
                : blocked ? "Blocked in your phone's settings"

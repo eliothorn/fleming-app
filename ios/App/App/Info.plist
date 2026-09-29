@@ -22,6 +22,11 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- The app uses only HTTPS, which Apple exempts. Without this key every
+	     build stops for the export-compliance question before it can be
+	     submitted, which blocks an automated TestFlight release. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>Take a photo of a maintenance issue so it can be attached to your work order.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
