@@ -207,16 +207,25 @@ export default function LoginPage() {
               </button>
 
               {/* Residents rarely log in and will forget passwords; staff use them
-                  daily. Default to passwordless, keep passwords one tap away. */}
+                  daily. Default to passwordless, but the alternative has to be a
+                  real control, not a 12px span: it was below Apple's 44pt minimum
+                  tap target, and anyone who cannot receive mail at the address they
+                  typed (an App Store reviewer, a resident whose mailbox bounces)
+                  sees one big button, taps it, and waits for a link that will never
+                  arrive. */}
               {liveMode && (
-                <div style={{ textAlign: "center", marginTop: 14 }}>
-                  <span
-                    onClick={() => { setUsePassword((v) => !v); setError(""); }}
-                    style={{ fontSize: 12, color: C.primary, fontWeight: 700, cursor: "pointer" }}
-                  >
-                    {usePassword ? "← Use a sign-in link instead" : "Sign in with a password instead"}
-                  </span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => { setUsePassword((v) => !v); setError(""); }}
+                  style={{
+                    width: "100%", marginTop: 12, minHeight: 48,
+                    background: "#fff", color: C.primary,
+                    border: `1px solid ${C.border}`, borderRadius: 12,
+                    fontSize: 14.5, fontWeight: 700, fontFamily: "inherit", cursor: "pointer",
+                  }}
+                >
+                  {usePassword ? "Use a sign-in link instead" : "Sign in with a password instead"}
+                </button>
               )}
 
               {usePassword && liveMode && (
