@@ -8,7 +8,7 @@
 // vendor: this endpoint lists every resident's email address in the portfolio.
 import { NextResponse } from "next/server";
 import { getServerUser } from "@/lib/auth/session";
-import { isBuildiumLive } from "@/lib/env";
+import { isBuildiumLive, isResidentRolloutEnabled } from "@/lib/env";
 import { residentRoster } from "@/lib/residents";
 import { invitedMap, signedUpSet, sendInvites, inviteEmail } from "@/lib/invites";
 import { emailConfigured, sendEmail } from "@/lib/notify";
@@ -73,6 +73,9 @@ export async function GET(request) {
       properties: properties.sort((a, b) => b.reachable - a.reachable),
       dailyCap: DAILY_CAP,
       emailReady: emailConfigured(),
+      // Whether the send button does anything. The screen says so plainly
+      // rather than letting someone press it and wonder.
+      sendingEnabled: isResidentRolloutEnabled(),
     });
   } catch (e) {
     return NextResponse.json({ error: e?.message || "Couldn't load the resident list." }, { status: 502 });
@@ -88,6 +91,14 @@ export async function POST(request) {
   }
 
   const body = await request.json().catch(() => ({}));
+
+  // Nothing leaves the building until the broker has said yes. Enforced here
+  // rather than by hiding the button, because a hidden button is not a control.
+  if (!isResidentRolloutEnabled()) {
+    return NextResponse.json({
+      error: "Resident invitations are switched off. Set RESIDENT_ROLLOUT=true once the broker has approved emailing residents.",
+    }, { status: 409 });
+  }
 
   // Send one to yourself first. Nobody should discover a broken link or a
   // typo'd greeting in 619 inboxes, and an employee is never in the resident

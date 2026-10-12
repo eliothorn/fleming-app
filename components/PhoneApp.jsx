@@ -2795,6 +2795,7 @@ function RolloutScreen({onBack,role,setRole}) {
   // group size once some of it has already gone out.
   const pending=chosen?chosen.new+chosen.failed:(data?(data.tally.new+data.tally.failed):0);
   const batch=Math.min(pending,data?.dailyCap||100);
+  const canSend=Boolean(batch&&data?.emailReady&&data?.sendingEnabled&&state!=="sending");
 
   const post=async(body,after)=>{
     setState("sending");
@@ -2868,6 +2869,15 @@ function RolloutScreen({onBack,role,setRole}) {
               </div>
             )}
 
+            {data.emailReady&&!data.sendingEnabled&&(
+              <div style={{display:"flex",gap:10,alignItems:"flex-start",background:C.pending.bg,border:`1px solid ${C.pending.border}`,borderRadius:14,padding:"11px 13px"}}>
+                <Icon name="warning" size={16} style={{color:C.pending.text,marginTop:1,flexShrink:0}} />
+                <div style={{fontSize:11.5,color:C.pending.text,lineHeight:1.5}}>
+                  <b>Sending is switched off.</b> The numbers below are real, but no resident will be emailed until Stephen Fleming Realty has approved the rollout and the switch is turned on.
+                </div>
+              </div>
+            )}
+
             <div>
               <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:6}}>Who to invite</div>
               <select value={pick} onChange={e=>{setPick(e.target.value);setState(null);}}
@@ -2914,20 +2924,20 @@ function RolloutScreen({onBack,role,setRole}) {
                 before 619 people read it in theirs. */}
             <button
               onClick={preview}
-              disabled={state==="sending"||!data.emailReady}
+              disabled={state==="sending"||!data.emailReady||!data.sendingEnabled}
               style={{width:"100%",background:"#fff",color:C.primary,fontSize:13,fontWeight:700,padding:"13px",borderRadius:14,
                 border:`1.5px solid ${C.border}`,fontFamily:"inherit",minHeight:44,
-                cursor:(state==="sending"||!data.emailReady)?"default":"pointer",opacity:(state==="sending"||!data.emailReady)?.55:1}}>
+                cursor:(state==="sending"||!data.emailReady||!data.sendingEnabled)?"default":"pointer",opacity:(state==="sending"||!data.emailReady||!data.sendingEnabled)?.55:1}}>
               Send one to me first
             </button>
 
             <button
               onClick={send}
-              disabled={!batch||state==="sending"||!data.emailReady}
-              style={{width:"100%",background:(batch&&data.emailReady&&state!=="sending")?C.primary:"#E5E1D8",color:(batch&&data.emailReady&&state!=="sending")?"#fff":C.faint,
+              disabled={!batch||state==="sending"||!data.emailReady||!data.sendingEnabled}
+              style={{width:"100%",background:canSend?C.primary:"#E5E1D8",color:canSend?"#fff":C.faint,
                 fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",fontFamily:"inherit",
-                cursor:(batch&&data.emailReady&&state!=="sending")?"pointer":"default"}}>
-              {state==="sending"?"Sending…":batch?`Send ${batch} invitation${batch===1?"":"s"}`:"Everyone here has been invited"}
+                cursor:canSend?"pointer":"default"}}>
+              {state==="sending"?"Sending…":!data.sendingEnabled?"Sending is switched off":batch?`Send ${batch} invitation${batch===1?"":"s"}`:"Everyone here has been invited"}
             </button>
 
             {/* The cap is the mail provider's, not a preference. Saying so stops
