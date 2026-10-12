@@ -341,6 +341,7 @@ function EmployeeHome({me,orders,onNav,onOrder,role,setRole}) {
           // Named the demo vendor regardless of the real roster (100+ live).
           {icon:"chat",label:"Message vendor",sub:vendorCount?`${vendorCount} on file`:"Vendor directory",cb:()=>onNav("messages")},
           {icon:"chart",label:"Owner report",sub:"Email an owner",cb:()=>onNav("ownerreport")},
+          {icon:"envelope",label:"Invite residents",sub:"Roll out the app",cb:()=>onNav("rollout")},
         ].map(q=>(
           <div key={q.label} className="fl-rise fl-card" onClick={q.cb} style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:16,padding:"14px 15px",cursor:"pointer",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
             <div style={{width:38,height:38,borderRadius:12,background:C.goldSoft,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:11}}><Icon name={q.icon} size={19} style={{color:C.primary}} /></div>
@@ -2766,6 +2767,183 @@ function ApplicantHome({me,applicationsEnabled=true,role,setRole}) {
 // The "Owner report" quick action used to navigate to the Profile screen and do
 // nothing at all, which promised something the app could not deliver. It now
 // sends a real update to whoever Buildium records as the owner of a property.
+// The resident rollout.
+//
+// Everything else in this app is used by someone who already knows it exists.
+// This is the screen that makes that true: it emails residents their invitation
+// in batches and then shows how many actually signed in, which is the only
+// number that says whether the launch worked.
+//
+// Batches, not one big send, because the mail provider caps the day and because
+// a pilot on one property tells you whether the wording lands before 600 people
+// read it.
+function RolloutScreen({onBack,role,setRole}) {
+  const [data,setData]=useState(null);
+  const [error,setError]=useState("");
+  const [pick,setPick]=useState("");            // "" = every property
+  const [state,setState]=useState(null);        // null | "sending" | {sent,failed,...} | {error}
+
+  const load=()=>{
+    fetch("/api/invites",{cache:"no-store"}).then(r=>r.json()).then(j=>{
+      if(j.error) setError(j.error); else { setData(j); setError(""); }
+    }).catch(()=>setError("Couldn't load the resident list."));
+  };
+  useEffect(load,[]);
+
+  const chosen=(data?.properties||[]).find(p=>String(p.id)===String(pick));
+  // What the next batch would actually send to, which is not the same as the
+  // group size once some of it has already gone out.
+  const pending=chosen?chosen.new+chosen.failed:(data?(data.tally.new+data.tally.failed):0);
+  const batch=Math.min(pending,data?.dailyCap||100);
+
+  const post=async(body,after)=>{
+    setState("sending");
+    try{
+      const r=await fetch("/api/invites",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      const j=await r.json().catch(()=>({}));
+      setState(r.ok?j:{error:j.error||`Couldn't send (${r.status})`});
+      if(r.ok&&after) after();
+    }catch(e){ setState({error:e.message}); }
+  };
+  const send=()=>{ if(batch) post({propertyId:pick||null,limit:batch},load); };
+  const preview=()=>post({preview:true});
+
+  const stat=(label,value,tone)=>(
+    <div style={{flex:1,background:"#fff",border:`1px solid ${tone?tone.border:C.border}`,borderRadius:14,padding:"11px 12px"}}>
+      <div style={{fontSize:21,fontWeight:700,color:tone?tone.text:C.text,fontFamily:C.display,lineHeight:1.1}}>{value}</div>
+      <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:C.faint,marginTop:3}}>{label}</div>
+    </div>
+  );
+
+  return (
+    <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column"}}>
+      <AppHeader role={role} setRole={setRole} />
+      <div style={{background:"#fff",padding:"14px 20px 16px",borderBottom:`1px solid ${C.border}`}}>
+        <span className="fl-tap" onClick={onBack} style={{fontSize:13,color:C.primary,fontWeight:600,cursor:"pointer",display:"block",marginBottom:8}}>← Home</span>
+        <div style={{fontSize:20,fontWeight:600,letterSpacing:"-.005em",color:C.text,fontFamily:C.display}}>Invite residents</div>
+        <div style={{fontSize:11.5,color:C.faint,marginTop:2}}>
+          {data?`${data.counts.reachable} of ${data.counts.current} current residents have an email on file`:"Loading the resident list…"}
+        </div>
+      </div>
+
+      <div style={{padding:"14px 16px 20px",display:"flex",flexDirection:"column",gap:14}}>
+        {error&&(
+          <div style={{display:"flex",gap:9,alignItems:"flex-start",padding:"11px 13px",borderRadius:12,background:"#FEF2F2",border:"1px solid #FECACA"}}>
+            <Icon name="warning" size={16} style={{color:"#B91C1C",marginTop:1,flexShrink:0}} />
+            <span style={{fontSize:11.5,color:"#B91C1C",lineHeight:1.45}}>{error}</span>
+          </div>
+        )}
+
+        {data&&(
+          <>
+            <div style={{display:"flex",gap:8}}>
+              {stat("Not yet asked",data.tally.new)}
+              {stat("Invited",data.tally.invited)}
+              {stat("Signed in",data.tally.joined,C.done)}
+            </div>
+
+            {/* Signing in is the only one of those three that means anything.
+                Said plainly so nobody reports "we invited everyone" as success. */}
+            {data.tally.invited>0&&(
+              <div style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>
+                {data.tally.joined} of the {data.tally.invited+data.tally.joined} residents invited so far have signed in
+                {data.tally.invited+data.tally.joined>0&&` (${Math.round(100*data.tally.joined/(data.tally.invited+data.tally.joined))}%)`}.
+              </div>
+            )}
+
+            {data.counts.withoutEmail>0&&(
+              <div style={{display:"flex",gap:10,alignItems:"flex-start",background:C.pending.bg,border:`1px solid ${C.pending.border}`,borderRadius:14,padding:"11px 13px"}}>
+                <Icon name="info" size={16} style={{color:C.pending.text,marginTop:1,flexShrink:0}} />
+                <div style={{fontSize:11.5,color:C.pending.text,lineHeight:1.5}}>
+                  <b>{data.counts.withoutEmail} residents have no email address in Buildium</b> and cannot use the app at all.
+                  Adding them is office work, and it is worth starting before the full rollout.
+                </div>
+              </div>
+            )}
+
+            {!data.emailReady&&(
+              <div style={{display:"flex",gap:10,alignItems:"flex-start",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:14,padding:"11px 13px"}}>
+                <Icon name="warning" size={16} style={{color:"#B91C1C",marginTop:1,flexShrink:0}} />
+                <div style={{fontSize:11.5,color:"#B91C1C",lineHeight:1.5}}>Email isn&apos;t configured on this deployment, so nothing can be sent yet.</div>
+              </div>
+            )}
+
+            <div>
+              <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:6}}>Who to invite</div>
+              <select value={pick} onChange={e=>{setPick(e.target.value);setState(null);}}
+                style={{width:"100%",border:`1px solid ${pick?C.primary:C.border}`,borderRadius:11,padding:"12px",fontSize:13,fontFamily:"inherit",color:C.text,outline:"none",background:"#fff",appearance:"none"}}>
+                <option value="">Every property — {data.tally.new+data.tally.failed} still to ask</option>
+                {data.properties.map(p=>(
+                  <option key={p.id} value={p.id}>{p.name} — {p.new+p.failed} of {p.reachable} still to ask</option>
+                ))}
+              </select>
+              {/* Start on one property. A wording problem found at 600 is not a
+                  wording problem any more, it is the whole rollout. */}
+              {!pick&&<div style={{fontSize:11,color:C.faint,marginTop:6,lineHeight:1.45}}>Pick a single property first and watch the sign-in rate before sending to everyone.</div>}
+            </div>
+
+            {state&&state!=="sending"&&state.error&&(
+              <div style={{padding:"12px 14px",borderRadius:12,background:"#FEF2F2",border:"1px solid #FECACA"}}>
+                <div style={{fontSize:12,fontWeight:700,color:"#B91C1C"}}>Nothing was sent</div>
+                <div style={{fontSize:11.5,color:"#B91C1C",opacity:.9,marginTop:3,lineHeight:1.45}}>{state.error}</div>
+              </div>
+            )}
+
+            {state&&state!=="sending"&&!state.error&&(
+              <div style={{padding:"12px 14px",borderRadius:12,background:state.failed?C.pending.bg:C.done.bg,border:`1px solid ${state.failed?C.pending.border:C.done.border}`}}>
+                <div style={{fontSize:13,fontWeight:700,color:state.failed?C.pending.text:C.done.text}}>
+                  {state.preview
+                    ? `Sample sent to ${state.sentTo}`
+                    : state.note||`${state.sent} invitation${state.sent===1?"":"s"} sent`}
+                  {state.failed>0&&`, ${state.failed} failed`}
+                </div>
+                {state.remaining>0&&(
+                  <div style={{fontSize:11.5,color:state.failed?C.pending.text:C.done.text,opacity:.9,marginTop:3,lineHeight:1.45}}>
+                    {state.remaining} still to ask in this group. Send the next batch tomorrow.
+                  </div>
+                )}
+                {(state.failures||[]).length>0&&(
+                  <div style={{fontSize:11,color:C.pending.text,opacity:.9,marginTop:6,lineHeight:1.5,overflowWrap:"anywhere"}}>
+                    {state.failures.map(f=>`${f.email}: ${f.error}`).join(" · ")}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Deliberately above the send button: read it in your own inbox
+                before 619 people read it in theirs. */}
+            <button
+              onClick={preview}
+              disabled={state==="sending"||!data.emailReady}
+              style={{width:"100%",background:"#fff",color:C.primary,fontSize:13,fontWeight:700,padding:"13px",borderRadius:14,
+                border:`1.5px solid ${C.border}`,fontFamily:"inherit",minHeight:44,
+                cursor:(state==="sending"||!data.emailReady)?"default":"pointer",opacity:(state==="sending"||!data.emailReady)?.55:1}}>
+              Send one to me first
+            </button>
+
+            <button
+              onClick={send}
+              disabled={!batch||state==="sending"||!data.emailReady}
+              style={{width:"100%",background:(batch&&data.emailReady&&state!=="sending")?C.primary:"#E5E1D8",color:(batch&&data.emailReady&&state!=="sending")?"#fff":C.faint,
+                fontSize:14,fontWeight:700,padding:"14px",borderRadius:14,border:"none",fontFamily:"inherit",
+                cursor:(batch&&data.emailReady&&state!=="sending")?"pointer":"default"}}>
+              {state==="sending"?"Sending…":batch?`Send ${batch} invitation${batch===1?"":"s"}`:"Everyone here has been invited"}
+            </button>
+
+            {/* The cap is the mail provider's, not a preference. Saying so stops
+                someone assuming the rollout stalled. */}
+            {pending>(data.dailyCap||100)&&(
+              <div style={{fontSize:11,color:C.faint,lineHeight:1.45,textAlign:"center"}}>
+                {pending} to go. The email plan allows {data.dailyCap} a day, so this takes {Math.ceil(pending/data.dailyCap)} days.
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function OwnerReportScreen({onBack,role,setRole}) {
   const [props,setProps]=useState(null);
   const [error,setError]=useState("");
@@ -3148,7 +3326,7 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
   const sharedProps = {role, setRole:handleSetRole, canViewAs, me, properties:initial.properties};
   // Open jobs whose conversation has never been opened on this device.
   const unreadThreads = orders.filter(o=>o.status!=="done" && !seen.includes(o.id)).length;
-  const navActive = ["detail","assign","inspection","inspections","neworder","templates","ownerreport","available","map"].includes(screen) ? "orders" : screen;
+  const navActive = ["detail","assign","inspection","inspections","neworder","templates","ownerreport","rollout","available","map"].includes(screen) ? "orders" : screen;
 
   // One place that knows what is real: the live vendor roster, and whether
   // writes/notifications actually reach anywhere (they don't while Buildium is
@@ -3211,6 +3389,7 @@ export default function PhoneApp({ initial, api, onSignOut, onViewAs, canViewAs 
         {screen==="inspection" && <InspectionScreen  onBack={()=>setScreen("orders")} templates={templates} onManageTemplates={()=>setScreen("templates")} onInspectionDone={handleInspectionDone} {...sharedProps} />}
         {screen==="map"        && <MapScreen         onBack={()=>handleNav("home")} {...sharedProps} />}
         {screen==="ownerreport"&& <OwnerReportScreen onBack={()=>handleNav("home")} {...sharedProps} />}
+        {screen==="rollout"    && <RolloutScreen     onBack={()=>handleNav("home")} {...sharedProps} />}
         {screen==="available"  && <AvailableScreen   onBack={()=>handleNav("home")} {...sharedProps} />}
         {screen==="templates"  && <TemplatesScreen   onBack={()=>setScreen("inspection")} templates={templates} setTemplates={setTemplates} api={api} {...sharedProps} />}
         {screen==="neworder"   && <NewWorkOrderScreen onBack={()=>setScreen("orders")} onCreated={handleCreated} {...sharedProps} />}
