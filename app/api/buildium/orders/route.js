@@ -57,11 +57,15 @@ export async function POST(request) {
     }
   }
 
-  // The photo was already uploaded by PhotoCapture; only its storage path
-  // travels here. It must be one this account uploaded under the request
-  // kind, so nobody can attach somebody else's inspection photo to a ticket.
-  const photo = typeof input.photo === "string" && input.photo.startsWith(`request/${me.id}/`) ? input.photo : null;
+  // The photos were already uploaded by PhotoCapture; only their storage paths
+  // travel here. Each must be one this account uploaded under the request kind,
+  // so nobody can attach somebody else's inspection photo to a ticket. The
+  // singular `photo` is still read, so an older client keeps working.
+  const photos = (Array.isArray(input.photos) ? input.photos : [input.photo])
+    .filter((p) => typeof p === "string" && p.startsWith(`request/${me.id}/`))
+    .slice(0, 6);
   delete input.photo;
+  delete input.photos;
 
   try {
     setWriteActor({ email: me.email, role: me.role });
@@ -70,16 +74,25 @@ export async function POST(request) {
     // Buildium holds the ticket; the photo of the problem lives with us. If
     // this insert fails the ticket still exists, so say exactly that rather
     // than pretending the whole thing failed or that the photo is there.
-    let photoSaved = !photo;
-    if (photo) {
+    const saved = [];
+    let failed = 0;
+    if (photos.length) {
       const taskId = taskIdOf(order?.id);
-      try { await addAttachment({ taskId, kind: "request", path: photo, me }); photoSaved = true; }
-      catch { photoSaved = false; }
+      for (const path of photos) {
+        try { await addAttachment({ taskId, kind: "request", path, me }); saved.push(path); }
+        catch { failed++; }
+      }
     }
     return NextResponse.json({
-      order: photoSaved && photo ? { ...order, photos: [photo] } : order,
-      photoSaved,
-      ...(photoSaved ? {} : { warning: "Your request was filed, but the photo didn't attach. The office can still see the request." }),
+      order: saved.length ? { ...order, photos: saved } : order,
+      photoSaved: failed === 0,
+      ...(failed
+        ? {
+            warning: saved.length
+              ? `Your request was filed with ${saved.length} of ${photos.length} photos. ${failed} didn't attach, so send those to the office if they matter.`
+              : "Your request was filed, but the photo didn't attach. The office can still see the request.",
+          }
+        : {}),
     });
   } catch (e) {
     // A resident whose account isn't linked to a lease can't have a ticket filed

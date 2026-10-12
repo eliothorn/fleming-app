@@ -863,14 +863,21 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
   // here otherwise still showed the previous one, which is exactly the moment
   // somebody assigns a second time.
   const vendor=vendors.find(v=>v.id===cur.vendorId);
+  // The contractor's proof, from whichever of three shapes is in hand: the
+  // server sends `completionPhotos`, the optimistic local patch sets
+  // `photoAdded` to the same array, and a job closed before photos could be
+  // plural holds one path there. Deduped, so the overlap shows once.
+  const proofPhotos=[...new Set([cur?.completionPhotos,cur?.photoAdded].flat().filter(Boolean))];
   const apply=(patch)=> onUpdateOrder ? onUpdateOrder(order.id,patch) : setOrders(prev=>prev.map(o=>o.id===order.id?{...o,...patch}:o));
   // Closing a job does not notify anybody — there is no mechanism that does. In
   // demo mode the timeline shows the steps a finished system would have; in live
   // mode they are not shown at all, rather than ticked by a flag nothing backs.
   const markDone=()=>{apply({status:"done"});if(notificationsEnabled){setOwnerNotified(true);setCompletionNotified(true);}};
   const [showComplete,setShowComplete]=useState(false);
-  const [photoAdded,setPhotoAdded]=useState(null); // storage path once uploaded
+  const [photoAdded,setPhotoAdded]=useState([]); // storage paths once uploaded
   const [completionNote,setCompletionNote]=useState("");
+  // At least one photo and a written note; both are what the office signs off on.
+  const canComplete=photoAdded.length>0&&completionNote.trim().length>0;
   const vendorComplete=()=>{
     apply({status:"review",vendorCompleted:true,completionNote,photoAdded});
     setShowComplete(false);
@@ -1007,7 +1014,7 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
             vendorVisible&&{label:"Vendor assigned",done:!!vendor,time:vendor?"Assigned":null},
             notificationsEnabled&&{label:"Resident notified",done:notified,time:notified?"Just now":null},
             // Only the vendor's own completion submission proves this.
-            {label:"Work completed by vendor",done:!!cur?.vendorCompleted,time:cur?.vendorCompleted?(cur?.photoAdded?"With photo":"Submitted"):null},
+            {label:"Work completed by vendor",done:!!cur?.vendorCompleted,time:cur?.vendorCompleted?(proofPhotos.length?`With ${proofPhotos.length} photo${proofPhotos.length===1?"":"s"}`:"Submitted"):null},
             // Buildium folds cancelled in with completed and closed, so this
             // cannot claim who closed it or why.
             {label:"Closed",done:cur?.status==="done",time:null},
@@ -1032,8 +1039,12 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
         {cur?.vendorCompleted&&(
           <div style={{background:"#fff",borderRadius:16,border:`1px solid ${C.border}`,padding:"14px 16px",boxShadow:"0 1px 2px rgba(16,24,40,0.04), 0 2px 8px rgba(16,24,40,0.04)"}}>
             <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:10}}>Completion proof from vendor</div>
-            {/* The real uploaded photo, fetched through a signed URL. */}
-            {cur.photoAdded&&<div style={{marginBottom:10}}><StoredPhoto path={cur.photoAdded} /></div>}
+            {/* The real uploaded photos, each fetched through a signed URL. */}
+            {proofPhotos.length>0&&(
+              <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:10}}>
+                {proofPhotos.map((path)=><StoredPhoto key={path} path={path} />)}
+              </div>
+            )}
             {cur.completionNote&&<div style={{fontSize:12.5,color:C.text,lineHeight:1.5,background:"#FAF8F4",padding:"10px 12px",borderRadius:8,border:`1px solid ${C.border}`}}>{cur.completionNote}</div>}
           </div>
         )}
@@ -1057,20 +1068,21 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
           ):(
             <div style={{background:"#fff",borderRadius:14,border:`2px solid ${C.primary}`,padding:"14px"}}>
               <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>Complete this work order</div>
-              <div style={{fontSize:11,fontWeight:600,color:C.faint,marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Photo of completed work <span style={{color:C.urgent.text}}>*</span></div>
+              <div style={{fontSize:11,fontWeight:600,color:C.faint,marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Photos of completed work <span style={{color:C.urgent.text}}>*</span></div>
               <div style={{marginBottom:12}}>
                 <PhotoCapture
                   kind="completion"
-                  label="Photograph the completed work"
-                  value={photoAdded||null}
-                  onChange={(path)=>setPhotoAdded(path)}
+                  label="Show the completed work"
+                  multiple
+                  value={photoAdded}
+                  onChange={(paths)=>setPhotoAdded(paths||[])}
                 />
               </div>
               <div style={{fontSize:11,fontWeight:600,color:C.faint,marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Work details <span style={{color:C.urgent.text}}>*</span></div>
               <textarea value={completionNote} onChange={e=>setCompletionNote(e.target.value)} placeholder="Describe what was done..." rows={2} style={{width:"100%",border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 12px",fontSize:13,fontFamily:"inherit",color:C.text,outline:"none",resize:"none",boxSizing:"border-box",marginBottom:12}} />
               <div style={{display:"flex",gap:8}}>
                 <button onClick={()=>setShowComplete(false)} style={{flex:1,background:"#FAF8F4",color:C.muted,fontSize:13,fontWeight:600,padding:"11px",borderRadius:10,border:`1px solid ${C.border}`,cursor:"pointer",fontFamily:"inherit"}}>Cancel</button>
-                <button onClick={vendorComplete} disabled={!photoAdded||!completionNote.trim()} style={{flex:2,background:(photoAdded&&completionNote.trim())?C.primary:"#E5E1D8",color:(photoAdded&&completionNote.trim())?"#fff":C.faint,fontSize:13,fontWeight:700,padding:"11px",borderRadius:10,border:"none",cursor:(photoAdded&&completionNote.trim())?"pointer":"default",fontFamily:"inherit"}}>Submit completion</button>
+                <button onClick={vendorComplete} disabled={!canComplete} style={{flex:2,background:canComplete?C.primary:"#E5E1D8",color:canComplete?"#fff":C.faint,fontSize:13,fontWeight:700,padding:"11px",borderRadius:10,border:"none",cursor:canComplete?"pointer":"default",fontFamily:"inherit"}}>Submit completion</button>
               </div>
             </div>
           )
@@ -2118,7 +2130,8 @@ function InspectionScreen({onBack,templates=[],properties=[],onManageTemplates,o
                           onChange={e=>setNotes(prev=>({...prev,[item.id]:e.target.value}))}
                           style={{width:"100%",border:`1px solid ${C.urgent.border}`,borderRadius:8,padding:"7px 10px",fontSize:12,fontFamily:"inherit",color:C.text,outline:"none",background:"#fff",boxSizing:"border-box",marginBottom:8}}
                         />
-                        {/* Real capture: opens the phone camera and uploads. */}
+                        {/* Single, not multiple: a checklist item is one thing,
+                            and the report prints one photo against each. */}
                         <PhotoCapture
                           kind="inspection"
                           tone="urgent"
@@ -2286,7 +2299,7 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
   const [category,setCategory] = useState("");
   const [urgency,setUrgency]   = useState("");
   const [notes,setNotes]       = useState("");
-  const [photo,setPhoto]       = useState(null); // storage path once uploaded
+  const [photos,setPhotos]     = useState([]); // storage paths once uploaded
   const [warning,setWarning]   = useState("");
   const [submitted,setSubmitted] = useState(false);
   const [saving,setSaving]       = useState(false);
@@ -2344,8 +2357,8 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
       category,
       residentName: isResident ? (me?.entity?.name || me?.email || null) : (tenancy?.tenantName || null),
       notes: notes.trim() || "New work order submitted via app.",
-      // Already uploaded by PhotoCapture; the route links the path to the ticket.
-      photo,
+      // Already uploaded by PhotoCapture; the route links the paths to the ticket.
+      photos,
       // Buildium files a maintenance request against a lease and the tenant
       // raising it. A resident's pair is taken from their session server-side;
       // staff send the pair they selected, which the route re-validates.
@@ -2518,11 +2531,13 @@ function NewWorkOrderScreen({me,properties,onBack,onCreated,role,setRole}) {
         </div>
 
         {/* Notes */}
-        {/* The photo of the problem. Optional, but it is the single most useful
-            thing a resident can add, and the App Store build's camera is here. */}
+        {/* The photos of the problem. Optional, but they are the single most
+            useful thing a resident can add, and the App Store build's camera is
+            here. Plural, because a leak and the ceiling stain under it are two
+            pictures and the office needs both. */}
         <div>
-          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:6}}>Photo <span style={{fontWeight:500,textTransform:"none",letterSpacing:0}}>(optional)</span></div>
-          <PhotoCapture kind="request" label="Add a photo of the problem" value={photo} onChange={setPhoto} disabled={saving} />
+          <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".14em",color:C.faint,marginBottom:6}}>Photos <span style={{fontWeight:500,textTransform:"none",letterSpacing:0}}>(optional)</span></div>
+          <PhotoCapture kind="request" label="Add photos of the problem" multiple value={photos} onChange={(paths)=>setPhotos(paths||[])} disabled={saving} />
         </div>
 
         <div>

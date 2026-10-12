@@ -40,10 +40,14 @@ export async function PATCH(request, { params }) {
     }
   }
 
-  // A contractor's proof of completion. The photo path must be one this
-  // account uploaded under the completion kind.
-  const completionPhoto = typeof patch.photoAdded === "string" && patch.photoAdded.startsWith(`completion/${me.id}/`) ? patch.photoAdded : null;
-  const completing = Boolean(patch.vendorCompleted) || Boolean(completionPhoto) || Boolean(patch.completionNote);
+  // A contractor's proof of completion, now one photo or several. Every path
+  // must be one this account uploaded under the completion kind, so nobody can
+  // pass another account's photo — or an inspection photo — off as proof of
+  // their own job. Capped to match what the uploader will send.
+  const completionPhotos = (Array.isArray(patch.photoAdded) ? patch.photoAdded : [patch.photoAdded])
+    .filter((p) => typeof p === "string" && p.startsWith(`completion/${me.id}/`))
+    .slice(0, 6);
+  const completing = Boolean(patch.vendorCompleted) || completionPhotos.length > 0 || Boolean(patch.completionNote);
 
   try {
     setWriteActor({ email: me.email, role: me.role });
@@ -53,16 +57,38 @@ export async function PATCH(request, { params }) {
     // Buildium records the status change but not the photo or the note; those
     // used to be dropped on the floor here, so the office never saw the proof
     // and the contractor saw "Mark work complete" again after a reload.
-    let completionSaved = true;
+    let failedRows = 0, savedRows = 0;
     if (completing) {
-      try {
-        await addAttachment({ taskId: taskIdOf(params.id), kind: "completion", path: completionPhoto, note: patch.completionNote, me });
-      } catch { completionSaved = false; }
+      // One row per photo, with the note on the first only: repeating it on
+      // every row would show the office the same paragraph three times. A
+      // completion with no photo still writes one row to carry the note.
+      const rows = completionPhotos.length ? completionPhotos : [null];
+      // The note rides on the first row that actually succeeds, not on the
+      // first one attempted, so one failed photo cannot take the write-up with it.
+      let noteSaved = !patch.completionNote;
+      for (const path of rows) {
+        try {
+          await addAttachment({
+            taskId: taskIdOf(params.id), kind: "completion",
+            path, note: noteSaved ? null : patch.completionNote, me,
+          });
+          noteSaved = true;
+          savedRows++;
+        } catch { failedRows++; }
+      }
     }
     // Hand back the order the way the UI will see it on the next load.
     try { order = mergeAttachments([order], await attachmentsFor([order.id]))[0]; } catch { /* keep the bare order */ }
-    if (!completionSaved) {
-      return NextResponse.json({ order, warning: "The job was marked complete, but the photo and note didn't save. Please try submitting them again." });
+    if (failedRows) {
+      // Be exact about what landed. "The photo and note didn't save" on a
+      // batch where two of three stuck sends a contractor back to redo all of
+      // it, and the office would then see the two it already has twice.
+      return NextResponse.json({
+        order,
+        warning: savedRows
+          ? `Marked complete with ${savedRows} of ${savedRows + failedRows} photos. ${failedRows} didn't upload — call the office if they need the rest.`
+          : "The job was marked complete, but the photos and note didn't save. Please try submitting them again.",
+      });
     }
 
     // Tell the resident their job is finished. Only on the transition to done,
