@@ -1,8 +1,10 @@
 // Send a completed inspection report out by email.
 //
-// Goes to two places: a group address the office nominates, and the owner of the
-// property that was inspected — looked up from Buildium rather than typed, so it
-// reaches the right person without anyone having to remember who owns what.
+// Goes to the group address the office nominates. It used to also go to the
+// property's owner, looked up from Buildium; the broker asked for owners to
+// come off while the office is still settling how reports read, so that is now
+// behind INSPECTION_REPORT_OWNERS and off by default. The lookup is intact, not
+// deleted, because "for now" means it goes back on.
 //
 // Photos live in a PRIVATE bucket, so the report embeds time-limited signed URLs
 // rather than making anything public. They are minted for 7 days: long enough
@@ -13,6 +15,7 @@ import { getServerUser } from "@/lib/auth/session";
 import { getInspection } from "@/lib/inspections";
 import { getAdminSupabase } from "@/lib/auth/supabase";
 import { buildium } from "@/lib/buildium";
+import { isOwnerOnInspectionReport } from "@/lib/env";
 import { sendEmail, wrap, row, emailConfigured } from "@/lib/notify";
 
 export const maxDuration = 60;
@@ -38,12 +41,14 @@ export async function POST(request, { params }) {
   const body = await request.json().catch(() => ({}));
 
   // Recipients: whatever the caller nominates, plus the office group address,
-  // plus the property's owner if we can identify them.
+  // plus the property's owner when that is switched on.
   const groupAddress = process.env.INSPECTION_REPORT_TO || "";
   const recipients = [...String(body.to || "").split(/[,;\s]+/), ...groupAddress.split(/[,;\s]+/)].filter(Boolean);
 
+  // An explicit includeOwner on the request still wins, so a one-off send to an
+  // owner does not need a redeploy.
   const ownerNotes = [];
-  if (body.includeOwner !== false) {
+  if (body.includeOwner ?? isOwnerOnInspectionReport()) {
     try {
       const props = await buildium(me).listProperties();
       const match = props.find((p) => p.name && report.property && p.name.trim().toLowerCase() === String(report.property).trim().toLowerCase());

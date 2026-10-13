@@ -877,6 +877,21 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
   const [showComplete,setShowComplete]=useState(false);
   const [photoAdded,setPhotoAdded]=useState([]); // storage paths once uploaded
   const [completionNote,setCompletionNote]=useState("");
+  // The resident's number, fetched only when somebody asks for it. The server
+  // decides whether this caller may have it; this just reports what came back.
+  const [contact,setContact]=useState(null);
+  const [contactState,setContactState]=useState(null); // null | "loading" | "ok" | message
+  const loadContact=async()=>{
+    if(contactState==="loading") return;
+    setContactState("loading");
+    try{
+      const r=await fetch(`/api/buildium/orders/${order.id}/contact`,{cache:"no-store"});
+      const j=await r.json().catch(()=>({}));
+      if(!r.ok){ setContactState(j.error||"Couldn't load the resident's details."); return; }
+      if(!j.contact){ setContactState(j.note||"No resident is recorded against this job."); return; }
+      setContact(j.contact); setContactState("ok");
+    }catch(e){ setContactState("Couldn't load the resident's details."); }
+  };
   // At least one photo and a written note; both are what the office signs off on.
   const canComplete=photoAdded.length>0&&completionNote.trim().length>0;
   const vendorComplete=()=>{
@@ -945,6 +960,37 @@ function DetailScreen({order,orders,setOrders,onUpdateOrder,onBack,onAssign,role
                 : <span style={{fontSize:10.5,color:C.faint,textAlign:"right",maxWidth:110,lineHeight:1.35}}>Notifications not connected yet</span>
               )}
             </div>
+
+            {/* Reaching the resident directly, for the people who actually turn
+                up. Fetched on tap rather than shipped with every order: the
+                number is only needed by whoever is about to ring it. */}
+            {["employee","vendor"].includes(role)&&(
+              <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${C.border}`}}>
+                {!contact&&(
+                  <span className="fl-tap" onClick={loadContact}
+                    style={{fontSize:12,fontWeight:700,color:C.primary,cursor:contactState==="loading"?"default":"pointer",display:"inline-flex",alignItems:"center",gap:6,minHeight:40}}>
+                    <Icon name="phone" size={14} />{contactState==="loading"?"Looking up…":"Show contact details"}
+                  </span>
+                )}
+                {contactState&&contactState!=="loading"&&contactState!=="ok"&&(
+                  <div style={{fontSize:11,color:C.faint,lineHeight:1.45}}>{contactState}</div>
+                )}
+                {contact&&(
+                  <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                    {contact.tel
+                      ? <a href={`tel:${contact.tel}`} style={{display:"inline-flex",alignItems:"center",gap:6,minHeight:40,padding:"9px 14px",borderRadius:20,background:C.primary,color:"#fff",fontSize:12.5,fontWeight:700,textDecoration:"none"}}>
+                          <Icon name="phone" size={14} style={{color:"#fff"}} />{contact.phone}
+                        </a>
+                      : <span style={{fontSize:11.5,color:C.faint}}>No phone number on file for this resident.</span>}
+                    {contact.email&&(
+                      <a href={`mailto:${contact.email}`} style={{display:"inline-flex",alignItems:"center",gap:6,minHeight:40,padding:"9px 14px",borderRadius:20,background:"#fff",color:C.primary,border:`1px solid ${C.border}`,fontSize:12.5,fontWeight:700,textDecoration:"none"}}>
+                        <Icon name="envelope" size={14} />Email
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
         {/* Can whoever attends let themselves in, and what do they need to know
