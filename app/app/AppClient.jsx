@@ -5,6 +5,39 @@ import { signOut, viewAs, liveMode, getSession } from "@/lib/auth/client";
 import Icon from "@/components/ui/Icon";
 import PhoneApp from "@/components/PhoneApp";
 
+// A signed-out session must send someone to the sign-in screen, not print
+// "Not authenticated" at them.
+//
+// Sessions last seven days. When one expired the page shell still rendered,
+// badge and role and all, because that comes from the server at load, and then
+// every subsequent request 401'd and each screen displayed the raw error. The
+// office saw a red "Not authenticated" box on a page that still said Employee,
+// with no way to act on it. At 619 residents that is the same dead end once a
+// week each, so it is handled once, here, rather than at each of the thirty-odd
+// call sites that fetch an API route directly.
+//
+// Wrapping fetch is heavy-handed, and it is chosen deliberately: a helper only
+// protects the callers that remember to use it, and this one cannot be
+// forgotten by code written later.
+function installAuthRedirect() {
+  if (typeof window === "undefined" || window.__flAuthRedirect) return;
+  window.__flAuthRedirect = true;
+  const real = window.fetch;
+  window.fetch = async (input, init) => {
+    const res = await real(input, init);
+    try {
+      const url = new URL(typeof input === "string" ? input : input?.url || "", window.location.origin);
+      const ours = url.origin === window.location.origin && url.pathname.startsWith("/api/");
+      // Not on the sign-in page itself, where a 401 is the ordinary answer.
+      if (res.status === 401 && ours && !window.location.pathname.startsWith("/login")) {
+        window.location.replace("/login?error=" + encodeURIComponent("Your session expired. Please sign in again."));
+      }
+    } catch { /* never let the guard break the request it is watching */ }
+    return res;
+  };
+}
+installAuthRedirect();
+
 async function jsonFetch(url, options) {
   const res = await fetch(url, { cache: "no-store", ...options });
   const data = await res.json().catch(() => ({}));

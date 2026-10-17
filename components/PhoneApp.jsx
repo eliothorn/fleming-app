@@ -1817,17 +1817,24 @@ function DeleteAccount({onDone}) {
 // ── INSPECTION RECORDS ───────────────────────────────────────────────────────
 // Employees manage inspections here; owners get the same list read-only. Opening
 // one loads the full checklist with notes and photo evidence.
-// Emails a finished report to the office group address and the property's owner.
-// Reports honestly who it actually reached, and why an owner was left off when
-// one could not be identified — the alternative is an employee believing the
-// owner got a report that was never addressed to them.
+// Emails a finished report to the office group address.
+//
+// This used to send `includeOwner: true`, which is why removing owners from
+// reports on 2026-10-13 did nothing: the server default was switched off, but
+// this call overrode it on every send, and the broker watched an owner receive
+// a report the day after he was told they had stopped. Whether owners are
+// included is a decision for INSPECTION_REPORT_OWNERS on the server, so this
+// sends no opinion at all.
+//
+// It still reports honestly who the mail actually reached — an employee
+// believing a report went somewhere it did not is the failure worth preventing.
 function EmailReportButton({reportId, property}) {
   const [state,setState]=useState(null); // null | "sending" | {ok,sentTo,ownerNotes} | {error}
   const send=async()=>{
     setState("sending");
     try{
       const r=await fetch(`/api/inspections/${encodeURIComponent(reportId)}/email`,{
-        method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({includeOwner:true}),
+        method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({}),
       });
       const j=await r.json().catch(()=>({}));
       setState(r.ok?{ok:true,sentTo:j.sentTo||[],ownerNotes:j.ownerNotes||[]}:{error:j.error||`Couldn't send (${r.status})`,ownerNotes:j.ownerNotes||[]});
