@@ -20,17 +20,17 @@ for (const l of fs.readFileSync(path.join(ROOT, ".env.local"), "utf8").split(/\r
   if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
 }
 
-export const ANSWERS = `This app is private to one property management company. It is not a marketplace and has no public sign-up. Please use the demo account below, which reads fictional data.
+export const ANSWERS = `This app is used by the residents, owners and contractors of one property management company. They are members of the public who rent or own homes, not employees, so it is distributed publicly rather than through custom distribution. Please use the demo account below, which reads fictional data.
 
 SIGN IN
-On the sign-in screen tap "Sign in with a password instead", then use the email and password in the App Review Information fields above. The default button emails a one-time link, which is how real residents sign in; the review account's address has no mailbox, so the password button is the way in.
+On the sign-in screen tap "Sign in with a password instead", then use the email and password in the App Review Information fields above. The default button emails a one-time link; the review account's address has no mailbox, so use the password button.
 
 The review account is flagged in our database to read fictional records instead of the company's live ones, so nothing you see belongs to a real person.
 
 2. PURPOSE AND TARGET AUDIENCE
 Stephen Fleming Realty is used by the residents, property owners, contractors and office staff of Stephen Fleming Realty (legal entity D'Angelo Realty Group, Inc.), a property management company in Mechanicsburg, Pennsylvania that manages about 678 rental units. Accounts are matched by email address against the company's own tenant, owner, vendor and staff records; an address the company does not recognise gets an empty "pending assignment" account.
 
-The problem it solves: maintenance requests arrive today as phone calls to a four-person office, get written on paper, re-keyed into the company's management system, and the resident never hears what happened. In the app a resident reports a problem with a photo in a few taps, watches it move from reported to scheduled to done, and can see their lease and balance. The office sees every open job across every property and assigns a contractor. The contractor arrives knowing the address, the unit, the entry notes and what the problem looks like.
+The problem it solves: maintenance requests arrive today as phone calls to a four-person office, get written on paper, re-keyed into the company's management system, and the resident never hears what happened. In the app a resident reports a problem with a photo in a few taps, watches it move from reported to scheduled to done, and can see their lease and balance. The office sees every open job and assigns a contractor, who arrives knowing the address, unit, entry notes and what the problem looks like.
 
 3. SETTING UP AND ACCESSING THE MAIN FEATURES
 Sign in as above, then:
@@ -42,7 +42,7 @@ Sign in as above, then:
 No sample files are needed.
 
 4. EXTERNAL SERVICES
-- Buildium (buildium.com), property management platform. Source of properties, units, leases, tenants, owners, vendors and work orders. The account belongs to D'Angelo Realty Group, Inc., who authorised the integration.
+- Buildium (buildium.com), property management platform. Source of properties, units, leases, tenants, owners, vendors and work orders.
 - Supabase (supabase.com), authentication, application database, and private storage for photos.
 - Resend (resend.com), transactional email for sign-in links and inspection reports.
 - Google Maps Platform, address geocoding and the staff map.
@@ -51,14 +51,14 @@ No sample files are needed.
 There is no analytics SDK, no advertising SDK, no AI service, and no payment processing. The app never takes payments.
 
 5. REGIONAL DIFFERENCES
-None. The app behaves identically everywhere and is offered in the United States only, where every property and every user is located.
+None. The app behaves identically everywhere and is offered in the United States only, where all properties and users are located.
 
 6. REGULATED INDUSTRY AND THIRD-PARTY MATERIAL
-Property management is not a regulated industry in the sense of health, finance or gambling, and the app provides no regulated service. It shows one company's own records to that company's own residents, owners and contractors.
+Property management is not a regulated industry and the app provides no regulated service. It shows one company's own records to its own residents, owners and contractors.
 
-The only third-party material is that company's Buildium data, read through Buildium's official API with credentials issued to D'Angelo Realty Group, Inc., our client and the owner of the account. Written confirmation from the client is available on request.
+The only third-party material is that company's Buildium data, read through Buildium's official API with credentials issued to D'Angelo Realty Group, Inc., our client and the owner of the account. The client has confirmed this in writing: "D'Angelo Realty Group, Inc. authorises Horn Software to access our Buildium account data through the Buildium API for the Stephen Fleming Realty app." Stephen Fleming, P.E., President, 18 October 2026.
 
-On user-generated content: residents and contractors attach photographs to their own maintenance requests. A photo is visible only to the office and to the contractor assigned to that job. There is no feed, no distribution between users, and no way for one user to see another user's content, so content reporting and blocking mechanisms do not apply.`;
+On user-generated content: residents and contractors attach photographs to their own maintenance requests. A photo is visible only to the office and to the contractor assigned to that job. There is no feed and no way for one user to see another's content, so content reporting and blocking do not apply.`;
 
 if (process.argv.includes("--save")) {
   const need = (k) => { const v = process.env[k]; if (!v) { console.error("Missing " + k); process.exit(2); } return v; };
