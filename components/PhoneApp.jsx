@@ -118,18 +118,31 @@ const VendorAvatar = ({v, size=20}) => {
 //
 // `roleShown` guards the demo role-switcher: viewing the app as another role
 // should not put your face on their badge.
+// Which accounts are known to have no picture, remembered across mounts.
+//
+// Every screen renders an Avatar, and the "no picture" answer used to live in
+// one component's state. Navigating anywhere mounted a fresh one, which asked
+// again and logged another 404. Measured over one ordinary session: eight
+// failed requests, and they were the only errors in the console, which is
+// exactly how a real error goes unnoticed. Most residents will never set a
+// picture, so this is the common path, not the edge case.
+//
+// Keyed by version as well as id, so an upload invalidates it.
+const noAvatar = new Set();
+
 const Avatar = ({size=40, initial="?", color=C.primary, fontSize, roleShown, ring}) => {
   const {userId, role, avatarVersion=0} = useMe();
   const mine = userId && (!roleShown || roleShown===role);
-  const [failed,setFailed] = useState(false);
+  const key = `${userId}:${avatarVersion}`;
+  const [failed,setFailed] = useState(()=>noAvatar.has(key));
   // A new upload must clear a previous failure, or the fallback would stick.
-  useEffect(()=>{ setFailed(false); }, [avatarVersion, userId]);
+  useEffect(()=>{ setFailed(noAvatar.has(key)); }, [key]);
 
   const base = {width:size,height:size,borderRadius:"50%",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",...(ring?{boxShadow:ring}:{})};
   if (mine && !failed) {
     return <img
       src={`/api/profile/avatar?userId=${encodeURIComponent(userId)}&v=${avatarVersion}`}
-      alt="" onError={()=>setFailed(true)}
+      alt="" onError={()=>{ noAvatar.add(key); setFailed(true); }}
       style={{...base,objectFit:"cover",background:color,border:`1.5px solid ${C.border}`}} />;
   }
   return <div style={{...base,background:color,color:"#fff",fontWeight:700,fontSize:fontSize??Math.round(size*.38)}}>{initial}</div>;
